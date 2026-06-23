@@ -46,15 +46,23 @@ export async function initAds(): Promise<void> {
 function preloadRewarded() {
   const ads = getAdsModule();
   if (!ads) return;
-  rewarded = ads.RewardedAd.createForAdRequest(rewardedUnit(ads));
-  rewarded.load();
+  try {
+    rewarded = ads.RewardedAd.createForAdRequest(rewardedUnit(ads));
+    rewarded.load();
+  } catch (e) {
+    console.warn('[ads] rewarded preload failed', e);
+  }
 }
 
 function preloadInterstitial() {
   const ads = getAdsModule();
   if (!ads) return;
-  interstitial = ads.InterstitialAd.createForAdRequest(interstitialUnit(ads));
-  interstitial.load();
+  try {
+    interstitial = ads.InterstitialAd.createForAdRequest(interstitialUnit(ads));
+    interstitial.load();
+  } catch (e) {
+    console.warn('[ads] interstitial preload failed', e);
+  }
 }
 
 export function showRewardedAd(): Promise<boolean> {

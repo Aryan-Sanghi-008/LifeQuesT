@@ -1,6 +1,11 @@
 import "react-native-gesture-handler";
 import { useEffect, useCallback } from "react";
-import { StatusBar, Platform, UIManager } from "react-native";
+import {
+  StatusBar,
+  Platform,
+  UIManager,
+  InteractionManager,
+} from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -33,7 +38,9 @@ import {
 import { logEvent } from "./src/services/analytics";
 import "./global.css";
 
-void SplashScreen.preventAutoHideAsync();
+void SplashScreen.preventAutoHideAsync().catch(() => {
+  /* splash plugin unavailable in some builds */
+});
 
 if (
   Platform.OS === "android" &&
@@ -63,15 +70,24 @@ export default function App() {
     }
   }, [fontsLoaded, fontError]);
 
+  // Critical path: auth + save hydration (must run before first screen).
   useEffect(() => {
     initAuth();
-    void initAds();
-
     const unsubAuth = subscribeAuth((user) => {
       setUser(user);
     });
-
     void loadGame();
+    return () => {
+      unsubAuth();
+    };
+  }, [loadGame, setUser]);
+
+  // Defer native monetization SDKs until UI is ready (avoids launch-time native crashes).
+  useEffect(() => {
+    if (!fontsLoaded && !fontError) return;
+
+    let cancelled = false;
+    let cleanupIAP = () => {};
 
     const onPurchaseSuccess = async (purchase: { productId: string }) => {
       const state = useGameStore.getState();
@@ -85,17 +101,22 @@ export default function App() {
       void state._persist();
     };
 
-    void initIAP(onPurchaseSuccess);
-    const cleanupIAP = setupPurchaseListeners(
-      onPurchaseSuccess,
-      (err) => console.warn("[iap]", err.message),
-    );
+    const task = InteractionManager.runAfterInteractions(() => {
+      if (cancelled) return;
+      void initAds();
+      void initIAP(onPurchaseSuccess);
+      cleanupIAP = setupPurchaseListeners(
+        onPurchaseSuccess,
+        (err) => console.warn("[iap]", err.message),
+      );
+    });
 
     return () => {
-      unsubAuth();
+      cancelled = true;
+      task.cancel();
       cleanupIAP();
     };
-  }, [loadGame, setUser]);
+  }, [fontsLoaded, fontError]);
 
   if (!fontsLoaded && !fontError) {
     return null;

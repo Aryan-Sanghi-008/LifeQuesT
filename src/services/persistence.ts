@@ -13,6 +13,7 @@ type MmkvStorage = {
 };
 
 let mmkvStorage: MmkvStorage | null = null;
+let mmkvDisabled = false;
 const asyncCache = new Map<string, string>();
 let asyncHydrated = false;
 
@@ -30,7 +31,16 @@ function getMmkvStorage(): MmkvStorage {
 }
 
 function useMmkv(): boolean {
-  return isMmkvAvailable();
+  if (mmkvDisabled || !isMmkvAvailable()) return false;
+  try {
+    getMmkvStorage();
+    return true;
+  } catch (e) {
+    mmkvDisabled = true;
+    mmkvStorage = null;
+    console.warn('[persistence] MMKV init failed — using AsyncStorage', e);
+    return false;
+  }
 }
 
 function getString(key: string): string | undefined {

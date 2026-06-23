@@ -1,4 +1,4 @@
-import { NativeModules, TurboModuleRegistry } from 'react-native';
+import { NativeModules, Platform, TurboModuleRegistry } from 'react-native';
 
 function getExpoConstants(): { appOwnership?: string } | undefined {
   return NativeModules.NativeUnimoduleProxy?.modulesConstants?.ExponentConstants;
@@ -16,8 +16,20 @@ export function isGoogleSignInAvailable(): boolean {
   return hasNativeModule('RNGoogleSignin');
 }
 
+/**
+ * MMKV uses JSI and can native-crash on some RN 0.85 release builds.
+ * Default off on Android release; opt in with EXPO_PUBLIC_USE_MMKV=true.
+ */
 export function isMmkvAvailable(): boolean {
-  return hasNativeModule('MMKV') && !isExpoGo();
+  if (isExpoGo()) return false;
+  if (process.env.EXPO_PUBLIC_USE_MMKV === 'false') return false;
+  if (process.env.EXPO_PUBLIC_USE_MMKV !== 'true' && !__DEV__ && Platform.OS === 'android') {
+    return false;
+  }
+  const mmkvModule = NativeModules.MMKV as { install?: () => unknown } | undefined;
+  if (mmkvModule == null || typeof mmkvModule.install !== 'function') return false;
+  const g = globalThis as typeof globalThis & { nativeCallSyncHook?: unknown };
+  return g.nativeCallSyncHook != null;
 }
 
 export function isAdsNativeAvailable(): boolean {
