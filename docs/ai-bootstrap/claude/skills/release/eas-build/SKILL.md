@@ -19,13 +19,17 @@ disable-model-invocation: true
 - EAS **file** env vars (required for cloud builds — EAS only uploads git-tracked files):
 
 ```bash
-# Android — upload your local google-services.json
+# Android — upload your local google-services.json (repeat --environment per env)
 eas env:create --scope project --name GOOGLE_SERVICES_JSON --type file \
-  --value ./google-services.json --environment development,preview,production
+  --value ./google-services.json \
+  --environment development --environment preview --environment production \
+  --visibility secret
 
 # iOS — download from Firebase Console → iOS app → GoogleService-Info.plist
 eas env:create --scope project --name GOOGLE_SERVICES_PLIST --type file \
-  --value ./GoogleService-Info.plist --environment development,preview,production
+  --value ./GoogleService-Info.plist \
+  --environment development --environment preview --environment production \
+  --visibility secret
 ```
 
 `app.config.ts` reads these at build time:
@@ -36,6 +40,13 @@ ios:     { googleServicesFile: process.env.GOOGLE_SERVICES_PLIST ?? './GoogleSer
 ```
 
 - EAS plain/sensitive env vars for `EXPO_PUBLIC_*` as needed.
+- `app.config.ts` **plugins** must include `react-native-iap` (adds `missingDimensionStrategy "store", "play"` for Gradle).
+
+## Common build failures
+| Error | Fix |
+|-------|-----|
+| `google-services.json` missing | Upload `GOOGLE_SERVICES_JSON` file env var (see above) |
+| Gradle variant ambiguity `amazon` vs `play` for `:react-native-iap` | Add `'react-native-iap'` to `plugins` in `app.config.ts` |
 
 ## Commands
 ```bash
