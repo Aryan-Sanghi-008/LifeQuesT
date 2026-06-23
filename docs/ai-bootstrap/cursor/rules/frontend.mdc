@@ -1,0 +1,32 @@
+---
+description: React Native screens, components, navigation — NativeWind UI
+globs: src/screens/**/*.tsx,src/components/**/*.tsx,src/navigation/**/*.tsx,App.tsx
+alwaysApply: false
+---
+
+# Frontend
+
+## Styling — NativeWind required
+- Use `className` for layout, color, spacing, typography.
+- `StyleSheet.create` **only** for shadows/elevation (Android `elevation` + iOS shadow props).
+- Map tokens: `bg-bg`, `text-t-1`, `text-gold`, `p-4`, `rounded-md` — see `tailwind.config.js`.
+- No raw hex in components; extend `tailwind.config.js` from `src/theme/themes.ts` if missing.
+
+## Screens
+- Root wrapper: `SafeAreaView` with `className="flex-1 bg-bg"`.
+- Granular Zustand selectors — never `useGameStore(s => s.character)` whole object.
+- No game logic in screens — call store actions only.
+- Nav types from `RootStackParamList` / `MainTabParamList` in `src/types/index.ts`.
+
+## Components
+- Props-driven; no direct store access.
+- Export shared primitives via `src/components/index.tsx` barrel.
+- `accessibilityLabel` on all `Pressable` / interactive elements.
+
+## Lists & performance
+- `FlatList` or `SectionList` for lists > 10 items.
+- Haptic feedback on state-changing buttons (`react-native-haptic-feedback`).
+
+## Skill shortcuts
+- New screen → `.cursor/skills/frontend/new-screen/SKILL.md`
+- StyleSheet migration → `.cursor/skills/frontend/migrate-nativewind/SKILL.md`

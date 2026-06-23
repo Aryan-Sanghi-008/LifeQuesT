@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+if command -v npx >/dev/null 2>&1 && [ -f lint-staged.config.js ]; then
+  npx lint-staged
+fi
+npm run type-check

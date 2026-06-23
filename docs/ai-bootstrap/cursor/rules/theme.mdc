@@ -1,0 +1,25 @@
+---
+description: Design tokens, Tailwind, NativeWind wiring
+globs: src/theme/**,src/constants/**,tailwind.config.js,global.css,nativewind-env.d.ts
+alwaysApply: false
+---
+
+# Theme
+
+## Source of truth
+- Design tokens: `src/theme/themes.ts` (`COLORS`, `FONTS`, `SPACING`, `RADII`, `SHADOWS`).
+- `src/constants/theme.ts` re-exports for backward compat.
+- `tailwind.config.js` must mirror token names (`bg`, `gold`, `t-1`, etc.).
+
+## NativeWind v4
+- Entry: `global.css` imported in `App.tsx` or `index.ts`.
+- Metro: `metro.config.js` wraps with NativeWind.
+- Components use Tailwind classes, not raw hex.
+
+## Adding a token
+1. Add to `src/theme/themes.ts`
+2. Extend `tailwind.config.js` `theme.extend`
+3. Use as `className` in UI — never duplicate hex in components
+
+## Shadows exception
+Shadows stay in `StyleSheet` using `SHADOWS` from theme — NativeWind shadow support is limited on Android.

@@ -1,0 +1,35 @@
+---
+description: Pure game logic, data, and Zustand store orchestration
+globs: src/engine/**/*.ts,src/data/**/*.ts,src/store/**/*.ts
+alwaysApply: false
+---
+
+# Game Engine
+
+## Engine purity
+- No React, no Zustand, no Firebase in `src/engine/`.
+- Import only from `types/` and `data/`.
+- Use `clamp()` from `economyEngine` for all stat mutations.
+
+## Content
+- Static data (jobs, events, traits) → `src/data/gameData.ts`.
+- Eligibility and selection logic → respective `*Engine.ts` files.
+
+## Store patterns
+- Immer middleware: `set(s => { s.field = value })`.
+- Async side effects: `void get()._persist()` — never await inside `set`.
+- Guards on `ageUp`: `!pendingDecision`, `!isProcessing`, `isAlive`.
+
+## Age-up loop order (do not reorder without reason)
+1. Age increment + stat decay
+2. `tickAnnualEconomy` → career tick → death check
+3. `getEligibleEvents` → `pickEvents` → apply auto events
+4. Set `pendingDecision` if decision event → wait for UI
+5. `resolveDecision` → achievements → `_persist` (MMKV + cloud)
+
+See `docs/workflows/ENGINE_WORKFLOW.md` for balance tuning.
+
+## Skills
+- New event → `engine/new-life-event`
+- Age-up bug → `engine/age-up-trace`
+- Balance → `engine/balance-tune`

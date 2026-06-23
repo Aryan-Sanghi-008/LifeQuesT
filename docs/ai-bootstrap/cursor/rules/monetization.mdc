@@ -1,0 +1,34 @@
+---
+description: Ads, IAP, and shop monetization rules
+globs: src/services/ads.ts,src/services/iap.ts,src/screens/ShopScreen.tsx,src/config/ads.ts
+alwaysApply: false
+---
+
+# Monetization
+
+## Design principle
+Free players complete full lives. Coins must be earnable through gameplay — never gate core simulation behind purchases.
+
+## Ads (`src/services/ads.ts`)
+- Interstitial every N age-ups (`INTERSTITIAL_EVERY_N_AGEUPS` in `ads.ts`).
+- **No banner ads** — immersive gameplay.
+- Rewarded ads: user-initiated only (luck boosts).
+- Bypass all ads when `character.hasNoAds === true`.
+- `__DEV__`: use Google test ad unit IDs from `src/config/ads.ts`.
+
+## IAP flow
+```
+requestPurchase → verifyPurchaseOnServer (callable)
+  → applyPurchaseToStore → _persist()
+```
+- Server grants are authoritative; client mirrors after verification.
+- Idempotent: duplicate `transactionId` returns early.
+
+## Products
+- Premium: `isPremium` + `hasNoAds`
+- `remove_ads`: `hasNoAds` only
+- Coin packs: `coinsGrant` via `COIN_GRANTS` map (client + server must match)
+
+## Skill
+- New ad surface → `monetization/ad-placement`
+- New SKU → `backend/iap-product`

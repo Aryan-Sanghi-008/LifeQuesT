@@ -1,0 +1,48 @@
+---
+description: Core LifeQuesT constraints — layers, TypeScript, routing, AI config maintenance
+alwaysApply: true
+---
+
+# LifeQuesT Global
+
+## TypeScript
+- Strict mode always. No `any`, no `@ts-ignore` without comment.
+- Extend types in `src/types/index.ts` — do not duplicate interfaces.
+
+## Layer boundaries (enforce strictly)
+| Layer | May import | Must NOT import |
+|-------|-----------|-----------------|
+| `engine/` | `types/`, `data/` | `store/`, `services/`, `screens/`, `components/` |
+| `store/` | `engine/`, `services/`, `types/`, `data/`, `utils/` | `screens/`, `components/` |
+| `services/` | `types/`, `config/`, Firebase SDK | `store/`, `engine/` |
+| `screens/` | `store/`, `components/`, `types/`, `navigation/` | `engine/` directly |
+| `components/` | `types/`, `theme/`, `constants/` | `store/` (use props) |
+
+## Imports
+- Use path aliases (`@store/*`, `@components/*`, etc.) when touching a file.
+- Migrate relative `../` imports to aliases in the same edit.
+
+## Expo
+- SDK **56** only. Read https://docs.expo.dev/versions/v56.0.0/ before writing Expo/RN code.
+
+## Token efficiency
+- Do NOT load `docs/workflows/*` unless the task requires that department.
+- Use `.claude/SKILLS_INDEX.md` or `.cursor/skills/` to find playbooks.
+- Scope features against `docs/workflows/PROJECT_VISION.md` phases when planning.
+
+## AI config maintenance
+When conventions, stacks, or recurring patterns change → follow `meta/maintain-ai-config` skill.
+Edit `docs/ai-bootstrap/` only; run `setup.sh` + `validate-ai-config.sh`.
+Read `meta-ai-config.mdc` when editing bootstrap, workflows, or AI templates.
+
+## Department routing (read only when needed)
+| Task | Rule file |
+|------|-----------|
+| Screens, components, navigation | `frontend.mdc` |
+| Engine, gameData, store | `game-engine.mdc` |
+| Services, functions, config | `backend.mdc` |
+| Tests, lint, jest | `qa.mdc` |
+| Ads, IAP, shop | `monetization.mdc` |
+| Types, nav params | `types.mdc` |
+| Theme, tailwind | `theme.mdc` |
+| Rules, skills, hooks, AI templates | `meta-ai-config.mdc` |

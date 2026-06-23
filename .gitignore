@@ -1,4 +1,8 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
+#
+# Committed on purpose (do NOT add here):
+#   src/, App.tsx, docs/workflows/, docs/ai-bootstrap/, jest.config.js,
+#   CLAUDE.md, AGENTS.md, .env.example, package-lock.json
 
 # ─── Dependencies ───────────────────────────────────────────────────────────
 node_modules/
@@ -6,13 +10,14 @@ functions/node_modules/
 
 # ─── Expo / React Native ────────────────────────────────────────────────────
 .expo/
+.expo-shared/
 dist/
 web-build/
 expo-env.d.ts
 
 # Generated native projects (use `npx expo prebuild` locally)
-/ios
-/android
+/ios/
+/android/
 
 # ─── Secrets & local config ─────────────────────────────────────────────────
 .env
@@ -49,7 +54,7 @@ database-debug.log
 # ─── Cloud Functions build output ───────────────────────────────────────────
 functions/lib/
 
-# ─── Metro ──────────────────────────────────────────────────────────────────
+# ─── Metro / bundler ────────────────────────────────────────────────────────
 .metro-health-check*
 
 # ─── Build artifacts ────────────────────────────────────────────────────────
@@ -58,14 +63,21 @@ functions/lib/
 *.ipa
 build/
 *.tsbuildinfo
+eas-build-*.tar.gz
 
-# ─── Native tooling ───────────────────────────────────────────────────────────
+# ─── Native tooling ─────────────────────────────────────────────────────────
 .kotlin/
+*.orig
 *.orig.*
+*.hprof
 local.properties
+xcuserdata/
+*.xcuserstate
+*.xcworkspace/xcuserdata/
 
 # ─── Testing & coverage ─────────────────────────────────────────────────────
 coverage/
+.nyc_output/
 
 # ─── Logs & debug ───────────────────────────────────────────────────────────
 *.log
@@ -77,15 +89,31 @@ pnpm-debug.*
 
 # ─── OS junk ────────────────────────────────────────────────────────────────
 .DS_Store
+**/.DS_Store
 Thumbs.db
 .AppleDouble
 .LSOverride
+Desktop.ini
 
-# ─── Editors & local AI tooling ─────────────────────────────────────────────
+# ─── Editors ─────────────────────────────────────────────────────────────────
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
-.claude/
+
+# ─── Local AI config (installed via docs/ai-bootstrap/setup.sh) ───────────────
+# Templates live in docs/ai-bootstrap/ — commit those, not live installs.
 .cursor/
+.claude/
+
+# ─── Optional local git hooks (from docs/ai-bootstrap/setup.sh) ───────────────
+.husky/
+
+# ─── Misc caches & temp ───────────────────────────────────────────────────────
+.cache/
+.tmp/
+tmp/
+temp/
+*.tmp
+.watchmanconfig

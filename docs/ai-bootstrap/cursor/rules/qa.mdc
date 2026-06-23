@@ -1,0 +1,33 @@
+---
+description: Testing, lint, and quality gates
+globs: "**/__tests__/**,**/*.test.ts,**/*.test.tsx,jest.config.js,.eslintrc.js"
+alwaysApply: false
+---
+
+# QA
+
+## Test priority (when capacity is limited)
+1. `src/engine/` — pure functions, target 90%+
+2. `src/store/` — key actions (`ageUp`, `resolveDecision`)
+3. `src/services/` — mock Firebase, test transforms
+4. Components — snapshot for shared primitives only
+
+## Bug fixes
+- Write failing test first → fix → verify pass → commit together.
+
+## Commands
+```bash
+npm run validate    # type-check + lint + test
+npm test -- --testPathPattern=economyEngine
+```
+
+## Jest
+- Use `jest.config.js` `moduleNameMapper` for `@/*` aliases.
+- Co-locate tests: `src/engine/__tests__/economyEngine.test.ts`.
+
+## Pre-release gate
+All must pass: `type-check`, `lint`, `test`.
+
+## Skills
+- Engine test → `qa/write-engine-test`
+- Regression → `qa/regression-fix`

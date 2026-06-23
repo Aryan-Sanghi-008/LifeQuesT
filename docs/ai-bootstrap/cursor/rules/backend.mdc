@@ -1,0 +1,38 @@
+---
+description: Firebase services, Cloud Functions, env config
+globs: src/services/**/*.ts,functions/**/*.ts,src/config/**/*.ts
+alwaysApply: false
+---
+
+# Backend
+
+## Services layer
+- No imports from `store/` or `engine/`.
+- Cloud save failures are **non-fatal** — log and continue.
+- Auth only via `subscribeAuth()` → normalized `AppUser`.
+
+## Firestore paths
+```
+users/{uid}                      # profile, entitlements
+users/{uid}/saves/{slotId}       # Character blob
+users/{uid}/purchases/{txnId}    # IAP idempotency
+```
+
+## Cloud Functions
+- `uid` from `context.auth` — never trust client-supplied uid.
+- Idempotent writes: check doc exists before granting.
+- No game simulation logic in functions — entitlements only.
+- Match existing `verifyPurchase` v1 callable style in `functions/src/index.ts`.
+
+## Config & secrets
+- Client config: `EXPO_PUBLIC_*` env vars via `src/config/`.
+- Never commit `.env`, `google-services.json`, or service account JSON.
+- Use `.env.example` as template only.
+
+## Future functions
+- `updateLeaderboard`, `cleanupOldSaves` — same callable/scheduled patterns.
+
+## Skills
+- New function → `backend/cloud-function`
+- Schema change → `backend/firestore-schema`
+- Save sync → `backend/cloud-save`

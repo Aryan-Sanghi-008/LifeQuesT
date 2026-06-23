@@ -1,0 +1,37 @@
+---
+description: AI config bootstrap — rules, skills, hooks, workflow docs
+globs: docs/ai-bootstrap/**,docs/workflows/**,CLAUDE.md,AGENTS.md
+alwaysApply: false
+---
+
+# Meta AI Config
+
+## Golden rule
+**Source of truth:** `docs/ai-bootstrap/` → `setup.sh` → `.cursor/` + `.claude/`
+Never edit `.cursor/` or `.claude/` directly.
+
+## When this rule applies
+- Editing bootstrap templates, workflow docs, `CLAUDE.md`, or `AGENTS.md`
+- User asks to add/update rules, skills, or hooks
+- New stack, convention, or recurring pattern needs AI guidance
+
+## Required skill
+Follow `.cursor/skills/meta/maintain-ai-config/SKILL.md` (or `.claude/skills/...`).
+
+## Quick decision
+| Need | Artifact |
+|------|----------|
+| Always-on constraint | Rule (`global` or dept) |
+| Multi-step how-to | Skill |
+| Deterministic enforcement | Hook |
+| Deep reference | `docs/workflows/*.md` |
+
+## After every change
+```bash
+./docs/ai-bootstrap/setup.sh
+./docs/ai-bootstrap/validate-ai-config.sh
+```
+Update `SKILLS_INDEX.md` + `SKILLS_CHANGELOG.md`.
+
+## Parity
+Cursor `cursor/` and Claude `claude/` subtrees must stay mirrored.

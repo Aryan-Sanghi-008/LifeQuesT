@@ -1,0 +1,23 @@
+---
+description: TypeScript domain types and navigation param lists
+globs: src/types/**
+alwaysApply: false
+---
+
+# Types
+
+## Single barrel
+- All domain types live in `src/types/index.ts`.
+- Extend existing interfaces — do not create parallel type files.
+
+## Navigation
+- `RootStackParamList` and `MainTabParamList` co-located with domain types.
+- When adding a screen, update param list **and** `RootNavigator` in same PR.
+
+## Game domain
+- `Character`, `CharacterStats`, `LifeEvent`, `PendingDecision` — source of truth for engine + store.
+- `MAX_SAVE_SLOTS = 3` — do not change without migration plan.
+
+## Conventions
+- Use string union types for enums (`Gender`, `LifeStage`, etc.).
+- `StatEffect` uses `Partial<CharacterStats>` — keep keys aligned with `CharacterStats`.

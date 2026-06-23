@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": ".cursor/hooks/block-dangerous-shell.sh",
+        "failClosed": false
+      }
+    ],
+    "beforeSubmitPrompt": [
+      {
+        "command": ".cursor/hooks/scan-prompt-secrets.sh",
+        "failClosed": false
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": ".cursor/hooks/lint-edited-ts.sh",
+        "matcher": "Write|Edit"
+      },
+      {
+        "command": ".cursor/hooks/sync-ai-bootstrap.sh",
+        "matcher": "Write|Edit"
+      }
+    ],
+    "beforeReadFile": [
+      {
+        "command": ".cursor/hooks/block-env-read.sh",
+        "failClosed": true
+      }
+    ]
+  }
+}
