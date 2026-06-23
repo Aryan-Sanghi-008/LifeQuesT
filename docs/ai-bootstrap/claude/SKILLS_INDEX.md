@@ -6,8 +6,11 @@
 |----------|-------|--------------|
 | new screen, tab, route | `frontend/new-screen` | `docs/workflows/FRONTEND_WORKFLOW.md` |
 | NativeWind, className, migrate StyleSheet | `frontend/migrate-nativewind` | `docs/workflows/FRONTEND_WORKFLOW.md` |
+| bulk NativeWind, migrate all UI, styling pass | `frontend/bulk-nativewind-migration` | `docs/workflows/FRONTEND_WORKFLOW.md` |
 | new component, UI primitive | `frontend/new-component` | `docs/workflows/FRONTEND_WORKFLOW.md` |
+| navigation route, stack screen, tab | `frontend/add-navigation-route` | `docs/workflows/FRONTEND_WORKFLOW.md` |
 | life event, gameData, event | `engine/new-life-event` | `docs/workflows/ENGINE_WORKFLOW.md` |
+| store action, gameStore, new action | `engine/new-store-action` | `docs/workflows/ENGINE_WORKFLOW.md` |
 | balance, difficulty, tuning | `engine/balance-tune` | `docs/workflows/ENGINE_WORKFLOW.md` |
 | age up bug, stuck, loop | `engine/age-up-trace` | `docs/workflows/ENGINE_WORKFLOW.md` |
 | cloud function, callable, firebase function | `backend/cloud-function` | `docs/workflows/BACKEND_WORKFLOW.md` |
@@ -17,6 +20,7 @@
 | ad, interstitial, rewarded, AdMob | `monetization/ad-placement` | `docs/workflows/MONETIZATION_WORKFLOW.md` |
 | unit test, jest, engine test | `qa/write-engine-test` | `docs/workflows/QA_WORKFLOW.md` |
 | bug, regression, fix | `qa/regression-fix` | `docs/workflows/QA_WORKFLOW.md` |
+| CI, GitHub Actions, pipeline | `qa/ci-github-actions` | `docs/workflows/QA_WORKFLOW.md` |
 | EAS, build, submit, release | `release/eas-build` | — |
 | expo upgrade, SDK bump | `release/expo-upgrade` | `AGENTS.md` |
 | save, load, MMKV, migration | `debug/persistence` | `docs/workflows/ARCHITECTURE.md` |

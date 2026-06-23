@@ -55,9 +55,22 @@ npm test             # Must: all pass
 ```
 Manual on iOS sim → Android emulator → real device (for IAP/ads)
 
+## CI (GitHub Actions)
+Workflow: `.github/workflows/ci.yml` — runs on push/PR to `main`.
+
+| Step | Required in CI |
+|------|----------------|
+| `npm run type-check` | Yes |
+| `npm test` | Yes |
+| `npm run lint` | Advisory (`continue-on-error` until lint debt cleared) |
+
+Local parity: `npm run validate`
+
+Skill: `qa/ci-github-actions`
+
 ## Future QA Improvements
 - Detox E2E tests for critical flows (character creation, age up loop)
-- CI pipeline (GitHub Actions): run checks on every PR
+- Flip CI lint to required when ESLint errors are fixed
 - Visual regression testing for UI components
 - Performance benchmarks for ageUp() execution time
 - Automated balance testing (simulate 100 lives, check stat distribution)

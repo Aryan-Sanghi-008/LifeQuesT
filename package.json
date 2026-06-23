@@ -10,7 +10,7 @@
     "prebuild": "expo prebuild",
     "test": "jest",
     "lint": "eslint . --ext .ts,.tsx",
-    "type-check": "tsc --noEmit",
+    "type-check": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "validate": "npm run type-check && npm run lint && npm test"
   },
   "dependencies": {
@@ -52,6 +52,7 @@
   "devDependencies": {
     "@babel/core": "^7.20.0",
     "@react-native/eslint-config": "0.73.2",
+    "@types/jest": "^30.0.0",
     "@types/react": "~19.2.2",
     "babel-plugin-module-resolver": "^5.0.2",
     "eslint": "^8.19.0",

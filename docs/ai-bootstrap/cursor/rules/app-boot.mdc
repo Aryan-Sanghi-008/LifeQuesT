@@ -1,0 +1,30 @@
+---
+description: App entry boot sequence — auth, ads, IAP, hydration
+globs: App.tsx,index.ts
+alwaysApply: false
+---
+
+# App Boot
+
+## Init order (`App.tsx` — do not reorder without reason)
+1. `initAuth()` — Firebase / guest auth
+2. `void initAds()` — AdMob (non-blocking)
+3. `subscribeAuth(user => setUser(user))` — sync `AppUser` to store
+4. `void loadGame()` — hydrate save slots from MMKV/AsyncStorage
+5. `initIAP()` + `setupPurchaseListeners` — purchase flow
+
+## IAP purchase handler
+```
+verifyPurchaseOnServer → applyPurchaseToStore → logEvent → _persist
+```
+Guest purchases: `local_guest` uid skips strict server verify in dev.
+
+## Imports
+- Prefer `@navigation/*`, `@store/*` over `./src/...` mixed paths.
+- `global.css` must load first (NativeWind).
+
+## Cleanup
+`useEffect` return must unsubscribe auth + tear down IAP listeners.
+
+## Skill
+New feature touching boot → review `docs/workflows/ARCHITECTURE.md` data flows first.

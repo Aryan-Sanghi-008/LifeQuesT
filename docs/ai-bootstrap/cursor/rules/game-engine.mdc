@@ -18,6 +18,7 @@ alwaysApply: false
 ## Store patterns
 - Immer middleware: `set(s => { s.field = value })`.
 - Async side effects: `void get()._persist()` — never await inside `set`.
+- New actions: guard → engine call → Immer `set` → `void _persist()` → optional `logEvent`. See `engine/new-store-action` skill.
 - Guards on `ageUp`: `!pendingDecision`, `!isProcessing`, `isAlive`.
 
 ## Age-up loop order (do not reorder without reason)
@@ -31,5 +32,6 @@ See `docs/workflows/ENGINE_WORKFLOW.md` for balance tuning.
 
 ## Skills
 - New event → `engine/new-life-event`
+- New store action → `engine/new-store-action`
 - Age-up bug → `engine/age-up-trace`
 - Balance → `engine/balance-tune`

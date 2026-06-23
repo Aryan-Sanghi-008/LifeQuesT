@@ -19,8 +19,12 @@
         "matcher": "Write|Edit"
       },
       {
-        "command": ".cursor/hooks/sync-ai-bootstrap.sh",
+        "command": ".cursor/hooks/warn-stylesheet-legacy.sh",
         "matcher": "Write|Edit"
+      },
+      {
+        "command": ".cursor/hooks/sync-ai-bootstrap.sh",
+        "matcher": "docs/ai-bootstrap"
       }
     ],
     "beforeReadFile": [

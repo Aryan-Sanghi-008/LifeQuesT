@@ -14,7 +14,8 @@
 | `components/` | `types/`, `theme/`, `constants/` | `store/` (use props) |
 
 ## Imports
-- Use path aliases (`@store/*`, `@components/*`, etc.) when touching a file.
+- Use path aliases when touching a file.
+- **Alias parity:** new alias → update `tsconfig.json`, `babel.config.js`, and `jest.config.js` together.
 
 ## Expo
 - SDK **56** only. Read https://docs.expo.dev/versions/v56.0.0/ before writing Expo/RN code.
@@ -37,4 +38,5 @@ Edit `docs/ai-bootstrap/` only; run `setup.sh` + `validate-ai-config.sh`.
 | Ads, IAP, shop | `.claude/rules/MONETIZATION.md` |
 | Types, nav params | `.claude/rules/TYPES.md` |
 | Theme, tailwind | `.claude/rules/THEME.md` |
+| App entry, boot order | `.claude/rules/APP_BOOT.md` |
 | Rules, skills, hooks, AI templates | `.claude/rules/META_AI_CONFIG.md` |

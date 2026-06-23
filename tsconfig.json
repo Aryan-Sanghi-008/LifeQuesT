@@ -13,8 +13,14 @@
       "@utils/*": ["./src/utils/*"],
       "@constants/*": ["./src/constants/*"],
       "@types/*": ["./src/types/*"],
-      "@navigation/*": ["./src/navigation/*"]
+      "@navigation/*": ["./src/navigation/*"],
+      "@engine/*": ["./src/engine/*"],
+      "@services/*": ["./src/services/*"],
+      "@config/*": ["./src/config/*"],
+      "@theme/*": ["./src/theme/*"],
+      "@data/*": ["./src/data/*"]
     }
   },
-  "include": ["src", "App.tsx", "index.ts", "nativewind-env.d.ts"]
+  "include": ["src", "App.tsx", "index.ts", "nativewind-env.d.ts"],
+  "exclude": ["node_modules", "**/__tests__/**"]
 }

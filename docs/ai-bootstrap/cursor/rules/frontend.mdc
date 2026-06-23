@@ -6,14 +6,15 @@ alwaysApply: false
 
 # Frontend
 
-## Styling — NativeWind required
-- Use `className` for layout, color, spacing, typography.
-- `StyleSheet.create` **only** for shadows/elevation (Android `elevation` + iOS shadow props).
-- Map tokens: `bg-bg`, `text-t-1`, `text-gold`, `p-4`, `rounded-md` — see `tailwind.config.js`.
-- No raw hex in components; extend `tailwind.config.js` from `src/theme/themes.ts` if missing.
+## Styling — NativeWind target
+- **New files:** `className` for layout, color, spacing, typography.
+- **Legacy (current codebase):** most UI still uses `StyleSheet` + `COLORS`/`SPACING`. When touching a file, migrate via `migrate-nativewind` skill.
+- **Project-wide pass:** `frontend/bulk-nativewind-migration` skill.
+- `StyleSheet.create` **only** for shadows/elevation (`SHADOWS` from theme).
+- Tokens: `bg-bg`, `text-t-1`, `text-gold`, `p-4`, `rounded-md` — see `tailwind.config.js`.
 
 ## Screens
-- Root wrapper: `SafeAreaView` with `className="flex-1 bg-bg"`.
+- Root wrapper: `SafeAreaView` with `className="flex-1 bg-bg"` (after migration).
 - Granular Zustand selectors — never `useGameStore(s => s.character)` whole object.
 - No game logic in screens — call store actions only.
 - Nav types from `RootStackParamList` / `MainTabParamList` in `src/types/index.ts`.
@@ -25,8 +26,10 @@ alwaysApply: false
 
 ## Lists & performance
 - `FlatList` or `SectionList` for lists > 10 items.
-- Haptic feedback on state-changing buttons (`react-native-haptic-feedback`).
+- Haptic feedback on state-changing buttons.
 
 ## Skill shortcuts
-- New screen → `.cursor/skills/frontend/new-screen/SKILL.md`
-- StyleSheet migration → `.cursor/skills/frontend/migrate-nativewind/SKILL.md`
+- New screen → `frontend/new-screen`
+- Single-file migration → `frontend/migrate-nativewind`
+- Bulk migration → `frontend/bulk-nativewind-migration`
+- New route → `frontend/add-navigation-route`

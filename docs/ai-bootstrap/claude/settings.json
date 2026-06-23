@@ -33,6 +33,15 @@
           },
           {
             "type": "command",
+            "command": ".claude/hooks/warn-stylesheet-legacy.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "docs/ai-bootstrap",
+        "hooks": [
+          {
+            "type": "command",
             "command": ".claude/hooks/sync-ai-bootstrap.sh"
           }
         ]

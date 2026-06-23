@@ -18,16 +18,21 @@ Frontend team owns: `src/screens/`, `src/components/`, `src/navigation/`, `src/t
 - [ ] Granular store selectors (no `s => s.character`)
 - [ ] No game logic in screens (store action calls only)
 - [ ] accessibilityLabel on interactive elements
-- [ ] No inline style objects for layout/color (use NativeWind)
+- [ ] NativeWind `className` for layout/color (migrate legacy StyleSheet when touching file)
 - [ ] FlatList for lists > 10 items
 - [ ] Haptic feedback on state-changing buttons
 
 ## Design System
-- Colors: Use Tailwind palette — `violet-600` primary, `neutral-950` bg, `neutral-900` card
-- Typography: Font family set via NativeWind, sizes: `text-sm`, `text-base`, `text-lg`, `text-xl`, `text-2xl`
+Tokens from `tailwind.config.js` / `src/theme/themes.ts`:
+- Backgrounds: `bg-bg`, `bg-bg-2`, `bg-bg-card`
+- Text: `text-t-1`, `text-t-2`, `text-t-3`
+- Brand: `text-gold`, `text-teal`, `text-crimson`, `text-sapphire`
 - Spacing: 4-unit grid (`p-4` = 16px)
-- Border radius: `rounded-xl` (12px) for cards, `rounded-2xl` (16px) for sheets
-- Shadows: Use `StyleSheet.create()` (Android elevation + iOS shadow)
+- Radius: `rounded-sm`, `rounded-md`, `rounded-lg`
+- Shadows: `StyleSheet.create()` with `SHADOWS` only (Android elevation + iOS shadow)
+
+## Legacy migration
+Most UI still uses StyleSheet. Use `frontend/migrate-nativewind` per file or `frontend/bulk-nativewind-migration` for ordered project pass.
 
 ## Animation Principles
 - Enter animations: `fadeInUp` 300-400ms, staggered by 50ms for lists

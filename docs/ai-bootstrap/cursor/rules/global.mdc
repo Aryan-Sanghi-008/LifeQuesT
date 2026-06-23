@@ -21,6 +21,7 @@ alwaysApply: true
 ## Imports
 - Use path aliases (`@store/*`, `@components/*`, etc.) when touching a file.
 - Migrate relative `../` imports to aliases in the same edit.
+- **Alias parity:** new alias → update `tsconfig.json`, `babel.config.js`, and `jest.config.js` together.
 
 ## Expo
 - SDK **56** only. Read https://docs.expo.dev/versions/v56.0.0/ before writing Expo/RN code.
@@ -45,4 +46,5 @@ Read `meta-ai-config.mdc` when editing bootstrap, workflows, or AI templates.
 | Ads, IAP, shop | `monetization.mdc` |
 | Types, nav params | `types.mdc` |
 | Theme, tailwind | `theme.mdc` |
+| App entry, boot order | `app-boot.mdc` |
 | Rules, skills, hooks, AI templates | `meta-ai-config.mdc` |
