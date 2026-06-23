@@ -85,7 +85,7 @@ export default function AuthScreen({ navigation }: Props) {
 
   return (
     <View style={styles.root}>
-      <StatusBar translucent backgroundColor="transparent" barStyle="light-content" />
+      <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
 
       {/* Background orbs */}
       <Animated.View style={[styles.orb, styles.orb1, { transform: [{ translateY: orb1Y }] }]} />
@@ -139,8 +139,8 @@ export default function AuthScreen({ navigation }: Props) {
             <GradientButton
               label="Play as Guest"
               onPress={() => void handleGuest()}
-              colors={[COLORS.gold, COLORS.gold3]}
-              textColor="#160D00"
+              colors={[COLORS.sapphire, COLORS.sapphire2]}
+              textColor="#FFFFFF"
               loading={loading === 'guest'}
               disabled={loading !== null}
               style={{ width: '100%' }}
@@ -267,10 +267,10 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 16,
     paddingHorizontal: 24,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    backgroundColor: COLORS.bgCard,
     borderRadius: RADII.lg,
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: COLORS.border,
   },
   googleText: {
     fontFamily: FONTS.bodySemiBold,

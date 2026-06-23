@@ -1,9 +1,25 @@
-import "./global.css";
-import { useEffect } from "react";
+import "react-native-gesture-handler";
+import { useEffect, useCallback } from "react";
 import { StatusBar, Platform, UIManager } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { useFonts } from "expo-font";
+import * as SplashScreen from "expo-splash-screen";
+import {
+  PlayfairDisplay_900Black,
+  PlayfairDisplay_700Bold,
+} from "@expo-google-fonts/playfair-display";
+import {
+  DMSans_400Regular,
+  DMSans_500Medium,
+  DMSans_600SemiBold,
+  DMSans_700Bold,
+} from "@expo-google-fonts/dm-sans";
+import {
+  JetBrainsMono_400Regular,
+  JetBrainsMono_600SemiBold,
+} from "@expo-google-fonts/jetbrains-mono";
 import RootNavigator from "@navigation/RootNavigator";
 import { useGameStore } from "@store/gameStore";
 import { initAuth, subscribeAuth } from "./src/services/auth";
@@ -15,6 +31,9 @@ import {
   verifyPurchaseOnServer,
 } from "./src/services/iap";
 import { logEvent } from "./src/services/analytics";
+import "./global.css";
+
+void SplashScreen.preventAutoHideAsync();
 
 if (
   Platform.OS === "android" &&
@@ -26,6 +45,23 @@ if (
 export default function App() {
   const loadGame = useGameStore((s) => s.loadGame);
   const setUser = useGameStore((s) => s.setUser);
+
+  const [fontsLoaded, fontError] = useFonts({
+    "PlayfairDisplay-Black": PlayfairDisplay_900Black,
+    "PlayfairDisplay-Bold": PlayfairDisplay_700Bold,
+    "DMSans-Regular": DMSans_400Regular,
+    "DMSans-Medium": DMSans_500Medium,
+    "DMSans-SemiBold": DMSans_600SemiBold,
+    "DMSans-Bold": DMSans_700Bold,
+    "JetBrainsMono-Regular": JetBrainsMono_400Regular,
+    "JetBrainsMono-SemiBold": JetBrainsMono_600SemiBold,
+  });
+
+  const onLayoutRootView = useCallback(() => {
+    if (fontsLoaded || fontError) {
+      void SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded, fontError]);
 
   useEffect(() => {
     initAuth();
@@ -61,13 +97,18 @@ export default function App() {
     };
   }, [loadGame, setUser]);
 
+  if (!fontsLoaded && !fontError) {
+    return null;
+  }
+
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutRootView}>
       <SafeAreaProvider>
+        {/* Light status bar for bright theme */}
         <StatusBar
-          barStyle="light-content"
-          backgroundColor="transparent"
-          translucent
+          barStyle="dark-content"
+          backgroundColor="#F4F6F9"
+          translucent={false}
         />
         <NavigationContainer>
           <RootNavigator />

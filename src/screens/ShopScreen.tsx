@@ -61,7 +61,7 @@ function PremiumBanner({ isPremium, onPress }: { isPremium: boolean; onPress: ()
         style={{ borderRadius: RADII.xl, overflow: 'hidden' }}
       >
         <LinearGradient
-          colors={['#1A1200', '#2A1E00', '#1A1200']}
+          colors={['#1E3A8A', '#2563EB', '#1E40AF']}
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
           style={styles.premiumCard}
         >
@@ -73,10 +73,10 @@ function PremiumBanner({ isPremium, onPress }: { isPremium: boolean; onPress: ()
           <View style={styles.premiumContent}>
             <View style={styles.premiumLeft}>
               <View style={styles.crownWrap}>
-                <LinearGradient colors={[COLORS.gold2, COLORS.gold3]} style={styles.crownBg}>
+                <LinearGradient colors={['#FCD34D', '#F59E0B']} style={styles.crownBg}>
                   <Svg width={28} height={28} viewBox="0 0 24 24" fill="none">
-                    <Path fill={COLORS.bg} d="M12 2l2 5h5l-4 3 1.5 5L12 12l-4.5 3L9 10 5 7h5z" />
-                    <Path fill={COLORS.bg} d="M4 18h16v2H4z" />
+                    <Path fill="#FFFFFF" d="M12 2l2 5h5l-4 3 1.5 5L12 12l-4.5 3L9 10 5 7h5z" />
+                    <Path fill="#FFFFFF" d="M4 18h16v2H4z" />
                   </Svg>
                 </LinearGradient>
               </View>
@@ -391,17 +391,17 @@ const styles = StyleSheet.create({
   crownBg:        { width: 48, height: 48, borderRadius: RADII.sm, alignItems: 'center', justifyContent: 'center' },
   premiumInfo:    { flex: 1 },
   premiumTitleRow:{ flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, flexWrap: 'wrap' },
-  premiumTitle:   { fontFamily: FONTS.displayBold, fontSize: 17, color: COLORS.gold2 },
-  activeBadge:    { backgroundColor: `${COLORS.teal}20`, paddingHorizontal: 8, paddingVertical: 2, borderRadius: RADII.full, borderWidth: 1, borderColor: COLORS.tealBorder },
-  activeBadgeText:{ fontFamily: FONTS.monoSemiBold, fontSize: 8, color: COLORS.teal, letterSpacing: 1 },
-  premiumSub:     { fontFamily: FONTS.body, fontSize: 12, color: COLORS.t3, marginTop: 4 },
+  premiumTitle:   { fontFamily: FONTS.displayBold, fontSize: 17, color: '#FFFFFF' },
+  activeBadge:    { backgroundColor: 'rgba(255,255,255,0.20)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: RADII.full, borderWidth: 1, borderColor: 'rgba(255,255,255,0.30)' },
+  activeBadgeText:{ fontFamily: FONTS.monoSemiBold, fontSize: 8, color: '#FFFFFF', letterSpacing: 1 },
+  premiumSub:     { fontFamily: FONTS.body, fontSize: 12, color: 'rgba(255,255,255,0.75)', marginTop: 4 },
   premiumCTA:     { flexDirection: 'row', alignItems: 'baseline', gap: 2, flexShrink: 0 },
-  premiumPrice:   { fontFamily: FONTS.displayBold, fontSize: 20, color: COLORS.gold },
-  premiumPeriod:  { fontFamily: FONTS.body, fontSize: 11, color: COLORS.gold3 },
-  perks: { gap: 6, borderTopWidth: 1, borderTopColor: `${COLORS.gold}20`, paddingTop: SPACING.md },
+  premiumPrice:   { fontFamily: FONTS.displayBold, fontSize: 20, color: '#FFFFFF' },
+  premiumPeriod:  { fontFamily: FONTS.body, fontSize: 11, color: 'rgba(255,255,255,0.75)' },
+  perks: { gap: 6, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.20)', paddingTop: SPACING.md },
   perkRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  perkDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: COLORS.gold },
-  perkText: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.t2 },
+  perkDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FCD34D' },
+  perkText: { fontFamily: FONTS.body, fontSize: 13, color: 'rgba(255,255,255,0.90)' },
 
   // Grid label
   gridLabel: {

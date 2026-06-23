@@ -47,17 +47,17 @@ export default function RootNavigator() {
       initialRouteName={initialRouteName}
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: '#080C14' },
-        animation: 'fade',
+        contentStyle: { backgroundColor: '#F4F6F9' },
+        animation: 'slide_from_right',
       }}
     >
-      <Stack.Screen name="Auth" component={AuthScreen} />
+      <Stack.Screen name="Auth" component={AuthScreen} options={{ animation: 'fade' }} />
       <Stack.Screen name="SaveSlots" component={SaveSlotScreen} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="CharacterCreate" component={CharacterCreateScreen} options={{ animation: 'slide_from_right' }} />
-      <Stack.Screen name="MainTabs" component={MainTabNavigator} />
-      <Stack.Screen name="Death" component={DeathScreen} options={{ animation: 'fade' }} />
-      <Stack.Screen name="Shop" component={ShopScreen} options={{ animation: 'slide_from_right', presentation: 'modal' }} />
-      <Stack.Screen name="Stats" component={StatsScreen} options={{ animation: 'slide_from_right', presentation: 'modal' }} />
+      <Stack.Screen name="MainTabs" component={MainTabNavigator} options={{ animation: 'fade' }} />
+      <Stack.Screen name="Death" component={DeathScreen} options={{ animation: 'fade', contentStyle: { backgroundColor: '#020408' } }} />
+      <Stack.Screen name="Shop" component={ShopScreen} options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
+      <Stack.Screen name="Stats" component={StatsScreen} options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
       <Stack.Screen name="Activities" component={ActivitiesScreen} options={{ animation: 'slide_from_right' }} />
     </Stack.Navigator>
   );

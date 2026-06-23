@@ -95,6 +95,7 @@ function buildCharacter(data: CreateCharacterPayload): Character {
     lifeStage: 'infant',
     country: countryData?.name ?? 'India',
     countryFlag: countryData?.flag ?? '🇮🇳',
+    countryCode: data.countryCode ?? 'IN',
     zodiac: data.zodiac,
     familyBackground: data.familyBackground,
     traits: data.traits,

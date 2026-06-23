@@ -123,6 +123,7 @@ export interface Character {
   lifeStage: LifeStage;
   country: string;
   countryFlag: string;
+  countryCode: string;
   zodiac: string;
   familyBackground: FamilyBackground;
   traits: string[];

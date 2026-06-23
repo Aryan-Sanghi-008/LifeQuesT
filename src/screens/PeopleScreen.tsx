@@ -9,7 +9,7 @@ import { useGameStore } from '../store/gameStore';
 import { NpcAvatar } from '../components/Avatars';
 import { Card, SectionLabel } from '../components/index';
 import { Person, RelationType } from '../types';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Path, Circle, Rect } from 'react-native-svg';
 
 // ─── Relationship bar ─────────────────────────────────────────────────────────
 function RelBar({ score }: { score: number }) {
@@ -76,16 +76,26 @@ const pr = StyleSheet.create({
   score:      { fontFamily: FONTS.monoSemiBold, fontSize: 12, color: COLORS.t3 },
 });
 
+// ─── SVG icons for interactions ───────────────────────────────────────────────
+function IconTalk()    { return <Svg width={20} height={20} viewBox="0 0 24 24" fill="none"><Path stroke={COLORS.sapphire} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></Svg>; }
+function IconGift()    { return <Svg width={20} height={20} viewBox="0 0 24 24" fill="none"><Rect stroke={COLORS.crimson} strokeWidth={2} x="2" y="7" width="20" height="14" rx="2"/><Path stroke={COLORS.crimson} strokeWidth={2} strokeLinecap="round" d="M16 21V7M8 21V7"/><Path stroke={COLORS.crimson} strokeWidth={2} strokeLinecap="round" d="M12 7V3M12 3c0 0-4 0-4 4h8c0-4-4-4-4-4z"/></Svg>; }
+function IconWatch()   { return <Svg width={20} height={20} viewBox="0 0 24 24" fill="none"><Rect stroke={COLORS.orchid} strokeWidth={2} x="1" y="5" width="15" height="14" rx="2"/><Path stroke={COLORS.orchid} strokeWidth={2} strokeLinecap="round" d="M16 12l6-4v8l-6-4z"/></Svg>; }
+function IconApologize(){ return <Svg width={20} height={20} viewBox="0 0 24 24" fill="none"><Path stroke={COLORS.emerald} strokeWidth={2} strokeLinecap="round" d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 000-7.78z"/></Svg>; }
+function IconMoney()   { return <Svg width={20} height={20} viewBox="0 0 24 24" fill="none"><Path stroke={COLORS.gold} strokeWidth={2} strokeLinecap="round" d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></Svg>; }
+function IconInsult()  { return <Svg width={20} height={20} viewBox="0 0 24 24" fill="none"><Circle stroke={COLORS.crimson} strokeWidth={2} cx="12" cy="12" r="10"/><Path stroke={COLORS.crimson} strokeWidth={2} strokeLinecap="round" d="M15 9l-6 6M9 9l6 6"/></Svg>; }
+function IconCut()     { return <Svg width={20} height={20} viewBox="0 0 24 24" fill="none"><Circle stroke={COLORS.t3} strokeWidth={2} cx="6" cy="6" r="3"/><Circle stroke={COLORS.t3} strokeWidth={2} cx="6" cy="18" r="3"/><Path stroke={COLORS.t3} strokeWidth={2} strokeLinecap="round" d="M20 4L8.12 15.88M14.47 14.48L20 20M8.12 8.12L12 12"/></Svg>; }
+function IconCompliment(){ return <Svg width={20} height={20} viewBox="0 0 24 24" fill="none"><Circle stroke={COLORS.gold} strokeWidth={2} cx="12" cy="12" r="10"/><Path stroke={COLORS.gold} strokeWidth={2} strokeLinecap="round" d="M8 14s1.5 2 4 2 4-2 4-2"/><Circle cx="9" cy="9" r="1.2" fill={COLORS.gold}/><Circle cx="15" cy="9" r="1.2" fill={COLORS.gold}/></Svg>; }
+
 // ─── Interaction Sheet ────────────────────────────────────────────────────────
 const INTERACTIONS = [
-  { id: 'compliment',   label: 'Compliment',     icon: '😊', desc: 'Say something nice' },
-  { id: 'conversation', label: 'Have a Chat',     icon: '💬', desc: 'Catch up over coffee' },
-  { id: 'gift',         label: 'Give a Gift',     icon: '🎁', desc: 'Show you care' },
-  { id: 'movie',        label: 'Movie Night',     icon: '🎬', desc: 'Quality time together' },
-  { id: 'apologize',    label: 'Apologize',       icon: '🙏', desc: 'Patch things up' },
-  { id: 'ask_money',    label: 'Ask for Money',   icon: '💰', desc: 'Awkward but necessary' },
-  { id: 'insult',       label: 'Insult',          icon: '😤', desc: 'Lash out — risky' },
-  { id: 'cut_off',      label: 'Distance Yourself', icon: '✂️', desc: 'End the relationship' },
+  { id: 'compliment',   label: 'Compliment',       Icon: IconCompliment, desc: 'Say something nice' },
+  { id: 'conversation', label: 'Have a Chat',       Icon: IconTalk,       desc: 'Catch up over coffee' },
+  { id: 'gift',         label: 'Give a Gift',       Icon: IconGift,       desc: 'Show you care' },
+  { id: 'movie',        label: 'Movie Night',       Icon: IconWatch,      desc: 'Quality time together' },
+  { id: 'apologize',    label: 'Apologize',         Icon: IconApologize,  desc: 'Patch things up' },
+  { id: 'ask_money',    label: 'Ask for Money',     Icon: IconMoney,      desc: 'Awkward but necessary' },
+  { id: 'insult',       label: 'Insult',            Icon: IconInsult,     desc: 'Lash out — risky' },
+  { id: 'cut_off',      label: 'Distance Yourself', Icon: IconCut,        desc: 'End the relationship' },
 ];
 
 function InteractionSheet({
@@ -115,7 +125,7 @@ function InteractionSheet({
         <View style={is.grid}>
           {INTERACTIONS.map(i => (
             <Pressable key={i.id} onPress={() => onInteract(i.id)} style={is.btn}>
-              <Text style={is.btnIcon}>{i.icon}</Text>
+              <i.Icon />
               <Text style={is.btnLabel}>{i.label}</Text>
               <Text style={is.btnDesc}>{i.desc}</Text>
             </Pressable>
@@ -128,14 +138,13 @@ function InteractionSheet({
 
 const is = StyleSheet.create({
   overlay:  { position: 'absolute', inset: 0, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.6)' },
-  sheet:    { backgroundColor: COLORS.bg2, borderTopLeftRadius: RADII.xl, borderTopRightRadius: RADII.xl, padding: SPACING.xl, gap: SPACING.lg },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(15,23,42,0.50)' },
+  sheet:    { backgroundColor: COLORS.bgSheet, borderTopLeftRadius: RADII.xl, borderTopRightRadius: RADII.xl, padding: SPACING.xl, gap: SPACING.lg },
   header:   { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
   name:     { fontFamily: FONTS.displayBold, fontSize: 18, color: COLORS.t1 },
   sub:      { fontFamily: FONTS.body, fontSize: 12, color: COLORS.t3 },
   grid:     { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
-  btn:      { width: '22%', alignItems: 'center', gap: 4, padding: SPACING.sm, backgroundColor: COLORS.bgCard, borderRadius: RADII.md, borderWidth: 1, borderColor: COLORS.border },
-  btnIcon:  { fontSize: 22 },
+  btn:      { width: '22%', alignItems: 'center', gap: 4, padding: SPACING.sm, backgroundColor: COLORS.bgCard2, borderRadius: RADII.md, borderWidth: 1, borderColor: COLORS.border },
   btnLabel: { fontFamily: FONTS.bodySemiBold, fontSize: 10, color: COLORS.t2, textAlign: 'center' },
   btnDesc:  { fontFamily: FONTS.body, fontSize: 9, color: COLORS.t4, textAlign: 'center' },
 });
@@ -176,7 +185,12 @@ export function PeopleScreen() {
             <Text style={styles.headerSub}>The people in your life</Text>
           </View>
           <View style={styles.empty}>
-            <Text style={styles.emptyIcon}>👥</Text>
+            <View style={styles.emptyIconWrap}>
+              <Svg width={36} height={36} viewBox="0 0 24 24" fill="none">
+                <Circle stroke={COLORS.t4} strokeWidth={1.5} cx="9" cy="7" r="4"/>
+                <Path stroke={COLORS.t4} strokeWidth={1.5} strokeLinecap="round" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+              </Svg>
+            </View>
             <Text style={styles.emptyText}>No one in your life yet.</Text>
             <Text style={styles.emptyHint}>Age up to meet people.</Text>
           </View>
@@ -246,7 +260,7 @@ const styles = StyleSheet.create({
   section: { marginBottom: SPACING.xl },
   divider: { height: 1, backgroundColor: COLORS.border, marginHorizontal: SPACING.md },
   empty:   { flex: 1, alignItems: 'center', justifyContent: 'center', gap: SPACING.md },
-  emptyIcon: { fontSize: 48 },
+  emptyIconWrap: { width: 72, height: 72, borderRadius: 22, backgroundColor: COLORS.bg2, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
   emptyText: { fontFamily: FONTS.bodySemiBold, fontSize: 16, color: COLORS.t3 },
   emptyHint: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.t4 },
 });

@@ -8,6 +8,7 @@ import { COLORS, FONTS, RADII, SPACING } from '../constants/theme';
 import { useGameStore } from '../store/gameStore';
 import { Asset } from '../types';
 import { SectionLabel } from '../components/index';
+import Svg, { Path, Circle, Rect, Polyline } from 'react-native-svg';
 
 // ─── Format currency ──────────────────────────────────────────────────────────
 function fmt(n: number): string {
@@ -65,12 +66,39 @@ const bh = StyleSheet.create({
   metricDivider: { width: 1, height: 24, backgroundColor: COLORS.border },
 });
 
-// ─── Asset Card ───────────────────────────────────────────────────────────────
-const ASSET_ICONS: Record<string, string> = {
-  property: '🏠',
-  vehicle: '🚗',
-  investment: '📈',
+// ─── Asset SVG Icons ──────────────────────────────────────────────────────────
+const ASSET_ICON_COLORS: Record<string, string> = {
+  property: COLORS.sapphire,
+  vehicle:  COLORS.catCareer,
+  investment: COLORS.emerald,
 };
+
+function AssetSvgIcon({ type }: { type: string }) {
+  const color = ASSET_ICON_COLORS[type] ?? COLORS.t3;
+  if (type === 'property') {
+    return (
+      <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+        <Path stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+        <Polyline stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" points="9 22 9 12 15 12 15 22"/>
+      </Svg>
+    );
+  }
+  if (type === 'vehicle') {
+    return (
+      <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+        <Path stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" d="M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v9a2 2 0 01-2 2h-3"/>
+        <Circle stroke={color} strokeWidth={2} cx="7" cy="17" r="2"/>
+        <Circle stroke={color} strokeWidth={2} cx="17" cy="17" r="2"/>
+      </Svg>
+    );
+  }
+  return (
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Polyline stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" points="22 7 13.5 15.5 8.5 10.5 2 17"/>
+      <Polyline stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" points="16 7 22 7 22 13"/>
+    </Svg>
+  );
+}
 
 function AssetCard({ asset, onSell }: { asset: Asset; onSell: () => void }) {
   const equity = asset.value - (asset.debt ?? 0);
@@ -79,8 +107,8 @@ function AssetCard({ asset, onSell }: { asset: Asset; onSell: () => void }) {
   return (
     <View style={asc.card}>
       <View style={asc.header}>
-        <View style={[asc.iconWrap, { backgroundColor: COLORS.bgCard2 }]}>
-          <Text style={asc.icon}>{ASSET_ICONS[asset.type] ?? '💼'}</Text>
+        <View style={[asc.iconWrap, { backgroundColor: `${ASSET_ICON_COLORS[asset.type] ?? COLORS.t3}14` }]}>
+          <AssetSvgIcon type={asset.type} />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={asc.name}>{asset.name}</Text>
@@ -119,7 +147,6 @@ const asc = StyleSheet.create({
   card:      { backgroundColor: COLORS.bgCard, borderRadius: RADII.md, padding: SPACING.md, borderWidth: 1, borderColor: COLORS.border, gap: SPACING.md, marginBottom: SPACING.sm },
   header:    { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
   iconWrap:  { width: 44, height: 44, borderRadius: RADII.sm, alignItems: 'center', justifyContent: 'center' },
-  icon:      { fontSize: 22 },
   name:      { fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.t1 },
   sub:       { fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4, marginTop: 2 },
   row:       { flexDirection: 'row', justifyContent: 'space-between' },
@@ -152,7 +179,9 @@ function BuySheet({ balance, onBuy, onClose }: { balance: number; onBuy: (opt: t
           const canAfford = balance >= downPayment;
           return (
             <Pressable key={i} onPress={() => canAfford && onBuy(opt)} style={[bs.row, !canAfford && bs.locked]}>
-              <Text style={bs.optIcon}>{ASSET_ICONS[opt.type]}</Text>
+              <View style={bs.optIcon}>
+                <AssetSvgIcon type={opt.type} />
+              </View>
               <View style={{ flex: 1 }}>
                 <Text style={bs.optName}>{opt.name}</Text>
                 <Text style={bs.optSub}>Down: {fmt(downPayment)}</Text>
@@ -168,12 +197,12 @@ function BuySheet({ balance, onBuy, onClose }: { balance: number; onBuy: (opt: t
 
 const bs = StyleSheet.create({
   overlay:  { position: 'absolute', inset: 0, justifyContent: 'flex-end' },
-  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.6)' },
-  sheet:    { backgroundColor: COLORS.bg2, borderTopLeftRadius: RADII.xl, borderTopRightRadius: RADII.xl, padding: SPACING.xl, gap: SPACING.md },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(15,23,42,0.50)' },
+  sheet:    { backgroundColor: COLORS.bgSheet, borderTopLeftRadius: RADII.xl, borderTopRightRadius: RADII.xl, padding: SPACING.xl, gap: SPACING.md },
   title:    { fontFamily: FONTS.displayBold, fontSize: 20, color: COLORS.t1, marginBottom: SPACING.sm },
   row:      { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, padding: SPACING.md, backgroundColor: COLORS.bgCard, borderRadius: RADII.md, borderWidth: 1, borderColor: COLORS.border },
   locked:   { opacity: 0.4 },
-  optIcon:  { fontSize: 24 },
+  optIcon:  { width: 40, height: 40, borderRadius: RADII.xs, backgroundColor: COLORS.bg2, alignItems: 'center', justifyContent: 'center' },
   optName:  { fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.t1 },
   optSub:   { fontFamily: FONTS.body, fontSize: 11, color: COLORS.t3 },
   optPrice: { fontFamily: FONTS.monoSemiBold, fontSize: 13 },
@@ -235,16 +264,22 @@ export function AssetsScreen() {
               onPress={() => Alert.alert('Invest', `You invested ₹10,000 in the stock market. Results next year.`)}
               style={[styles.actionBtn, { borderColor: COLORS.sapphire }]}
             >
-              <Text style={[styles.actionBtnText, { color: COLORS.sapphire }]}>📈 Invest</Text>
+              <Text style={[styles.actionBtnText, { color: COLORS.sapphire }]}>Invest</Text>
             </Pressable>
           </View>
 
           {assets.length === 0 ? (
-            <View style={styles.empty}>
-              <Text style={styles.emptyIcon}>🏦</Text>
-              <Text style={styles.emptyText}>No assets yet.</Text>
-              <Text style={styles.emptyHint}>Buy a house, car, or investments.</Text>
+          <View style={styles.empty}>
+            <View style={styles.emptyIconWrap}>
+              <Svg width={32} height={32} viewBox="0 0 24 24" fill="none">
+                <Rect stroke={COLORS.t4} strokeWidth={1.5} x="3" y="10" width="18" height="12" rx="2"/>
+                <Path stroke={COLORS.t4} strokeWidth={1.5} strokeLinecap="round" d="M3 10l9-7 9 7"/>
+                <Path stroke={COLORS.t4} strokeWidth={1.5} strokeLinecap="round" d="M9 22V15h6v7"/>
+              </Svg>
             </View>
+            <Text style={styles.emptyText}>No assets yet.</Text>
+            <Text style={styles.emptyHint}>Buy a house, car, or investments.</Text>
+          </View>
           ) : (
             <>
               <SectionLabel label={`Assets (${assets.length})`} style={{ marginBottom: SPACING.md }} />
@@ -274,7 +309,7 @@ const styles = StyleSheet.create({
   actionBtn:    { flex: 1, paddingVertical: 12, borderRadius: RADII.md, borderWidth: 1.5, borderColor: COLORS.teal, alignItems: 'center' },
   actionBtnText:{ fontFamily: FONTS.bodySemiBold, fontSize: 13, color: COLORS.teal },
   empty:        { alignItems: 'center', paddingTop: SPACING.xxxl, gap: SPACING.md },
-  emptyIcon:    { fontSize: 48 },
+  emptyIconWrap:{ width: 72, height: 72, borderRadius: 22, backgroundColor: COLORS.bg2, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
   emptyText:    { fontFamily: FONTS.bodySemiBold, fontSize: 16, color: COLORS.t3 },
   emptyHint:    { fontFamily: FONTS.body, fontSize: 13, color: COLORS.t4 },
 });

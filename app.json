@@ -21,7 +21,6 @@
     "plugins": [
       "expo-dev-client",
       "expo-font",
-      "expo-status-bar",
       [
         "react-native-google-mobile-ads",
         {
@@ -34,7 +33,8 @@
         {
           "iosUrlScheme": "com.googleusercontent.apps.REPLACE_WITH_YOUR_IOS_CLIENT_ID"
         }
-      ]
+      ],
+      "expo-splash-screen"
     ],
     "extra": {
       "eas": {

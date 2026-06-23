@@ -11,7 +11,7 @@ import {
   StyleProp,
 } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, FONTS, RADII, SPACING, ANIM } from "../theme/colors";
+import { COLORS, FONTS, RADII, SPACING, SHADOWS, ANIM } from "../theme/colors";
 
 export { BottomSheet } from "./BottomSheet";
 export { AvatarById } from "./Avatars";
@@ -34,7 +34,7 @@ export function GradientButton({
   label,
   onPress,
   colors = [COLORS.gold, COLORS.gold3],
-  textColor = "#160D00",
+  textColor = "#FFFFFF",
   loading = false,
   disabled = false,
   style,
@@ -51,17 +51,9 @@ export function GradientButton({
   const sz = sizeMap[size];
 
   const onPressIn = () =>
-    Animated.spring(scale, {
-      toValue: 0.97,
-      useNativeDriver: true,
-      ...ANIM.spring,
-    }).start();
+    Animated.spring(scale, { toValue: 0.96, useNativeDriver: true, ...ANIM.spring }).start();
   const onPressOut = () =>
-    Animated.spring(scale, {
-      toValue: 1,
-      useNativeDriver: true,
-      ...ANIM.spring,
-    }).start();
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, ...ANIM.spring }).start();
 
   return (
     <Animated.View style={[{ transform: [{ scale }] }, style]}>
@@ -70,19 +62,16 @@ export function GradientButton({
         onPressIn={onPressIn}
         onPressOut={onPressOut}
         disabled={disabled || loading}
-        android_ripple={{ color: "rgba(255,255,255,0.15)", borderless: false }}
+        android_ripple={{ color: "rgba(255,255,255,0.20)", borderless: false }}
         style={{ borderRadius: RADII.lg, overflow: "hidden" }}
       >
         <LinearGradient
-          colors={(disabled ? ["#3A3A3A", "#2A2A2A"] : colors) as [string, string, ...string[]]}
+          colors={(disabled ? ["#D1D5DB", "#9CA3AF"] : colors) as [string, string, ...string[]]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={[
             styles.gradBtn,
-            {
-              paddingVertical: sz.paddingVertical,
-              paddingHorizontal: sz.paddingHorizontal,
-            },
+            { paddingVertical: sz.paddingVertical, paddingHorizontal: sz.paddingHorizontal },
           ]}
         >
           {loading ? (
@@ -90,12 +79,7 @@ export function GradientButton({
           ) : (
             <>
               {icon && <View style={{ marginRight: 8 }}>{icon}</View>}
-              <Text
-                style={[
-                  styles.gradBtnText,
-                  { color: textColor, fontSize: sz.fontSize },
-                ]}
-              >
+              <Text style={[styles.gradBtnText, { color: textColor, fontSize: sz.fontSize }]}>
                 {label}
               </Text>
             </>
@@ -126,34 +110,24 @@ export function OutlineButton({
   icon,
 }: OutlineButtonProps) {
   const scale = useRef(new Animated.Value(1)).current;
-  const sz = { sm: 12, md: 14, lg: 16 }[size];
+  const sz = { sm: 12, md: 14, lg: 15 }[size];
 
   return (
     <Animated.View style={[{ transform: [{ scale }] }, style]}>
       <Pressable
         onPress={onPress}
         onPressIn={() =>
-          Animated.spring(scale, {
-            toValue: 0.97,
-            useNativeDriver: true,
-            ...ANIM.spring,
-          }).start()
+          Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, ...ANIM.spring }).start()
         }
         onPressOut={() =>
-          Animated.spring(scale, {
-            toValue: 1,
-            useNativeDriver: true,
-            ...ANIM.spring,
-          }).start()
+          Animated.spring(scale, { toValue: 1, useNativeDriver: true, ...ANIM.spring }).start()
         }
-        android_ripple={{ color: "rgba(255,255,255,0.08)" }}
-        style={[styles.outlineBtn, { borderRadius: RADII.lg }]}
+        android_ripple={{ color: `${color}18` }}
+        style={[styles.outlineBtn, { borderRadius: RADII.lg, borderColor: color }]}
       >
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           {icon}
-          <Text style={[styles.outlineBtnText, { color, fontSize: sz }]}>
-            {label}
-          </Text>
+          <Text style={[styles.outlineBtnText, { color, fontSize: sz }]}>{label}</Text>
         </View>
       </Pressable>
     </Animated.View>
@@ -170,25 +144,14 @@ interface CardProps {
   glow?: boolean;
 }
 
-export function Card({
-  children,
-  style,
-  onPress,
-  accentColor,
-  glow,
-}: CardProps) {
+export function Card({ children, style, onPress, accentColor, glow }: CardProps) {
   const content = (
     <View
       style={[
         styles.card,
-        accentColor ? { borderColor: accentColor + "40" } : undefined,
-        (glow && accentColor)
-          ? {
-              shadowColor: accentColor,
-              shadowOpacity: 0.15,
-              shadowRadius: 12,
-              elevation: 6,
-            }
+        accentColor ? { borderColor: accentColor + "30", borderWidth: 1.5 } : undefined,
+        glow && accentColor
+          ? { shadowColor: accentColor, shadowOpacity: 0.18, shadowRadius: 12, elevation: 6 }
           : undefined,
         style,
       ]}
@@ -202,7 +165,7 @@ export function Card({
   return (
     <Pressable
       onPress={onPress}
-      android_ripple={{ color: "rgba(255,255,255,0.05)" }}
+      android_ripple={{ color: "rgba(0,0,0,0.04)" }}
       style={{ borderRadius: RADII.lg, overflow: "hidden" }}
     >
       {content}
@@ -218,14 +181,16 @@ interface StatBarProps {
   height?: number;
   animated?: boolean;
   delay?: number;
+  rounded?: boolean;
 }
 
 export function StatBar({
   value,
   color,
-  height = 4,
+  height = 6,
   animated = true,
   delay = 0,
+  rounded = true,
 }: StatBarProps) {
   const width = useRef(new Animated.Value(0)).current;
 
@@ -235,13 +200,13 @@ export function StatBar({
       return;
     }
     const timer = setTimeout(() => {
-      Animated.timing(width, {
+      Animated.spring(width, {
         toValue: value,
-        duration: ANIM.slow,
-        delay,
         useNativeDriver: false,
-      }).start();
-    }, 50);
+        damping: 22,
+        stiffness: 160,
+      } as any).start();
+    }, delay + 50);
     return () => clearTimeout(timer);
   }, [value, animated, delay]);
 
@@ -251,12 +216,14 @@ export function StatBar({
     extrapolate: "clamp",
   });
 
+  const r = rounded ? height / 2 : 2;
+
   return (
-    <View style={[styles.barTrack, { height, borderRadius: height / 2 }]}>
+    <View style={[styles.barTrack, { height, borderRadius: r }]}>
       <Animated.View
         style={[
           styles.barFill,
-          { width: widthPct, backgroundColor: color, borderRadius: height / 2 },
+          { width: widthPct, backgroundColor: color, borderRadius: r },
         ]}
       />
     </View>
@@ -265,13 +232,7 @@ export function StatBar({
 
 // ─── PulsingDot ───────────────────────────────────────────────────────────────
 
-export function PulsingDot({
-  color = COLORS.teal,
-  size = 10,
-}: {
-  color?: string;
-  size?: number;
-}) {
+export function PulsingDot({ color = COLORS.emerald, size = 10 }: { color?: string; size?: number }) {
   const scale = useRef(new Animated.Value(1)).current;
   const opacity = useRef(new Animated.Value(0.5)).current;
 
@@ -279,42 +240,19 @@ export function PulsingDot({
     Animated.loop(
       Animated.parallel([
         Animated.sequence([
-          Animated.timing(scale, {
-            toValue: 1.4,
-            duration: 900,
-            useNativeDriver: true,
-          }),
-          Animated.timing(scale, {
-            toValue: 1,
-            duration: 900,
-            useNativeDriver: true,
-          }),
+          Animated.timing(scale, { toValue: 1.5, duration: 800, useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 1, duration: 800, useNativeDriver: true }),
         ]),
         Animated.sequence([
-          Animated.timing(opacity, {
-            toValue: 0.8,
-            duration: 900,
-            useNativeDriver: true,
-          }),
-          Animated.timing(opacity, {
-            toValue: 0.3,
-            duration: 900,
-            useNativeDriver: true,
-          }),
+          Animated.timing(opacity, { toValue: 0.8, duration: 800, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 0.2, duration: 800, useNativeDriver: true }),
         ]),
       ]),
     ).start();
   }, []);
 
   return (
-    <View
-      style={{
-        width: size + 8,
-        height: size + 8,
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
+    <View style={{ width: size + 8, height: size + 8, alignItems: "center", justifyContent: "center" }}>
       <Animated.View
         style={{
           position: "absolute",
@@ -326,14 +264,7 @@ export function PulsingDot({
           transform: [{ scale }],
         }}
       />
-      <View
-        style={{
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: color,
-        }}
-      />
+      <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: color }} />
     </View>
   );
 }
@@ -352,7 +283,7 @@ export function Badge({ label, color, style, textStyle }: BadgeProps) {
     <View
       style={[
         styles.badge,
-        { backgroundColor: color + "18", borderColor: color + "40" },
+        { backgroundColor: color + "15", borderColor: color + "35" },
         style,
       ]}
     >
@@ -363,16 +294,8 @@ export function Badge({ label, color, style, textStyle }: BadgeProps) {
 
 // ─── SectionLabel ────────────────────────────────────────────────────────────
 
-export function SectionLabel({
-  label,
-  style,
-}: {
-  label: string;
-  style?: ViewStyle;
-}) {
-  return (
-    <Text style={[styles.sectionLabel, style]}>{label.toUpperCase()}</Text>
-  );
+export function SectionLabel({ label, style }: { label: string; style?: ViewStyle }) {
+  return <Text style={[styles.sectionLabel, style]}>{label.toUpperCase()}</Text>;
 }
 
 // ─── FadeInView ──────────────────────────────────────────────────────────────
@@ -387,27 +310,48 @@ export function FadeInView({
   style?: ViewStyle;
 }) {
   const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(12)).current;
+  const translateY = useRef(new Animated.Value(16)).current;
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 1,
-        delay,
-        duration: 350,
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateY, {
-        toValue: 0,
-        delay,
-        duration: 350,
-        useNativeDriver: true,
-      }),
+      Animated.timing(opacity, { toValue: 1, delay, duration: 320, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: 0, delay, duration: 320, useNativeDriver: true }),
     ]).start();
   }, []);
 
   return (
     <Animated.View style={[{ opacity, transform: [{ translateY }] }, style]}>
+      {children}
+    </Animated.View>
+  );
+}
+
+// ─── ScaleInView ─────────────────────────────────────────────────────────────
+
+export function ScaleInView({
+  children,
+  delay = 0,
+  style,
+}: {
+  children: ReactNode;
+  delay?: number;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const scale = useRef(new Animated.Value(0.88)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(scale, {
+        toValue: 1, delay, useNativeDriver: true,
+        damping: 16, stiffness: 200,
+      } as any),
+      Animated.timing(opacity, { toValue: 1, delay, duration: 250, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  return (
+    <Animated.View style={[{ opacity, transform: [{ scale }] }, style]}>
       {children}
     </Animated.View>
   );
@@ -422,50 +366,25 @@ interface ShimmerButtonProps {
   style?: ViewStyle;
 }
 
-export function ShimmerButton({
-  label,
-  onPress,
-  loading,
-  style,
-}: ShimmerButtonProps) {
+export function ShimmerButton({ label, onPress, loading, style }: ShimmerButtonProps) {
   const shimmer = useRef(new Animated.Value(-1)).current;
   const scale = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
-        Animated.timing(shimmer, {
-          toValue: 1,
-          duration: 2200,
-          useNativeDriver: true,
-          delay: 1000,
-        }),
-        Animated.timing(shimmer, {
-          toValue: -1,
-          duration: 0,
-          useNativeDriver: true,
-        }),
+        Animated.timing(shimmer, { toValue: 1, duration: 2000, useNativeDriver: true, delay: 900 }),
+        Animated.timing(shimmer, { toValue: -1, duration: 0, useNativeDriver: true }),
       ]),
     ).start();
   }, []);
 
-  const translateX = shimmer.interpolate({
-    inputRange: [-1, 1],
-    outputRange: [-300, 300],
-  });
+  const translateX = shimmer.interpolate({ inputRange: [-1, 1], outputRange: [-300, 300] });
 
   const pressIn = () =>
-    Animated.spring(scale, {
-      toValue: 0.97,
-      useNativeDriver: true,
-      ...ANIM.spring,
-    }).start();
+    Animated.spring(scale, { toValue: 0.96, useNativeDriver: true, ...ANIM.spring }).start();
   const pressOut = () =>
-    Animated.spring(scale, {
-      toValue: 1,
-      useNativeDriver: true,
-      ...ANIM.spring,
-    }).start();
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, ...ANIM.spring }).start();
 
   return (
     <Animated.View style={[{ transform: [{ scale }] }, style]}>
@@ -474,34 +393,28 @@ export function ShimmerButton({
         onPressIn={pressIn}
         onPressOut={pressOut}
         disabled={loading}
-        android_ripple={{ color: "rgba(255,255,255,0.2)" }}
+        android_ripple={{ color: "rgba(255,255,255,0.25)" }}
         style={{ borderRadius: RADII.lg, overflow: "hidden" }}
       >
         <LinearGradient
-          colors={[COLORS.gold, COLORS.gold3]}
+          colors={[COLORS.gold2, COLORS.gold, COLORS.gold3]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.shimmerBtn}
         >
-          {/* Shimmer overlay */}
           <Animated.View
-            style={[
-              StyleSheet.absoluteFill,
-              {
-                transform: [{ translateX }],
-                backgroundColor: "rgba(255,255,255,0)",
-              },
-            ]}
+            style={[StyleSheet.absoluteFill, { transform: [{ translateX }] }]}
+            pointerEvents="none"
           >
             <LinearGradient
-              colors={["transparent", "rgba(255,255,255,0.18)", "transparent"]}
+              colors={["transparent", "rgba(255,255,255,0.25)", "transparent"]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={StyleSheet.absoluteFill}
             />
           </Animated.View>
           {loading ? (
-            <ActivityIndicator color="#160D00" />
+            <ActivityIndicator color="#FFFFFF" />
           ) : (
             <Text style={styles.shimmerBtnText}>{label}</Text>
           )}
@@ -511,15 +424,42 @@ export function ShimmerButton({
   );
 }
 
+// ─── Chip (pressable category filter) ────────────────────────────────────────
+
+interface ChipProps {
+  label: string;
+  selected: boolean;
+  color: string;
+  onPress: () => void;
+  icon?: ReactNode;
+}
+
+export function Chip({ label, selected, color, onPress, icon }: ChipProps) {
+  return (
+    <Pressable
+      onPress={onPress}
+      android_ripple={{ color: `${color}18` }}
+      style={[
+        styles.chip,
+        selected
+          ? { backgroundColor: color, borderColor: color }
+          : { backgroundColor: COLORS.bgCard, borderColor: COLORS.border },
+      ]}
+    >
+      {icon && <View>{icon}</View>}
+      <Text style={[
+        styles.chipText,
+        { color: selected ? '#FFFFFF' : color },
+      ]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 // ─── Divider ─────────────────────────────────────────────────────────────────
 
-export function Divider({
-  color = COLORS.border,
-  style,
-}: {
-  color?: string;
-  style?: ViewStyle;
-}) {
+export function Divider({ color = COLORS.border, style }: { color?: string; style?: ViewStyle }) {
   return <View style={[{ height: 1, backgroundColor: color }, style]} />;
 }
 
@@ -534,14 +474,13 @@ const styles = StyleSheet.create({
   },
   gradBtnText: {
     fontFamily: FONTS.bodyBold,
-    letterSpacing: 0.2,
+    letterSpacing: 0.3,
   },
   outlineBtn: {
-    paddingVertical: 15,
-    paddingHorizontal: 24,
-    backgroundColor: "rgba(255,255,255,0.05)",
-    borderWidth: 1,
-    borderColor: COLORS.border,
+    paddingVertical: 14,
+    paddingHorizontal: 22,
+    backgroundColor: "transparent",
+    borderWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -554,9 +493,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
     padding: SPACING.lg,
+    ...SHADOWS.card,
   },
   barTrack: {
-    backgroundColor: "rgba(255,255,255,0.07)",
+    backgroundColor: COLORS.bg2,
     overflow: "hidden",
   },
   barFill: {
@@ -571,18 +511,18 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontFamily: FONTS.bodySemiBold,
-    fontSize: 10,
-    letterSpacing: 0.5,
+    fontSize: 11,
+    letterSpacing: 0.2,
   },
   sectionLabel: {
     fontFamily: FONTS.bodySemiBold,
-    fontSize: 10,
+    fontSize: 11,
     color: COLORS.t4,
-    letterSpacing: 2,
+    letterSpacing: 1.5,
     marginBottom: SPACING.md,
   },
   shimmerBtn: {
-    paddingVertical: 17,
+    paddingVertical: 18,
     paddingHorizontal: 24,
     alignItems: "center",
     justifyContent: "center",
@@ -590,8 +530,21 @@ const styles = StyleSheet.create({
   },
   shimmerBtnText: {
     fontFamily: FONTS.bodyBold,
-    fontSize: 16,
-    color: "#160D00",
-    letterSpacing: 0.3,
+    fontSize: 17,
+    color: "#FFFFFF",
+    letterSpacing: 1,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 7,
+    borderRadius: RADII.full,
+    borderWidth: 1.5,
+  },
+  chipText: {
+    fontFamily: FONTS.bodySemiBold,
+    fontSize: 12,
   },
 });

@@ -5,9 +5,12 @@ import {
   Pressable,
   Animated,
   StyleSheet,
+  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, FONTS, SPACING } from '../constants/theme';
+import { COLORS, FONTS, SPACING, SHADOWS } from '../constants/theme';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export interface BottomSheetProps {
   visible: boolean;
@@ -25,7 +28,7 @@ export function BottomSheet({
   title,
 }: BottomSheetProps) {
   const [mounted, setMounted] = useState(false);
-  const translateY = useRef(new Animated.Value(600)).current;
+  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
 
@@ -36,25 +39,26 @@ export function BottomSheet({
         Animated.spring(translateY, {
           toValue: 0,
           useNativeDriver: true,
-          damping: 20,
-          stiffness: 180,
+          damping: 22,
+          stiffness: 200,
+          mass: 0.9,
         }),
         Animated.timing(backdropOpacity, {
           toValue: 1,
-          duration: 250,
+          duration: 220,
           useNativeDriver: true,
         }),
       ]).start();
     } else if (mounted) {
       Animated.parallel([
         Animated.timing(translateY, {
-          toValue: 600,
-          duration: 280,
+          toValue: SCREEN_HEIGHT,
+          duration: 260,
           useNativeDriver: true,
         }),
         Animated.timing(backdropOpacity, {
           toValue: 0,
-          duration: 250,
+          duration: 220,
           useNativeDriver: true,
         }),
       ]).start(({ finished }) => {
@@ -64,28 +68,31 @@ export function BottomSheet({
         }
       });
     }
-  }, [visible, mounted, translateY, backdropOpacity, onDismissed]);
+  }, [visible, mounted]);
 
   if (!mounted) return null;
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+      {/* Backdrop */}
       <Animated.View
         style={[
           StyleSheet.absoluteFill,
-          { backgroundColor: 'rgba(0,0,0,0.72)', opacity: backdropOpacity },
+          { backgroundColor: 'rgba(15,23,42,0.50)', opacity: backdropOpacity },
         ]}
       >
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       </Animated.View>
 
+      {/* Sheet */}
       <Animated.View
         style={[
           styles.sheet,
-          { paddingBottom: insets.bottom + 24, transform: [{ translateY }] },
+          { paddingBottom: insets.bottom + 20, transform: [{ translateY }] },
         ]}
       >
-        <View style={styles.sheetHandle} />
+        {/* Handle bar */}
+        <View style={styles.handle} />
         {title && <Text style={styles.sheetTitle}>{title}</Text>}
         {children}
       </Animated.View>
@@ -103,14 +110,17 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
     borderColor: COLORS.border,
     paddingHorizontal: SPACING.xl,
-    paddingTop: 8,
+    paddingTop: 10,
+    ...SHADOWS.card,
   },
-  sheetHandle: {
-    width: 36,
+  handle: {
+    width: 40,
     height: 4,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: '#E2E8F0',
     borderRadius: 2,
     alignSelf: 'center',
     marginBottom: SPACING.xl,
