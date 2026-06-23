@@ -1,0 +1,64 @@
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../types';
+import AuthScreen from '../screens/AuthScreen';
+import { CharacterCreateScreen } from '../screens/CharacterCreateScreen';
+import { SaveSlotScreen } from '../screens/SaveSlotScreen';
+import MainTabNavigator from './MainTabNavigator';
+import DeathScreen from '../screens/DeathScreen';
+import { ShopScreen } from '../screens/ShopScreen';
+import { StatsScreen } from '../screens/StatsScreen';
+import { ActivitiesScreen } from '../screens/ActivitiesScreen';
+import { useGameStore } from '../store/gameStore';
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
+
+type GamePhase = 'auth' | 'slots' | 'alive' | 'dead';
+
+function getGamePhase(
+  user: ReturnType<typeof useGameStore.getState>['user'],
+  character: ReturnType<typeof useGameStore.getState>['character'],
+): GamePhase {
+  if (!user) return 'auth';
+  if (!character) return 'slots';
+  if (!character.isAlive) return 'dead';
+  return 'alive';
+}
+
+function getInitialRoute(phase: GamePhase): keyof RootStackParamList {
+  if (phase === 'auth') return 'Auth';
+  if (phase === 'slots') return 'SaveSlots';
+  if (phase === 'dead') return 'Death';
+  return 'MainTabs';
+}
+
+export default function RootNavigator() {
+  const character = useGameStore(s => s.character);
+  const user = useGameStore(s => s.user);
+  const isHydrated = useGameStore(s => s.isHydrated);
+
+  if (!isHydrated) return null;
+
+  const phase = getGamePhase(user, character);
+  const initialRouteName = getInitialRoute(phase);
+
+  return (
+    <Stack.Navigator
+      key={`${phase}_${user?.uid ?? 'none'}`}
+      initialRouteName={initialRouteName}
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: '#080C14' },
+        animation: 'fade',
+      }}
+    >
+      <Stack.Screen name="Auth" component={AuthScreen} />
+      <Stack.Screen name="SaveSlots" component={SaveSlotScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="CharacterCreate" component={CharacterCreateScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="MainTabs" component={MainTabNavigator} />
+      <Stack.Screen name="Death" component={DeathScreen} options={{ animation: 'fade' }} />
+      <Stack.Screen name="Shop" component={ShopScreen} options={{ animation: 'slide_from_right', presentation: 'modal' }} />
+      <Stack.Screen name="Stats" component={StatsScreen} options={{ animation: 'slide_from_right', presentation: 'modal' }} />
+      <Stack.Screen name="Activities" component={ActivitiesScreen} options={{ animation: 'slide_from_right' }} />
+    </Stack.Navigator>
+  );
+}

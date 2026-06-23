@@ -1,41 +1,91 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
-# dependencies
+# ─── Dependencies ───────────────────────────────────────────────────────────
 node_modules/
+functions/node_modules/
 
-# Expo
+# ─── Expo / React Native ────────────────────────────────────────────────────
 .expo/
 dist/
 web-build/
 expo-env.d.ts
 
-# Native
-.kotlin/
-*.orig.*
+# Generated native projects (use `npx expo prebuild` locally)
+/ios
+/android
+
+# ─── Secrets & local config ─────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# Firebase client configs (download from Firebase Console per developer)
+google-services.json
+GoogleService-Info.plist
+
+# Firebase Admin / service accounts — never commit
+*-firebase-adminsdk-*.json
+serviceAccount*.json
+firebase-service-account.json
+
+# EAS / signing credentials
+credentials.json
+*.keystore
 *.jks
 *.p8
 *.p12
 *.key
 *.mobileprovision
+*.pem
 
-# Metro
+# ─── Firebase tooling ───────────────────────────────────────────────────────
+.firebase/
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+pubsub-debug.log
+database-debug.log
+
+# ─── Cloud Functions build output ───────────────────────────────────────────
+functions/lib/
+
+# ─── Metro ──────────────────────────────────────────────────────────────────
 .metro-health-check*
 
-# debug
+# ─── Build artifacts ────────────────────────────────────────────────────────
+*.apk
+*.aab
+*.ipa
+build/
+*.tsbuildinfo
+
+# ─── Native tooling ───────────────────────────────────────────────────────────
+.kotlin/
+*.orig.*
+local.properties
+
+# ─── Testing & coverage ─────────────────────────────────────────────────────
+coverage/
+
+# ─── Logs & debug ───────────────────────────────────────────────────────────
+*.log
+logs/
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+pnpm-debug.*
 
-# macOS
+# ─── OS junk ────────────────────────────────────────────────────────────────
 .DS_Store
-*.pem
+Thumbs.db
+.AppleDouble
+.LSOverride
 
-# local env files
-.env*.local
-
-# typescript
-*.tsbuildinfo
-
-# generated native folders
-/ios
-/android
+# ─── Editors & local AI tooling ─────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.claude/
+.cursor/
