@@ -14,8 +14,8 @@ const PRODUCT_IDS: IAPProductId[] = [
   'reincarnation_scroll',
 ];
 
-type Product = import('react-native-iap').Product;
-type Purchase = import('react-native-iap').Purchase;
+type Product = import('@iaptic/react-native-iap').Product;
+type Purchase = import('@iaptic/react-native-iap').Purchase;
 
 let products: Product[] = [];
 let purchaseCallback: ((purchase: Purchase) => void) | null = null;
@@ -23,7 +23,7 @@ let purchaseCallback: ((purchase: Purchase) => void) | null = null;
 function getIapModule() {
   if (!isIapNativeAvailable()) return null;
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  return require('react-native-iap') as typeof import('react-native-iap');
+  return require('@iaptic/react-native-iap') as typeof import('@iaptic/react-native-iap');
 }
 
 export async function initIAP(

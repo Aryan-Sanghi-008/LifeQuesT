@@ -40,13 +40,15 @@ ios:     { googleServicesFile: process.env.GOOGLE_SERVICES_PLIST ?? './GoogleSer
 ```
 
 - EAS plain/sensitive env vars for `EXPO_PUBLIC_*` as needed.
-- `app.config.ts` **plugins** must include `react-native-iap` (adds `missingDimensionStrategy "store", "play"` for Gradle).
+- `app.config.ts` **plugins** must include `@iaptic/react-native-iap` (adds `missingDimensionStrategy "store", "play"` for Gradle).
 
 ## Common build failures
 | Error | Fix |
 |-------|-----|
 | `google-services.json` missing | Upload `GOOGLE_SERVICES_JSON` file env var (see above) |
-| Gradle variant ambiguity `amazon` vs `play` for `:react-native-iap` | Add `'react-native-iap'` to `plugins` in `app.config.ts` |
+| Gradle variant ambiguity `amazon` vs `play` for `:react-native-iap` | Add `'@iaptic/react-native-iap'` to `plugins` in `app.config.ts` |
+| `compileReleaseKotlin` / `Unresolved reference 'currentActivity'` on `:react-native-google-mobile-ads` | Upgrade to `react-native-google-mobile-ads@>=16.3.2` |
+| `compilePlayReleaseKotlin` / `Unresolved reference 'currentActivity'` on `:react-native-iap` | Use `@iaptic/react-native-iap@>=13` (upstream `react-native-iap@12` is unmaintained on RN 0.85) |
 
 ## Commands
 ```bash

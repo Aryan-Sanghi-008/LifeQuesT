@@ -38,7 +38,7 @@ const config: ExpoConfig = {
           'com.googleusercontent.apps.REPLACE_WITH_YOUR_IOS_CLIENT_ID',
       },
     ],
-    'react-native-iap',
+    '@iaptic/react-native-iap',
     'expo-splash-screen',
   ],
   extra: {
