@@ -1,5 +1,10 @@
 import { LifeEvent, AvatarId, Activity, ActivityCategory } from '../types';
 import { COLORS } from '../theme/themes';
+import { generateExpansionEvents } from './events/expansion';
+import { CRIME_EVENTS } from './events/crime';
+import { SOCIAL_VIRALITY_EVENTS } from './events/social';
+import { COUNTRY_EVENTS } from './events/country';
+import { BUSINESS_EVENTS, EDUCATION_EVENTS } from './events/businessEducation';
 
 // ─── Avatars (legacy) ─────────────────────────────────────────────────────────
 export const AVATARS: Array<{ id: AvatarId; label: string }> = [
@@ -41,12 +46,21 @@ export const ZODIACS = [
 
 // ─── Starting Traits ─────────────────────────────────────────────────────────
 export const TRAITS = [
-  { id: 'brilliant', label: 'Brilliant',  description: '+20 Intelligence from birth', statEffect: { intelligence: 20 } },
-  { id: 'charming',  label: 'Charming',   description: '+20 Social from birth',       statEffect: { social: 20 }       },
-  { id: 'athletic',  label: 'Athletic',   description: '+20 Fitness from birth',      statEffect: { fitness: 20 }      },
-  { id: 'creative',  label: 'Creative',   description: '+15 Mind, +10 Joy',           statEffect: { intelligence: 15, happiness: 10 } },
-  { id: 'lucky',     label: 'Lucky',      description: '+10% success chance on all rolls', statEffect: {}              },
-  { id: 'ambitious', label: 'Ambitious',  description: '+20 Ambition from birth',     statEffect: { ambition: 20 }     },
+  { id: 'brilliant', label: 'Brilliant',  description: '+20 Intelligence from birth', statEffect: { intelligence: 20 }, premiumOnly: false },
+  { id: 'charming',  label: 'Charming',   description: '+20 Social from birth',       statEffect: { social: 20 }, premiumOnly: false },
+  { id: 'athletic',  label: 'Athletic',   description: '+20 Fitness from birth',      statEffect: { fitness: 20 }, premiumOnly: false },
+  { id: 'creative',  label: 'Creative',   description: '+15 Mind, +10 Joy',           statEffect: { intelligence: 15, happiness: 10 }, premiumOnly: false },
+  { id: 'lucky',     label: 'Lucky',      description: '+10% success chance on all rolls', statEffect: {}, premiumOnly: true },
+  { id: 'ambitious', label: 'Ambitious',  description: '+20 Ambition from birth',     statEffect: { ambition: 20 }, premiumOnly: false },
+  { id: 'resilient', label: 'Resilient',  description: '+15 Health, +10 Mental Health', statEffect: { health: 15, mentalHealth: 10 }, premiumOnly: false },
+  { id: 'witty',     label: 'Witty',      description: '+15 Social, +10 Intelligence', statEffect: { social: 15, intelligence: 10 }, premiumOnly: false },
+  { id: 'disciplined', label: 'Disciplined', description: '+15 Fitness, +10 Ambition', statEffect: { fitness: 15, ambition: 10 }, premiumOnly: false },
+  { id: 'empathetic', label: 'Empathetic', description: '+15 Social, +10 Karma start', statEffect: { social: 15, happiness: 10 }, premiumOnly: false },
+  { id: 'reckless',  label: 'Reckless',   description: '+15 Ambition, -10 Health',    statEffect: { ambition: 15, health: -10 }, premiumOnly: false },
+  { id: 'stoic',     label: 'Stoic',      description: '+20 Mental Health',           statEffect: { mentalHealth: 20 }, premiumOnly: true },
+  { id: 'magnetic',  label: 'Magnetic',   description: '+20 Looks, +10 Social',       statEffect: { looks: 20, social: 10 }, premiumOnly: true },
+  { id: 'studious',  label: 'Studious',   description: '+20 Intelligence, +5 Mental Health', statEffect: { intelligence: 20, mentalHealth: 5 }, premiumOnly: false },
+  { id: 'generous',  label: 'Generous',   description: '+15 Happiness, +10 Social',   statEffect: { happiness: 15, social: 10 }, premiumOnly: false },
 ];
 
 // ─── Family Backgrounds ──────────────────────────────────────────────────────
@@ -107,8 +121,8 @@ export const JOBS = [
   { id: 'pilot',          label: 'Pilot',           salary: 85000,minIntelligence: 70, company: 'AirLine Co.'     },
 ] as const;
 
-// ─── Life Events ─────────────────────────────────────────────────────────────
-export const LIFE_EVENTS: LifeEvent[] = [
+// ─── Life Events (core) ──────────────────────────────────────────────────────
+export const CORE_LIFE_EVENTS: LifeEvent[] = [
 
   // ══ INFANCY & TODDLER (0–4) ══════════════════════════════════════════════
 
@@ -1143,4 +1157,27 @@ export const ACTIVITIES: Activity[] = [
     statEffect: { ambition: 8 },
     successChance: 55,
   },
+];
+
+export const LIFE_EVENTS: LifeEvent[] = [
+  ...CORE_LIFE_EVENTS,
+  ...CRIME_EVENTS,
+  ...SOCIAL_VIRALITY_EVENTS,
+  ...BUSINESS_EVENTS,
+  ...EDUCATION_EVENTS,
+  ...COUNTRY_EVENTS,
+  ...generateExpansionEvents(127),
+];
+
+export const SEASON_PASS_TIERS = [
+  { tier: 1, xpRequired: 0, rewardCoins: 50 },
+  { tier: 2, xpRequired: 100, rewardCoins: 75 },
+  { tier: 3, xpRequired: 250, rewardCoins: 100, rewardLuckBoosts: 1 },
+  { tier: 4, xpRequired: 450, rewardCoins: 125 },
+  { tier: 5, xpRequired: 700, rewardCoins: 150, rewardGems: 5 },
+  { tier: 6, xpRequired: 1000, rewardCoins: 175 },
+  { tier: 7, xpRequired: 1350, rewardCoins: 200, rewardLuckBoosts: 1 },
+  { tier: 8, xpRequired: 1750, rewardCoins: 225 },
+  { tier: 9, xpRequired: 2200, rewardCoins: 250, rewardGems: 10 },
+  { tier: 10, xpRequired: 2700, rewardCoins: 500, rewardLuckBoosts: 2 },
 ];

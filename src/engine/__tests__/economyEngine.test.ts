@@ -15,6 +15,7 @@ const baseStats: CharacterStats = {
   looks: 50,
   social: 50,
   ambition: 50,
+  mentalHealth: 70,
 };
 
 describe('clamp', () => {

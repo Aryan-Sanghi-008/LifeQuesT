@@ -1,7 +1,9 @@
 import { Character, LifeEvent } from '../types';
 import { LIFE_EVENTS } from '../data/gameData';
+import { isEventBlockedByCrime, isInJail } from './crimeEngine';
 
 export function hasJob(character: Character): boolean {
+  if (isInJail(character)) return false;
   return character.career !== null || (
     character.job !== 'Student' &&
     character.job !== 'Unemployed' &&
@@ -19,6 +21,11 @@ export function isEligible(
   if (event.oneTime && usedIds.includes(event.id)) return false;
   if (event.requiresTrait && !character.traits.includes(event.requiresTrait)) return false;
   if (event.requiresJob && !hasJob(character)) return false;
+  if (event.requiresCountry && !event.requiresCountry.includes(character.countryCode)) return false;
+  if (event.requiresKarmaMin !== undefined && character.karma < event.requiresKarmaMin) return false;
+  if (event.requiresMentalHealthBelow !== undefined
+    && character.stats.mentalHealth >= event.requiresMentalHealthBelow) return false;
+  if (isEventBlockedByCrime(character, event)) return false;
   if (event.requiresEducation) {
     const levels = ['none', 'elementary', 'secondary', 'university', 'graduate'];
     if (levels.indexOf(character.educationLevel) < levels.indexOf(event.requiresEducation)) return false;

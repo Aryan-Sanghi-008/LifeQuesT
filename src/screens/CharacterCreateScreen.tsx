@@ -1,7 +1,7 @@
 import { useState, useRef, Fragment } from 'react';
 import {
   View, Text, Pressable, StyleSheet, Animated,
-  TextInput, ScrollView, Dimensions, KeyboardAvoidingView, Platform,
+  TextInput, ScrollView, Dimensions, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { RouteProp } from '@react-navigation/native';
@@ -242,9 +242,10 @@ function Step2({ country, setCountry, background, setBackground }: {
 
 // ─── Step 3: Traits & Zodiac ──────────────────────────────────────────────────
 
-function Step3({ zodiac, setZodiac, traits, toggleTrait }: {
+function Step3({ zodiac, setZodiac, traits, toggleTrait, isPremium }: {
   zodiac: string; setZodiac: (v: string) => void;
   traits: string[]; toggleTrait: (id: string) => void;
+  isPremium: boolean;
 }) {
   return (
     <FadeInView style={styles.stepContainer}>
@@ -275,16 +276,26 @@ function Step3({ zodiac, setZodiac, traits, toggleTrait }: {
         {TRAITS.map(t => {
           const active = traits.includes(t.id);
           const locked = !active && traits.length >= 2;
+          const premiumLocked = 'premiumOnly' in t && t.premiumOnly && !isPremium;
           return (
             <Pressable
               key={t.id}
-              onPress={() => !locked && toggleTrait(t.id)}
+              onPress={() => {
+                if (premiumLocked) {
+                  Alert.alert('Premium Trait', 'Unlock LifeQuest Premium to use this trait.');
+                  return;
+                }
+                if (!locked) toggleTrait(t.id);
+              }}
               style={[
                 styles.traitCard,
                 active && { borderColor: `${COLORS.orchid}50`, backgroundColor: `${COLORS.orchid}08` },
-                locked && styles.traitCardLocked,
+                (locked || premiumLocked) && styles.traitCardLocked,
               ]}
             >
+              {premiumLocked && (
+                <Text style={styles.traitDesc}>Premium</Text>
+              )}
               {active && (
                 <View style={[styles.traitCheck, { backgroundColor: COLORS.orchid }]}>
                   <Svg width={10} height={10} viewBox="0 0 24 24" fill="none">
@@ -306,6 +317,7 @@ function Step3({ zodiac, setZodiac, traits, toggleTrait }: {
 
 export function CharacterCreateScreen({ navigation, route }: Props) {
   const createCharacter   = useGameStore(s => s.createCharacter);
+  const character = useGameStore(s => s.character);
   const carriedFromStore  = useGameStore(s => s.carriedStatsForCreate);
   const carriedStats      = carriedFromStore ?? route.params?.carriedStats;
 
@@ -386,7 +398,15 @@ export function CharacterCreateScreen({ navigation, route }: Props) {
             <Animated.View style={{ transform: [{ translateX: slideAnim }] }}>
               {step === 0 && <Step1 name={name} setName={setName} gender={gender} setGender={setGender} />}
               {step === 1 && <Step2 country={country} setCountry={setCountry} background={background} setBackground={setBackground} />}
-              {step === 2 && <Step3 zodiac={zodiac} setZodiac={setZodiac} traits={traits} toggleTrait={toggleTrait} />}
+              {step === 2 && (
+                <Step3
+                  zodiac={zodiac}
+                  setZodiac={setZodiac}
+                  traits={traits}
+                  toggleTrait={toggleTrait}
+                  isPremium={character?.isPremium ?? false}
+                />
+              )}
             </Animated.View>
           </ScrollView>
 

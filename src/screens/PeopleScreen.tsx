@@ -9,6 +9,7 @@ import { useGameStore } from '../store/gameStore';
 import { NpcAvatar } from '../components/Avatars';
 import { Card, SectionLabel } from '../components/index';
 import { Person, RelationType } from '../types';
+import { getRelationshipStageLabel } from '../engine/relationshipEngine';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 
 // ─── Relationship bar ─────────────────────────────────────────────────────────
@@ -51,6 +52,9 @@ function PersonRow({ person, onPress }: { person: Person; onPress: () => void })
       </View>
       <View style={pr.right}>
         <Text style={pr.score}>{person.relationshipScore}</Text>
+        {person.relationshipStage && (
+          <Text style={pr.stage}>{getRelationshipStageLabel(person.relationshipStage)}</Text>
+        )}
         <RelBar score={person.relationshipScore} />
       </View>
       {!dead && (
@@ -74,6 +78,7 @@ const pr = StyleSheet.create({
   occ:        { fontFamily: FONTS.body, fontSize: 10, color: COLORS.t4 },
   right:      { width: 52, gap: 4, alignItems: 'flex-end' },
   score:      { fontFamily: FONTS.monoSemiBold, fontSize: 12, color: COLORS.t3 },
+  stage:      { fontFamily: FONTS.body, fontSize: 9, color: COLORS.orchid },
 });
 
 // ─── SVG icons for interactions ───────────────────────────────────────────────

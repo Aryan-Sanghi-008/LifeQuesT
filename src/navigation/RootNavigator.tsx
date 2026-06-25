@@ -8,6 +8,8 @@ import DeathScreen from '../screens/DeathScreen';
 import { ShopScreen } from '../screens/ShopScreen';
 import { StatsScreen } from '../screens/StatsScreen';
 import { ActivitiesScreen } from '../screens/ActivitiesScreen';
+import StudyScreen from '../screens/StudyScreen';
+import LeaderboardScreen from '../screens/LeaderboardScreen';
 import { useGameStore } from '../store/gameStore';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -59,6 +61,8 @@ export default function RootNavigator() {
       <Stack.Screen name="Shop" component={ShopScreen} options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
       <Stack.Screen name="Stats" component={StatsScreen} options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
       <Stack.Screen name="Activities" component={ActivitiesScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="Study" component={StudyScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="Leaderboard" component={LeaderboardScreen} options={{ animation: 'slide_from_right' }} />
     </Stack.Navigator>
   );
 }

@@ -102,6 +102,8 @@ export function applyPurchaseToStore(
     setNoAds: (v: boolean) => void;
     addLuckBoost: (n: number) => void;
     useReincarnationScroll: () => void;
+    setSeasonPass?: (v: boolean) => void;
+    unlockAvatarStyle?: (style: 'adventurer' | 'lorelei' | 'bottts') => void;
   },
 ): void {
   switch (productId as IAPProductId) {
@@ -129,6 +131,18 @@ export function applyPurchaseToStore(
       break;
     case 'reincarnation_scroll':
       store.useReincarnationScroll();
+      break;
+    case 'season_pass':
+      store.setSeasonPass?.(true);
+      break;
+    case 'avatar_pack_adventurer':
+      store.unlockAvatarStyle?.('adventurer');
+      break;
+    case 'avatar_pack_lorelei':
+      store.unlockAvatarStyle?.('lorelei');
+      break;
+    case 'avatar_pack_bottts':
+      store.unlockAvatarStyle?.('bottts');
       break;
   }
 }

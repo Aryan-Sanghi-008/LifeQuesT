@@ -21,7 +21,7 @@ const baseCharacter: Character = {
   birthYear: 2000,
   stats: {
     health: 70, happiness: 70, intelligence: 80, wealth: 50,
-    fitness: 60, looks: 60, social: 50, ambition: 50,
+    fitness: 60, looks: 60, social: 50, ambition: 50, mentalHealth: 70,
   },
   karma: 50,
   bankBalance: 1000,
@@ -41,6 +41,8 @@ const baseCharacter: Character = {
   hasNoAds: false,
   luckBoostsRemaining: 2,
   hasReincarnationScroll: false,
+  businesses: [],
+  socialFollowers: 0,
   createdAt: 1,
   updatedAt: 1,
 };

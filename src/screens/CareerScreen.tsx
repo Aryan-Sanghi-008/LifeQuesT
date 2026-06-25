@@ -2,6 +2,9 @@ import {
   View, Text, ScrollView, Pressable, StyleSheet, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../types';
 import { COLORS, FONTS, RADII, SPACING } from '../constants/theme';
 import { useGameStore } from '../store/gameStore';
 import { NpcAvatar } from '../components/Avatars';
@@ -191,6 +194,7 @@ function JobBoard() {
 }
 
 export function CareerScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const character = useGameStore(s => s.character);
   if (!character) return null;
 
@@ -213,6 +217,15 @@ export function CareerScreen() {
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <SectionLabel label="Education" style={{ marginBottom: SPACING.md }} />
           <EducationTrack current={character.educationLevel} countryCode={cc} />
+          {character.age >= 13 && character.age <= 24 && character.educationLevel !== 'graduate' && (
+            <Pressable
+              style={[styles.btn, { borderColor: COLORS.sapphire, marginTop: SPACING.md }]}
+              onPress={() => navigation.navigate('Study')}
+              accessibilityLabel="Start study session"
+            >
+              <Text style={[styles.btnText, { color: COLORS.sapphire }]}>Study Session</Text>
+            </Pressable>
+          )}
           <SectionLabel label={inSchool ? 'School Life' : 'Career'} style={{ marginTop: SPACING.xl, marginBottom: SPACING.md }} />
           {inSchool ? <ClassRoster /> : <JobPanel />}
           {!inSchool && character.age >= 16 && (

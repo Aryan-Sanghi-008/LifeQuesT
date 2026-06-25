@@ -119,3 +119,46 @@ export const verifyPurchase = functions.https.onCall(async (data, context) => {
   await batch.commit();
   return { ok: true, grants };
 });
+
+interface LeaderboardPayload {
+  score: number;
+  lifeAge: number;
+  country: string;
+  displayName: string;
+  avatarSeed: string;
+}
+
+export const updateLeaderboard = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Sign in required.');
+  }
+
+  const { score, lifeAge, country, displayName, avatarSeed } = data as LeaderboardPayload;
+  if (typeof score !== 'number' || typeof lifeAge !== 'number') {
+    throw new functions.https.HttpsError('invalid-argument', 'score and lifeAge required.');
+  }
+
+  const uid = context.auth.uid;
+  await db.collection('leaderboard').doc(uid).set({
+    uid,
+    score,
+    lifeAge,
+    country: country ?? 'Unknown',
+    displayName: displayName ?? 'Anonymous',
+    avatarSeed: avatarSeed ?? uid,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  }, { merge: true });
+
+  return { ok: true };
+});
+
+export const getLeaderboard = functions.https.onCall(async (data) => {
+  const limit = Math.min((data as { limit?: number }).limit ?? 50, 100);
+  const snap = await db.collection('leaderboard')
+    .orderBy('score', 'desc')
+    .limit(limit)
+    .get();
+
+  const entries = snap.docs.map(d => d.data());
+  return { entries };
+});

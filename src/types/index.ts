@@ -38,9 +38,34 @@ export interface Person {
   gender: string;
   relationType: RelationType;
   relationshipScore: number; // 0-100
+  relationshipStage?: RelationshipStage;
   avatarSeed: string;
   isAlive: boolean;
   occupation?: string;
+}
+
+export type RelationshipStage =
+  | 'single'
+  | 'dating'
+  | 'engaged'
+  | 'married'
+  | 'separated'
+  | 'divorced';
+
+export interface CriminalRecord {
+  crimes: string[];
+  jailYearsRemaining: number;
+  onProbation: boolean;
+}
+
+export interface Business {
+  id: string;
+  name: string;
+  revenue: number;
+  expenses: number;
+  valuation: number;
+  employees: number;
+  foundedAge: number;
 }
 
 // ─── Career ───────────────────────────────────────────────────────────────────
@@ -102,6 +127,7 @@ export interface CharacterStats {
   looks: number;        // 0-100
   social: number;       // 0-100
   ambition: number;     // 0-100
+  mentalHealth: number; // 0-100
 }
 
 export type StatKey = keyof CharacterStats;
@@ -112,6 +138,7 @@ export interface StatEffect extends Partial<CharacterStats> {
 
 export type FamilyBackground = 'poor' | 'middle' | 'wealthy' | 'royalty';
 export type AvatarId = 'male_1' | 'female_1' | 'male_2' | 'female_2';
+export type AvatarStyleId = 'pixel_art' | 'adventurer' | 'lorelei' | 'bottts';
 export type Gender = 'male' | 'female' | 'other';
 
 export interface Character {
@@ -151,6 +178,13 @@ export interface Character {
   hasNoAds: boolean;
   luckBoostsRemaining: number;
   hasReincarnationScroll: boolean;
+  criminalRecord?: CriminalRecord;
+  businesses: Business[];
+  socialFollowers: number;
+  avatarStyle?: AvatarStyleId;
+  seasonXp?: number;
+  unlockedAvatarStyles?: AvatarStyleId[];
+  hasSeasonPass?: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -201,6 +235,9 @@ export interface LifeEvent {
   requiresStat?: Partial<Record<StatKey, number>>;
   requiresEducation?: EducationLevel;
   requiresJob?: boolean; // true = must have a job
+  requiresCountry?: string[];
+  requiresKarmaMin?: number;
+  requiresMentalHealthBelow?: number;
   oneTime?: boolean;
   updatesJob?: string;
   updatesEducation?: EducationLevel;
@@ -232,7 +269,11 @@ export type IAPProductId =
   | 'coins_large'
   | 'gems_small'
   | 'luck_boost'
-  | 'reincarnation_scroll';
+  | 'reincarnation_scroll'
+  | 'season_pass'
+  | 'avatar_pack_adventurer'
+  | 'avatar_pack_lorelei'
+  | 'avatar_pack_bottts';
 
 // ─── Navigation ──────────────────────────────────────────────────────────────
 
@@ -245,6 +286,8 @@ export type RootStackParamList = {
   Shop: undefined;
   Stats: undefined;
   Activities: undefined;
+  Study: undefined;
+  Leaderboard: undefined;
 };
 
 export type MainTabParamList = {
@@ -299,3 +342,38 @@ export interface SaveSlot {
 }
 
 export const MAX_SAVE_SLOTS = 3;
+
+// ─── Quests ──────────────────────────────────────────────────────────────────
+
+export type QuestObjectiveType =
+  | 'age_up'
+  | 'earn_karma'
+  | 'complete_activity'
+  | 'study_session';
+
+export interface DailyQuest {
+  id: string;
+  title: string;
+  description: string;
+  objectiveType: QuestObjectiveType;
+  target: number;
+  progress: number;
+  rewardCoins: number;
+  claimed: boolean;
+}
+
+// ─── Season Pass ─────────────────────────────────────────────────────────────
+
+export interface SeasonPassTier {
+  tier: number;
+  xpRequired: number;
+  rewardCoins: number;
+  rewardGems?: number;
+  rewardLuckBoosts?: number;
+}
+
+export interface SeasonProgress {
+  seasonId: string;
+  xp: number;
+  claimedTiers: number[];
+}

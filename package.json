@@ -36,6 +36,7 @@
     "expo-dev-client": "~56.0.20",
     "expo-font": "~56.0.7",
     "expo-linear-gradient": "~56.0.4",
+    "expo-notifications": "^0.32.17",
     "expo-splash-screen": "~56.0.10",
     "firebase": "^12.15.0",
     "immer": "^10.1.1",

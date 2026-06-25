@@ -28,6 +28,10 @@ jest.mock('@services/analytics', () => ({
   logEvent: jest.fn(),
 }));
 
+jest.mock('@services/widgetSnapshot', () => ({
+  writeWidgetSnapshot: jest.fn(),
+}));
+
 import { useGameStore } from '@store/gameStore';
 import { saveCharacterLocal } from '@services/persistence';
 import { syncSaveToCloud } from '@services/cloudSave';
@@ -42,6 +46,7 @@ const baseStats = {
   looks: 50,
   social: 50,
   ambition: 50,
+  mentalHealth: 70,
 };
 
 function makeCharacter(overrides: Partial<Character> = {}): Character {
@@ -80,6 +85,8 @@ function makeCharacter(overrides: Partial<Character> = {}): Character {
     hasNoAds: false,
     luckBoostsRemaining: 0,
     hasReincarnationScroll: false,
+    businesses: [],
+    socialFollowers: 0,
     createdAt: 1_700_000_000_000,
     updatedAt: 1_700_000_000_000,
     ...overrides,

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, Pressable, StyleSheet, Switch, Alert,
 } from 'react-native';
@@ -14,6 +14,8 @@ import { StatBar, Card, Badge, SectionLabel, Divider } from '../components/index
 import { ACHIEVEMENTS } from '../data/gameData';
 import { formatCurrency } from '../utils/currency';
 import { getPrivacyPolicyUrl, getTermsUrl, openLegalUrl } from '../config/legal';
+import { getNotificationsEnabled } from '../services/persistence';
+import { setNotificationsPreference } from '../services/notifications';
 import Svg, { Path, Circle } from 'react-native-svg';
 
 // ─── Stat Chip ────────────────────────────────────────────────────────────────
@@ -93,10 +95,17 @@ export function ProfileScreen() {
   const character  = useGameStore(s => s.character);
   const resetGame  = useGameStore(s => s.resetGame);
   const claimDailyBonus = useGameStore(s => s.claimDailyBonus);
+  const dailyQuests = useGameStore(s => s.dailyQuests);
+  const loadDailyQuests = useGameStore(s => s.loadDailyQuests);
+  const claimQuestReward = useGameStore(s => s.claimQuestReward);
 
   const [sound, setSound]   = useState(true);
-  const [notif, setNotif]   = useState(false);
+  const [notif, setNotif]   = useState(getNotificationsEnabled());
   const [haptic, setHaptic] = useState(true);
+
+  useEffect(() => {
+    loadDailyQuests();
+  }, [loadDailyQuests]);
 
   const handleOpenPrivacy = async () => {
     try {
@@ -307,6 +316,28 @@ export function ProfileScreen() {
               >
                 <Text style={styles.dailyBonusText}>Claim Daily Bonus (+25 coins)</Text>
               </Pressable>
+              {dailyQuests.map(q => (
+                <Pressable
+                  key={q.id}
+                  style={styles.dailyBonusBtn}
+                  onPress={() => {
+                    const result = claimQuestReward(q.id);
+                    Alert.alert(result.ok ? 'Quest Complete' : 'Quest', result.message);
+                  }}
+                  accessibilityLabel={`Quest ${q.title}`}
+                >
+                  <Text style={styles.dailyBonusText}>
+                    {q.title} ({q.progress}/{q.target}) — {q.rewardCoins}c
+                  </Text>
+                </Pressable>
+              ))}
+              <Pressable
+                style={styles.dailyBonusBtn}
+                onPress={() => navigation.navigate('Leaderboard')}
+                accessibilityLabel="View leaderboard"
+              >
+                <Text style={styles.dailyBonusText}>View Leaderboard</Text>
+              </Pressable>
             </Card>
           </View>
 
@@ -328,7 +359,10 @@ export function ProfileScreen() {
                 label="Notifications"
                 desc="Daily life reminders"
                 value={notif}
-                onChange={setNotif}
+                onChange={(v) => {
+                  setNotif(v);
+                  void setNotificationsPreference(v);
+                }}
                 iconBg={`${COLORS.emerald}12`}
               />
               <Divider />

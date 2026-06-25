@@ -19,7 +19,7 @@ const makeChar = (id: string, updatedAt: number): Character => ({
   birthYear: 2000,
   stats: {
     health: 50, happiness: 50, intelligence: 50, wealth: 50,
-    fitness: 50, looks: 50, social: 50, ambition: 50,
+    fitness: 50, looks: 50, social: 50, ambition: 50, mentalHealth: 70,
   },
   karma: 50,
   bankBalance: 0,
@@ -39,6 +39,8 @@ const makeChar = (id: string, updatedAt: number): Character => ({
   hasNoAds: false,
   luckBoostsRemaining: 0,
   hasReincarnationScroll: false,
+  businesses: [],
+  socialFollowers: 0,
   createdAt: updatedAt,
   updatedAt,
 });

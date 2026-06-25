@@ -20,6 +20,11 @@ service cloud.firestore {
       }
     }
 
+    match /leaderboard/{uid} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

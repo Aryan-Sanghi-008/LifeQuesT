@@ -44,6 +44,12 @@ export function grantsForProduct(productId: string): PurchaseGrants {
   if (productId === 'reincarnation_scroll') {
     grants.reincarnationScroll = true;
   }
+  if (productId === 'season_pass') {
+    grants.isPremium = true;
+  }
+  if (productId === 'avatar_pack_adventurer') {
+    grants.coinsGrant = 0; // style unlocked client-side via productId mapping
+  }
 
   return grants;
 }

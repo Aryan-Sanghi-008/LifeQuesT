@@ -7,6 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { logEvent } from '../services/analytics';
+import { submitLeaderboardScore, computeLeaderboardScore } from '../services/leaderboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, FONTS, RADII, SPACING, SHADOWS } from '../constants/theme';
 import { useGameStore } from '../store/gameStore';
@@ -117,6 +118,7 @@ export default function DeathScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const character  = useGameStore(s => s.character);
   const reincarnate = useGameStore(s => s.reincarnate);
+  const user = useGameStore(s => s.user);
 
   // Stagger fade-in refs
   const headerAnim = useRef(new Animated.Value(0)).current;
@@ -144,6 +146,18 @@ export default function DeathScreen() {
       ])
     ).start();
   }, []);
+
+  useEffect(() => {
+    if (!character || !user || user.isGuest) return;
+    const score = computeLeaderboardScore(character);
+    void submitLeaderboardScore({
+      score,
+      lifeAge: character.deathAge ?? character.age,
+      country: character.country,
+      displayName: user.displayName ?? character.name,
+      avatarSeed: character.avatarSeed,
+    }).catch(() => {});
+  }, [character, user]);
 
   if (!character) return null;
 

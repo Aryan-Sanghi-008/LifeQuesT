@@ -36,6 +36,7 @@ import {
 } from "@services/iap";
 import { logEvent } from "@services/analytics";
 import { initCrashReporting } from "@services/crashReporting";
+import { initNotifications } from "@services/notifications";
 import "./global.css";
 
 void SplashScreen.preventAutoHideAsync().catch(() => {
@@ -103,6 +104,7 @@ export default function App() {
       if (cancelled) return;
       void initAds();
       void initCrashReporting();
+      void initNotifications();
       void initIAP(onPurchaseSuccess);
       cleanupIAP = setupPurchaseListeners(
         onPurchaseSuccess,

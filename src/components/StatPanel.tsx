@@ -34,6 +34,17 @@ const STAT_CONFIG = [
     ),
   },
   {
+    key: 'mentalHealth' as keyof CharacterStats,
+    label: 'Mindset',
+    color: COLORS.orchid,
+    icon: (c: string) => (
+      <Svg width={13} height={13} viewBox="0 0 24 24" fill="none">
+        <Circle stroke={c} strokeWidth={2} cx="12" cy="12" r="10" />
+        <Path stroke={c} strokeWidth={2} strokeLinecap="round" d="M12 8v4" />
+      </Svg>
+    ),
+  },
+  {
     key: 'intelligence' as keyof CharacterStats,
     label: 'Mind',
     color: COLORS.sapphire,

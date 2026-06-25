@@ -16,6 +16,7 @@ import {
 import { showRewardedAd } from '../services/ads';
 import { getPrivacyPolicyUrl, openLegalUrl } from '../config/legal';
 import { IAPProductId } from '../types';
+import { SEASON_PASS_TIERS } from '../data/gameData';
 import Svg, { Path, Circle } from 'react-native-svg';
 
 // ─── Shimmer View ─────────────────────────────────────────────────────────────
@@ -359,6 +360,33 @@ export function ShopScreen() {
               isPremium={character.isPremium}
               onPress={() => buy('premium_yearly', () => store.setPremium(true))}
             />
+          </FadeInView>
+
+          <Text style={styles.gridLabel}>SEASON PASS</Text>
+          <FadeInView delay={150}>
+            <Pressable
+              style={styles.rewardedBtn}
+              onPress={() => buy('season_pass', () => store.setSeasonPass(true))}
+              accessibilityLabel="Buy season pass"
+            >
+              <Text style={styles.rewardedText}>
+                {character.hasSeasonPass ? 'Season Pass Active' : 'Unlock Season Pass'} · XP {character.seasonXp ?? 0}
+              </Text>
+            </Pressable>
+            {character.hasSeasonPass && SEASON_PASS_TIERS.map(tier => (
+              <Pressable
+                key={tier.tier}
+                style={styles.rewardedBtn}
+                onPress={() => {
+                  const result = store.claimSeasonTier(tier.tier);
+                  Alert.alert(result.ok ? 'Reward' : 'Season Pass', result.message);
+                }}
+              >
+                <Text style={styles.rewardedText}>
+                  Tier {tier.tier} — {tier.rewardCoins}c {tier.rewardGems ? `+ ${tier.rewardGems} gems` : ''}
+                </Text>
+              </Pressable>
+            ))}
           </FadeInView>
 
           {/* Products Grid */}

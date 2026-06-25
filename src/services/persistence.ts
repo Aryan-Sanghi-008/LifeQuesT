@@ -158,8 +158,47 @@ export function normalizeCharacter(char: Character): Character {
   if (!char.people) char.people = [];
   if (!char.career) char.career = null;
   if (!char.assets) char.assets = [];
+  if (!char.businesses) char.businesses = [];
+  if (char.socialFollowers === undefined) char.socialFollowers = 0;
+  if (!char.avatarStyle) char.avatarStyle = 'pixel_art';
+  if (!char.unlockedAvatarStyles) char.unlockedAvatarStyles = ['pixel_art'];
+  if (char.seasonXp === undefined) char.seasonXp = 0;
+  if (char.hasSeasonPass === undefined) char.hasSeasonPass = false;
+  if (!char.stats.mentalHealth) char.stats.mentalHealth = char.stats.happiness ?? 70;
+  if (!char.criminalRecord) {
+    char.criminalRecord = { crimes: [], jailYearsRemaining: 0, onProbation: false };
+  }
   if (char.luckBoostsRemaining === undefined) char.luckBoostsRemaining = 0;
   if (char.hasReincarnationScroll === undefined) char.hasReincarnationScroll = false;
   if (!char.updatedAt) char.updatedAt = char.createdAt ?? Date.now();
   return char;
+}
+
+const NOTIFICATIONS_KEY = 'notifications_enabled';
+const DAILY_QUESTS_PREFIX = 'daily_quests_';
+
+export function getNotificationsEnabled(): boolean {
+  return getString(NOTIFICATIONS_KEY) === 'true';
+}
+
+export function setNotificationsEnabled(enabled: boolean): void {
+  setString(NOTIFICATIONS_KEY, enabled ? 'true' : 'false');
+}
+
+export function getDailyQuestsProgress(dateKey: string): string | null {
+  return getString(`${DAILY_QUESTS_PREFIX}${dateKey}`) ?? null;
+}
+
+export function setDailyQuestsProgress(dateKey: string, json: string): void {
+  setString(`${DAILY_QUESTS_PREFIX}${dateKey}`, json);
+}
+
+const WIDGET_SNAPSHOT_KEY = 'widget_character_snapshot';
+
+export function saveWidgetSnapshot(snapshot: string): void {
+  setString(WIDGET_SNAPSHOT_KEY, snapshot);
+}
+
+export function getWidgetSnapshot(): string | null {
+  return getString(WIDGET_SNAPSHOT_KEY) ?? null;
 }

@@ -211,6 +211,8 @@ const bs = StyleSheet.create({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export function AssetsScreen() {
   const character    = useGameStore(s => s.character);
+  const foundBusinessAction = useGameStore(s => s.foundBusiness);
+  const sellBusinessAction = useGameStore(s => s.sellBusiness);
   const purchaseAsset = useGameStore(s => s.purchaseAsset);
   const sellAsset    = useGameStore(s => s.sellAsset);
   const [showBuy, setShowBuy] = useState(false);
@@ -288,6 +290,34 @@ export function AssetsScreen() {
               ))}
             </>
           )}
+
+          <SectionLabel label="Businesses" style={{ marginTop: SPACING.xl, marginBottom: SPACING.md }} />
+          <Pressable
+            onPress={() => {
+              Alert.prompt?.('Found Business', 'Enter company name', (name) => {
+                if (name) {
+                  const result = foundBusinessAction(name);
+                  Alert.alert(result.ok ? 'Success' : 'Business', result.message);
+                }
+              });
+            }}
+            style={styles.actionBtn}
+          >
+            <Text style={styles.actionBtnText}>+ Found Company</Text>
+          </Pressable>
+          {(character.businesses ?? []).map(b => (
+            <View key={b.id} style={{ marginBottom: SPACING.md, padding: SPACING.md, backgroundColor: COLORS.bg2, borderRadius: RADII.md }}>
+              <Text style={styles.headerTitle}>{b.name}</Text>
+              <Text style={styles.emptyHint}>Valuation {fmt(b.valuation)} · {b.employees} employees</Text>
+              <Pressable onPress={() => {
+                const result = sellBusinessAction(b.id);
+                Alert.alert(result.ok ? 'Sold' : 'Business', result.message);
+              }}>
+                <Text style={[styles.actionBtnText, { color: COLORS.crimson }]}>Sell</Text>
+              </Pressable>
+            </View>
+          ))}
+
           <View style={{ height: SPACING.xxxl }} />
         </ScrollView>
       </SafeAreaView>

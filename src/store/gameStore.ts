@@ -4,6 +4,7 @@ import {
   Character, CharacterStats, StatEffect, LifeEventRecord,
   PendingDecision, AppUser, AvatarId, FamilyBackground,
   Gender, LifeStage, EducationLevel, Asset, SaveSlot,
+  DailyQuest,
 } from '../types';
 import {
   DEATH_CAUSES, TRAITS, COUNTRIES, ACTIVITIES, JOBS, ACHIEVEMENT_COIN_REWARDS,
@@ -26,6 +27,7 @@ import {
   loadCharacterLocal, deleteCharacterLocal, listLocalSlots,
   migrateLegacySaves, normalizeCharacter,
   getDailyBonusLastClaim, setDailyBonusLastClaim,
+  getDailyQuestsProgress, setDailyQuestsProgress,
 } from '../services/persistence';
 import {
   syncSaveToCloud, pullCloudSaveIfNewer, listCloudSlots,
@@ -35,6 +37,23 @@ import {
   fetchUserEntitlements, applyEntitlementsToCharacter, hasPendingGrants, clearConsumedGrants,
 } from '../services/entitlements';
 import { logEvent } from '../services/analytics';
+import { writeWidgetSnapshot } from '../services/widgetSnapshot';
+import { tickMentalHealth } from '../engine/mentalHealthEngine';
+import { recordCrime, tickJail, isInJail } from '../engine/crimeEngine';
+import { advanceRelationship, processDivorce } from '../engine/relationshipEngine';
+import {
+  foundBusiness as createBusiness,
+  tickAllBusinesses,
+  sellBusiness as liquidateBusiness,
+  canFoundBusiness,
+} from '../engine/businessEngine';
+import {
+  pickStudyQuestions, gradeStudySession, canStudy, StudyQuestion, StudySessionResult,
+} from '../engine/educationEngine';
+import {
+  pickDailyQuests, updateQuestProgress, isQuestComplete, claimQuest,
+} from '../engine/questEngine';
+import { SEASON_PASS_TIERS } from '../data/gameData';
 
 function generateId(): string {
   return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -87,6 +106,7 @@ function buildCharacter(data: CreateCharacterPayload): Character {
     looks:        applyCarry(clamp(60 + (traitEffect.looks ?? 0)), 'looks'),
     social:       applyCarry(clamp(50 + (traitEffect.social ?? 0) + (zodiacBonus.social ?? 0)), 'social'),
     ambition:     applyCarry(clamp(50 + (traitEffect.ambition ?? 0) + (zodiacBonus.ambition ?? 0)), 'ambition'),
+    mentalHealth: applyCarry(clamp(70 + (traitEffect.mentalHealth ?? 0)), 'mentalHealth'),
   };
 
   const bankBalance = (wealthStart * 100) + (wealthMod * 50);
@@ -134,6 +154,13 @@ function buildCharacter(data: CreateCharacterPayload): Character {
     hasNoAds: false,
     luckBoostsRemaining: 0,
     hasReincarnationScroll: false,
+    businesses: [],
+    socialFollowers: 0,
+    avatarStyle: 'pixel_art',
+    unlockedAvatarStyles: ['pixel_art'],
+    seasonXp: 0,
+    hasSeasonPass: false,
+    criminalRecord: { crimes: [], jailYearsRemaining: 0, onProbation: false },
     createdAt: Date.now(),
     updatedAt: Date.now(),
   });
@@ -180,11 +207,24 @@ interface GameStore {
   carriedStatsForCreate: Partial<CharacterStats> | null;
   slotList: SaveSlot[];
   slotsSynced: boolean;
+  dailyQuests: DailyQuest[];
+  studyQuestions: StudyQuestion[] | null;
 
   setUser: (user: AppUser | null) => void;
   onUserChanged: (user: AppUser | null) => Promise<void>;
   refreshSlotList: () => Promise<SaveSlot[]>;
   claimDailyBonus: () => { ok: boolean; message: string };
+  loadDailyQuests: () => void;
+  claimQuestReward: (questId: string) => { ok: boolean; message: string };
+  addSeasonXp: (amount: number) => void;
+  claimSeasonTier: (tier: number) => { ok: boolean; message: string };
+  startStudySession: () => StudyQuestion[];
+  completeStudySession: (answers: number[]) => StudySessionResult;
+  foundBusiness: (name: string) => { ok: boolean; message: string };
+  sellBusiness: (businessId: string) => { ok: boolean; message: string };
+    setAvatarStyle: (style: Character['avatarStyle']) => void;
+    unlockAvatarStyle: (style: NonNullable<Character['avatarStyle']>) => void;
+    setSeasonPass: (v: boolean) => void;
   createCharacter: (payload: CreateCharacterPayload) => void;
   ageUp: () => void;
   resolveDecision: (choiceId: string) => void;
@@ -230,6 +270,8 @@ export const useGameStore = create<GameStore>()(
     carriedStatsForCreate: null,
     slotList: buildLocalSlotList(),
     slotsSynced: false,
+    dailyQuests: [],
+    studyQuestions: null,
 
     setUser: (user) => set(s => { s.user = user; }),
 
@@ -311,6 +353,158 @@ export const useGameStore = create<GameStore>()(
       return { ok: true, message: 'You received 25 coins!' };
     },
 
+    loadDailyQuests: () => {
+      const today = new Date().toISOString().slice(0, 10);
+      const raw = getDailyQuestsProgress(today);
+      if (raw) {
+        try {
+          const quests = JSON.parse(raw) as DailyQuest[];
+          set(s => { s.dailyQuests = quests; });
+          return;
+        } catch { /* fall through */ }
+      }
+      const quests = pickDailyQuests(today);
+      setDailyQuestsProgress(today, JSON.stringify(quests));
+      set(s => { s.dailyQuests = quests; });
+    },
+
+    claimQuestReward: (questId) => {
+      const { dailyQuests, character } = get();
+      if (!character) return { ok: false, message: 'No active character.' };
+      const quest = dailyQuests.find(q => q.id === questId);
+      if (!quest) return { ok: false, message: 'Quest not found.' };
+      if (quest.claimed) return { ok: false, message: 'Already claimed.' };
+      if (!isQuestComplete(quest)) return { ok: false, message: 'Quest not complete.' };
+
+      const updated = dailyQuests.map(q => q.id === questId ? claimQuest(q) : q);
+      const today = new Date().toISOString().slice(0, 10);
+      setDailyQuestsProgress(today, JSON.stringify(updated));
+      set(s => {
+        s.dailyQuests = updated;
+        if (s.character) s.character.coins += quest.rewardCoins;
+      });
+      get().addSeasonXp(25);
+      void get()._persist();
+      return { ok: true, message: `Claimed ${quest.rewardCoins} coins!` };
+    },
+
+    addSeasonXp: (amount) => {
+      set(s => {
+        if (!s.character) return;
+        s.character.seasonXp = (s.character.seasonXp ?? 0) + amount;
+      });
+    },
+
+    claimSeasonTier: (tier) => {
+      const { character } = get();
+      if (!character?.hasSeasonPass) return { ok: false, message: 'Season pass required.' };
+      const tierDef = SEASON_PASS_TIERS.find(t => t.tier === tier);
+      if (!tierDef) return { ok: false, message: 'Invalid tier.' };
+      if ((character.seasonXp ?? 0) < tierDef.xpRequired) {
+        return { ok: false, message: 'Not enough season XP.' };
+      }
+      set(s => {
+        if (!s.character) return;
+        s.character.coins += tierDef.rewardCoins;
+        if (tierDef.rewardGems) s.character.gems += tierDef.rewardGems;
+        if (tierDef.rewardLuckBoosts) s.character.luckBoostsRemaining += tierDef.rewardLuckBoosts;
+      });
+      void get()._persist();
+      return { ok: true, message: `Claimed tier ${tier} rewards!` };
+    },
+
+    startStudySession: () => {
+      const { character } = get();
+      if (!character || !canStudy(character.age, character.educationLevel)) return [];
+      const questions = pickStudyQuestions(3);
+      set(s => { s.studyQuestions = questions; });
+      return questions;
+    },
+
+    completeStudySession: (answers) => {
+      const { character, studyQuestions } = get();
+      const empty: StudySessionResult = {
+        score: 0, totalQuestions: 0, passed: false, intelligenceGain: 0, mentalHealthGain: 0,
+      };
+      if (!character || !studyQuestions?.length) return empty;
+
+      const result = gradeStudySession(
+        answers, studyQuestions, character.stats.intelligence,
+        character.educationLevel,
+      );
+
+      set(s => {
+        if (!s.character) return;
+        s.character.stats.intelligence = clamp(s.character.stats.intelligence + result.intelligenceGain);
+        s.character.stats.mentalHealth = clamp(s.character.stats.mentalHealth + result.mentalHealthGain);
+        if (result.educationUnlock) s.character.educationLevel = result.educationUnlock;
+        s.studyQuestions = null;
+      });
+
+      const today = new Date().toISOString().slice(0, 10);
+      const quests = get().dailyQuests.length ? get().dailyQuests : pickDailyQuests(today);
+      const updated = updateQuestProgress(quests, 'study_session', 1);
+      setDailyQuestsProgress(today, JSON.stringify(updated));
+      set(s => { s.dailyQuests = updated; });
+      get().addSeasonXp(result.passed ? 25 : 5);
+      get()._checkAchievements();
+      void get()._persist();
+      return result;
+    },
+
+    foundBusiness: (name) => {
+      const { character } = get();
+      if (!character) return { ok: false, message: 'No character.' };
+      if (!canFoundBusiness(character)) return { ok: false, message: 'You need to be an entrepreneur first.' };
+      const biz = createBusiness(character, name);
+      if (!biz) return { ok: false, message: 'Could not found business.' };
+      set(s => { if (s.character) s.character.businesses.push(biz); });
+      void get()._persist();
+      return { ok: true, message: `Founded ${name}!` };
+    },
+
+    sellBusiness: (businessId) => {
+      const { character } = get();
+      if (!character) return { ok: false, message: 'No character.' };
+      const biz = character.businesses.find(b => b.id === businessId);
+      if (!biz) return { ok: false, message: 'Business not found.' };
+      const payout = liquidateBusiness(biz);
+      set(s => {
+        if (!s.character) return;
+        s.character.businesses = s.character.businesses.filter(b => b.id !== businessId);
+        s.character.bankBalance += payout;
+      });
+      void get()._persist();
+      return { ok: true, message: `Sold for ${payout}.` };
+    },
+
+    setAvatarStyle: (style) => {
+      if (!style) return;
+      set(s => {
+        if (!s.character) return;
+        const unlocked = s.character.unlockedAvatarStyles ?? ['pixel_art'];
+        if (!unlocked.includes(style)) return;
+        s.character.avatarStyle = style;
+      });
+      void get()._persist();
+    },
+
+    unlockAvatarStyle: (style) => {
+      set(s => {
+        if (!s.character) return;
+        const unlocked = s.character.unlockedAvatarStyles ?? ['pixel_art'];
+        if (!unlocked.includes(style)) unlocked.push(style);
+        s.character.unlockedAvatarStyles = unlocked;
+        s.character.avatarStyle = style;
+      });
+      void get()._persist();
+    },
+
+    setSeasonPass: (v) => {
+      set(s => { if (s.character) s.character.hasSeasonPass = v; });
+      void get()._persist();
+    },
+
     _persist: async () => {
       const { character, user, activeSlotId } = get();
       if (!character) return;
@@ -321,6 +515,7 @@ export const useGameStore = create<GameStore>()(
       });
 
       saveCharacterLocal(stamped, activeSlotId);
+      writeWidgetSnapshot(stamped);
 
       if (isCloudUser(user?.uid)) {
         try {
@@ -348,6 +543,14 @@ export const useGameStore = create<GameStore>()(
     ageUp: () => {
       const { character, pendingDecision, isProcessing } = get();
       if (!character || pendingDecision || isProcessing || !character.isAlive) return;
+      if (isInJail(character)) {
+        const jailed = tickJail(character);
+        set(s => {
+          if (s.character) s.character.criminalRecord = jailed.criminalRecord;
+        });
+        void get()._persist();
+        return;
+      }
 
       set(s => { s.isProcessing = true; });
 
@@ -366,6 +569,14 @@ export const useGameStore = create<GameStore>()(
         agingEffect, 0, character.assets,
       );
 
+      stats = tickMentalHealth(stats, { lowHappiness: stats.happiness < 30 });
+
+      let businesses = character.businesses ?? [];
+      if (businesses.length > 0) {
+        const bizTick = tickAllBusinesses(businesses);
+        businesses = bizTick.businesses;
+        bankBalance = Math.max(0, bankBalance + bizTick.totalProfit);
+      }
       let career = character.career ? incrementCareerYear(character.career) : null;
       const salary = career?.salary ?? 0;
       const ticked = tickAnnualEconomy(newAge, bankBalance, salary, character.assets);
@@ -410,6 +621,14 @@ export const useGameStore = create<GameStore>()(
         const res = applyEffect(stats, karma, bankBalance, event.statEffect, event.bankEffect ?? 0, character.assets);
         stats = res.stats; karma = res.karma; bankBalance = res.bankBalance;
 
+        if (event.category === 'crime') {
+          const updated = recordCrime({ ...character, stats, karma, bankBalance }, event.id);
+          karma = updated.karma;
+        }
+        if (event.id === 'viral_moment' || event.id === 'follower_1k' || event.id === 'follower_10k') {
+          // social follower bump handled in state apply
+        }
+
         if (event.updatesJob) {
           const u = applyJobUpdate(event.updatesJob, career);
           updatedJob = u.job;
@@ -432,7 +651,8 @@ export const useGameStore = create<GameStore>()(
         }
         if (event.addsPerson?.relationType === 'pet') updatedPeople.push(generatePet('dog'));
         if (event.addsPerson?.relationType === 'spouse') {
-          updatedPeople.push({ ...generatePartner(character.name, newAge), relationType: 'spouse' });
+          const partner = { ...generatePartner(character.name, newAge), relationType: 'spouse' as const };
+          updatedPeople.push(advanceRelationship(partner, 'marry'));
         }
 
         newRecords.push({
@@ -462,7 +682,11 @@ export const useGameStore = create<GameStore>()(
           s.character.people = updatedPeople;
           s.character.relationships = updatedRelationships;
           s.character.children = updatedChildren;
+          s.character.businesses = businesses;
           s.character.luckBoostsRemaining = luckBoosts;
+          if (autoEvents.some(e => ['viral_moment', 'follower_1k', 'follower_10k'].includes(e.id))) {
+            s.character.socialFollowers += Math.floor(Math.random() * 500) + 100;
+          }
           s.character.netWorthPeak = Math.max(s.character.netWorthPeak, netWorth);
           newRecords.forEach(r => s.character!.eventHistory.push(r));
           s.isProcessing = false;
@@ -473,7 +697,16 @@ export const useGameStore = create<GameStore>()(
       };
 
       if (decisionEvent) applyState(true);
-      else { applyState(false); get()._checkAchievements(); }
+      else {
+        applyState(false);
+        get()._checkAchievements();
+        get().addSeasonXp(10);
+        const today = new Date().toISOString().slice(0, 10);
+        const quests = get().dailyQuests.length ? get().dailyQuests : pickDailyQuests(today);
+        const updated = updateQuestProgress(quests, 'age_up', 1, karma);
+        setDailyQuestsProgress(today, JSON.stringify(updated));
+        set(s => { s.dailyQuests = updated; });
+      }
       void get()._persist();
     },
 
@@ -530,7 +763,16 @@ export const useGameStore = create<GameStore>()(
           });
         }
         if (choice.addsPerson?.relationType === 'spouse') {
-          updatedPeople.push({ ...generatePartner(character.name, character.age), relationType: 'spouse' });
+          const partner = { ...generatePartner(character.name, character.age), relationType: 'spouse' as const };
+          updatedPeople.push(advanceRelationship(partner, 'marry'));
+        }
+        if (event.id === 'divorce') {
+          const spouse = updatedPeople.find(p => p.relationType === 'spouse');
+          if (spouse) {
+            const divorced = processDivorce({ ...character, people: updatedPeople }, spouse.id);
+            updatedPeople = divorced.people;
+            stats = divorced.stats;
+          }
         }
       }
 
@@ -606,6 +848,17 @@ export const useGameStore = create<GameStore>()(
         });
         s.character.netWorthPeak = Math.max(s.character.netWorthPeak, computeNetWorth(s.character));
       });
+
+      if (activityId === 'crime_petty' && success) {
+        const updated = recordCrime(get().character!, 'shoplifting');
+        set(s => { if (s.character) s.character.criminalRecord = updated.criminalRecord; });
+      }
+
+      const today = new Date().toISOString().slice(0, 10);
+      const quests = get().dailyQuests.length ? get().dailyQuests : pickDailyQuests(today);
+      const updatedQuests = updateQuestProgress(quests, 'complete_activity', 1);
+      setDailyQuestsProgress(today, JSON.stringify(updatedQuests));
+      set(s => { s.dailyQuests = updatedQuests; });
 
       get()._checkAchievements();
       void get()._persist();
