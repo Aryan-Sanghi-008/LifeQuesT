@@ -64,6 +64,7 @@ const config: ExpoConfig = {
     '@iaptic/react-native-iap',
     'expo-splash-screen',
     'expo-notifications',
+    'expo-audio',
   ],
   extra: {
     eas: {

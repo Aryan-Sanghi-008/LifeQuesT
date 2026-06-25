@@ -33,7 +33,7 @@
     "@react-navigation/native-stack": "^6.9.26",
     "babel-preset-expo": "~56.0.0",
     "expo": "~56.0.12",
-    "expo-av": "^16.0.8",
+    "expo-audio": "~56.0.12",
     "expo-dev-client": "~56.0.20",
     "expo-font": "~56.0.7",
     "expo-haptics": "^56.0.3",
