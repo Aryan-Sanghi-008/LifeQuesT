@@ -1,3 +1,6 @@
+/**
+ * Server IAP grants — keep in sync with src/data/iapCatalog.ts IAP_CLIENT_GRANTS
+ */
 export interface PurchaseGrants {
   isPremium?: boolean;
   hasNoAds?: boolean;

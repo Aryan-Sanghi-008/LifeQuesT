@@ -12,11 +12,14 @@ import {
   restorePurchases,
   getIAPProducts,
   processVerifiedPurchase,
+  applyPurchaseToStore,
 } from '../services/iap';
 import { showRewardedAd } from '../services/ads';
 import { getPrivacyPolicyUrl, openLegalUrl } from '../config/legal';
 import { IAPProductId } from '../types';
 import { SEASON_PASS_TIERS } from '../data/gameData';
+import { IAP_CATALOG, AVATAR_PACK_CATALOG, getCatalogPriceLabel } from '../data/iapCatalog';
+import { ScreenHeader } from '../components/index';
 import Svg, { Path, Circle } from 'react-native-svg';
 
 // ─── Shimmer View ─────────────────────────────────────────────────────────────
@@ -120,7 +123,7 @@ interface ProductCardProps {
   desc: string;
   price: string;
   color: string;
-  icon: React.ReactNode;
+  icon?: React.ReactNode;
   badge?: string;
   onPress: () => void;
   accessibilityLabel?: string;
@@ -147,7 +150,11 @@ function ProductCard({ title, desc, price, color, icon, badge, onPress, accessib
             </View>
           )}
           <View style={[styles.productIcon, { backgroundColor: `${color}18` }]}>
-            {icon}
+            {icon ?? (
+              <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+                <Circle stroke={color} strokeWidth={2} cx="12" cy="12" r="8" />
+              </Svg>
+            )}
           </View>
           <Text style={styles.productTitle}>{title}</Text>
           <Text style={styles.productDesc}>{desc}</Text>
@@ -166,13 +173,21 @@ export function ShopScreen() {
   const store      = useGameStore();
   const [purchasing, setPurchasing] = useState<string | null>(null);
 
-  const buy = async (productId: IAPProductId, fallback?: () => void) => {
+  const storeProducts = getIAPProducts();
+
+  const grantDevFallback = (productId: IAPProductId) => {
+    applyPurchaseToStore(productId, store);
+    void store._persist();
+    Alert.alert('Dev purchase', 'Granted locally (store catalog unavailable).');
+  };
+
+  const buy = async (productId: IAPProductId) => {
     if (purchasing) return;
     setPurchasing(productId);
     try {
       const catalog = getIAPProducts();
-      if (catalog.length === 0 && fallback) {
-        fallback();
+      if (catalog.length === 0) {
+        grantDevFallback(productId);
         return;
       }
       await purchaseProduct(productId);
@@ -244,103 +259,32 @@ export function ShopScreen() {
 
   const busy = purchasing !== null;
 
-  const products = [
-    {
-      title: 'Remove Ads',
-      desc: 'One-time. Clean forever.',
-      price: '₹199',
-      color: COLORS.sapphire,
-      badge: 'ONE-TIME',
-      productId: 'remove_ads' as IAPProductId,
-      icon: (
-        <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-          <Circle stroke={COLORS.sapphire} strokeWidth={2} cx="12" cy="12" r="10"/>
-          <Path stroke={COLORS.sapphire} strokeWidth={2} strokeLinecap="round" d="M4.93 4.93l14.14 14.14"/>
-        </Svg>
-      ),
-      onPress: () => buy('remove_ads', () => store.setNoAds(true)),
+  const products = IAP_CATALOG.map(entry => ({
+    title: entry.title,
+    desc: entry.description,
+    price: getCatalogPriceLabel(entry.productId, storeProducts, entry.fallbackPriceLabel),
+    color: entry.color,
+    badge: entry.badge,
+    productId: entry.productId,
+    onPress: () => {
+      if (entry.productId === 'luck_boost' && storeProducts.length === 0) {
+        buyLuckWithCoins();
+        return;
+      }
+      void buy(entry.productId);
     },
-    {
-      title: '10,000 Coins',
-      desc: 'Boosts, potions & luck upgrades',
-      price: '₹99',
-      color: COLORS.gold,
-      productId: 'coins_small' as IAPProductId,
-      icon: (
-        <Svg width={22} height={22} viewBox="0 0 24 24" fill={COLORS.gold}>
-          <Circle cx="12" cy="12" r="10" fill={`${COLORS.gold}20`} stroke={COLORS.gold} strokeWidth={2}/>
-          <Path fill={COLORS.gold} d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
-        </Svg>
-      ),
-      onPress: () => buy('coins_small', () => store.addCoins(10000)),
-    },
-    {
-      title: '50,000 Coins',
-      desc: 'Stock up for the long game',
-      price: '₹399',
-      color: COLORS.gold,
-      badge: 'BEST VALUE',
-      productId: 'coins_medium' as IAPProductId,
-      icon: (
-        <Svg width={22} height={22} viewBox="0 0 24 24" fill={COLORS.gold}>
-          <Circle cx="12" cy="12" r="10" fill={`${COLORS.gold}30`} stroke={COLORS.gold} strokeWidth={2}/>
-          <Path fill={COLORS.gold} d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
-        </Svg>
-      ),
-      onPress: () => buy('coins_medium', () => store.addCoins(50000)),
-    },
-    {
-      title: '25 Gems',
-      desc: 'Premium currency for rare items',
-      price: '₹149',
-      color: COLORS.orchid,
-      productId: 'gems_small' as IAPProductId,
-      icon: (
-        <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-          <Path fill={COLORS.orchid} d="M12 2L2 9l10 13L22 9z" opacity={0.8}/>
-          <Path stroke={COLORS.orchid} strokeWidth={1.5} d="M12 2L2 9l10 13L22 9z"/>
-        </Svg>
-      ),
-      onPress: () => buy('gems_small', () => store.addGems(25)),
-    },
-    {
-      title: 'Luck Boost ×3',
-      desc: 'Better outcomes for 3 events',
-      price: '500 Coins',
-      color: COLORS.teal,
-      productId: 'luck_boost' as IAPProductId,
-      icon: (
-        <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-          <Path stroke={COLORS.teal} strokeWidth={2} strokeLinecap="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-        </Svg>
-      ),
-      onPress: () => buy('luck_boost', buyLuckWithCoins),
-    },
-    {
-      title: 'Reincarnation Scroll',
-      desc: 'Carry 3 stats into your next life',
-      price: '₹49',
-      color: COLORS.crimson,
-      productId: 'reincarnation_scroll' as IAPProductId,
-      icon: (
-        <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-          <Path stroke={COLORS.crimson} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" d="M3 12a9 9 0 1018 0 9 9 0 00-18 0z"/>
-          <Path stroke={COLORS.crimson} strokeWidth={2} strokeLinecap="round" d="M8 12l2 2 4-4"/>
-        </Svg>
-      ),
-      onPress: () => buy('reincarnation_scroll', () => store.useReincarnationScroll()),
-    },
-  ];
+  }));
+
+  const avatarPacks = AVATAR_PACK_CATALOG.map(entry => ({
+    ...entry,
+    price: getCatalogPriceLabel(entry.productId, storeProducts, entry.fallbackPriceLabel),
+  }));
 
   return (
     <View style={styles.root}>
       <SafeAreaView style={styles.safe} edges={['top']}>
-        {/* Header */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.headerTitle}>Life Store</Text>
-            <Text style={styles.headerSub}>Power up your journey</Text>
-          </View>
+          <ScreenHeader title="Life Store" subtitle="Power up your journey" />
           <View style={styles.walletRow}>
             <View style={styles.walletChip}>
               <Svg width={12} height={12} viewBox="0 0 24 24" fill={COLORS.gold}><Circle cx="12" cy="12" r="10"/></Svg>
@@ -358,7 +302,7 @@ export function ShopScreen() {
           <FadeInView delay={100}>
             <PremiumBanner
               isPremium={character.isPremium}
-              onPress={() => buy('premium_yearly', () => store.setPremium(true))}
+              onPress={() => { void buy('premium_yearly'); }}
             />
           </FadeInView>
 
@@ -366,7 +310,7 @@ export function ShopScreen() {
           <FadeInView delay={150}>
             <Pressable
               style={styles.rewardedBtn}
-              onPress={() => buy('season_pass', () => store.setSeasonPass(true))}
+              onPress={() => { void buy('season_pass'); }}
               accessibilityLabel="Buy season pass"
             >
               <Text style={styles.rewardedText}>
@@ -395,6 +339,21 @@ export function ShopScreen() {
               );
             })}
           </FadeInView>
+
+          <Text style={styles.gridLabel}>AVATAR PACKS</Text>
+          <View style={styles.productGrid}>
+            {avatarPacks.map((pack, i) => (
+              <FadeInView key={pack.productId} delay={i * 60 + 120} style={{ width: '48%' }}>
+                <ProductCard
+                  title={pack.title}
+                  desc={pack.description}
+                  price={pack.price}
+                  color={pack.color}
+                  onPress={() => { void buy(pack.productId); }}
+                />
+              </FadeInView>
+            ))}
+          </View>
 
           {/* Products Grid */}
           <Text style={styles.gridLabel}>CONSUMABLES & BOOSTS</Text>

@@ -290,6 +290,7 @@ export function AssetsScreen() {
   const sellBusinessAction = useGameStore(s => s.sellBusiness);
   const purchaseAsset = useGameStore(s => s.purchaseAsset);
   const sellAsset    = useGameStore(s => s.sellAsset);
+  const investInStocks = useGameStore(s => s.investInStocks);
   const [showBuy, setShowBuy] = useState(false);
   const [showFoundModal, setShowFoundModal] = useState(false);
   const [businessName, setBusinessName] = useState('');
@@ -340,7 +341,22 @@ export function AssetsScreen() {
               <Text style={styles.actionBtnText}>+ Buy Asset</Text>
             </Pressable>
             <Pressable
-              onPress={() => Alert.alert('Invest', `You invested ₹10,000 in the stock market. Results next year.`)}
+              onPress={() => {
+                Alert.alert(
+                  'Invest in Stocks',
+                  'Invest ₹10,000 from your bank balance?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Invest',
+                      onPress: () => {
+                        const result = investInStocks(10000);
+                        Alert.alert(result.ok ? 'Invested' : 'Investment', result.message);
+                      },
+                    },
+                  ],
+                );
+              }}
               style={[styles.actionBtn, { borderColor: COLORS.sapphire }]}
             >
               <Text style={[styles.actionBtnText, { color: COLORS.sapphire }]}>Invest</Text>

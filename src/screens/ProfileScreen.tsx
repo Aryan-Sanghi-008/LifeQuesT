@@ -10,6 +10,7 @@ import { COLORS, FONTS, RADII, SPACING, SHADOWS } from '../constants/theme';
 import { RootStackParamList } from '../types';
 import { useGameStore } from '../store/gameStore';
 import { AvatarByCharacter } from '../components/Avatars';
+import { AvatarStyleId } from '../types';
 import { StatBar, Card, Badge, SectionLabel, Divider } from '../components/index';
 import { ACHIEVEMENTS } from '../data/gameData';
 import { formatCurrency } from '../utils/currency';
@@ -98,6 +99,7 @@ export function ProfileScreen() {
   const dailyQuests = useGameStore(s => s.dailyQuests);
   const loadDailyQuests = useGameStore(s => s.loadDailyQuests);
   const claimQuestReward = useGameStore(s => s.claimQuestReward);
+  const setAvatarStyle = useGameStore(s => s.setAvatarStyle);
 
   const [sound, setSound]   = useState(true);
   const [notif, setNotif]   = useState(getNotificationsEnabled());
@@ -116,13 +118,8 @@ export function ProfileScreen() {
   };
 
   const handleOpenTerms = async () => {
-    const terms = getTermsUrl();
-    if (!terms) {
-      Alert.alert('Terms of Service', 'Terms URL not configured yet.');
-      return;
-    }
     try {
-      await openLegalUrl(terms);
+      await openLegalUrl(getTermsUrl());
     } catch {
       Alert.alert('Unable to open terms', 'Try again later.');
     }
@@ -135,7 +132,15 @@ export function ProfileScreen() {
     zodiac, traits, karma, achievements, eventHistory,
     relationships, children, isPremium,
     coins, gems, bankBalance, countryCode,
+    avatarStyle, unlockedAvatarStyles,
   } = character;
+
+  const AVATAR_STYLE_LABELS: Record<AvatarStyleId, string> = {
+    pixel_art: 'Pixel',
+    adventurer: 'Adventurer',
+    lorelei: 'Lorelei',
+    bottts: 'Bottts',
+  };
 
   const cc = countryCode ?? 'IN';
   const bankStr = formatCurrency(bankBalance, cc);
@@ -196,6 +201,29 @@ export function ProfileScreen() {
                   </Svg>
                 </View>
               )}
+            </View>
+
+            <View style={styles.avatarStyleRow}>
+              {(['pixel_art', 'adventurer', 'lorelei', 'bottts'] as AvatarStyleId[]).map(style => {
+                const unlocked = (unlockedAvatarStyles ?? ['pixel_art']).includes(style);
+                const active = (avatarStyle ?? 'pixel_art') === style;
+                return (
+                  <Pressable
+                    key={style}
+                    disabled={!unlocked}
+                    onPress={() => setAvatarStyle(style)}
+                    style={[
+                      styles.avatarStyleChip,
+                      active && styles.avatarStyleChipActive,
+                      !unlocked && { opacity: 0.35 },
+                    ]}
+                  >
+                    <Text style={[styles.avatarStyleChipText, active && { color: COLORS.gold }]}>
+                      {AVATAR_STYLE_LABELS[style]}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
 
             <Text style={styles.heroName}>{name}</Text>
@@ -455,6 +483,17 @@ const styles = StyleSheet.create({
   },
   avatarContainer: { position: 'relative' },
   avatarRing: { borderRadius: 54, borderWidth: 3, overflow: 'hidden', ...SHADOWS.card },
+  avatarStyleRow: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.sm, flexWrap: 'wrap', justifyContent: 'center' },
+  avatarStyleChip: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 6,
+    borderRadius: RADII.full,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.bgCard,
+  },
+  avatarStyleChipActive: { borderColor: COLORS.gold, backgroundColor: `${COLORS.gold}12` },
+  avatarStyleChipText: { fontFamily: FONTS.bodySemiBold, fontSize: 11, color: COLORS.t3 },
   premiumBadge: {
     position: 'absolute', bottom: 2, right: 2,
     width: 24, height: 24, borderRadius: 12,

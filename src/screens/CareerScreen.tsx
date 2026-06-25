@@ -9,7 +9,6 @@ import { COLORS, FONTS, RADII, SPACING } from '../constants/theme';
 import { useGameStore } from '../store/gameStore';
 import { NpcAvatar } from '../components/Avatars';
 import { Card, StatBar, SectionLabel, Badge } from '../components/index';
-import { getClassmates } from '../engine/peopleEngine';
 import { JOBS } from '../data/gameData';
 import { formatCurrency } from '../utils/currency';
 import Svg, { Path, Rect } from 'react-native-svg';
@@ -129,8 +128,8 @@ function JobPanel() {
 }
 
 function ClassRoster() {
-  const people = useGameStore(s => s.character?.people ?? []);
-  const classmates = getClassmates(people);
+  const getClassmatesFn = useGameStore(s => s.getClassmates);
+  const classmates = getClassmatesFn();
 
   if (classmates.length === 0) {
     return (

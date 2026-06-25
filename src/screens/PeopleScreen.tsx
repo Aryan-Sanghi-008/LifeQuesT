@@ -9,7 +9,7 @@ import { useGameStore } from '../store/gameStore';
 import { NpcAvatar } from '../components/Avatars';
 import { Card, SectionLabel } from '../components/index';
 import { Person, RelationType } from '../types';
-import { getRelationshipStageLabel } from '../engine/relationshipEngine';
+import { getRelationshipStageLabel } from '@utils/relationshipLabels';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 
 // ─── Relationship bar ─────────────────────────────────────────────────────────

@@ -1,17 +1,12 @@
-import {
-  getFirestore, doc, getDoc, setDoc, deleteField,
-} from 'firebase/firestore';
-import { initializeApp, getApps } from 'firebase/app';
-import { firebaseConfig, isFirebaseConfigured } from '../config/firebase';
+import { doc, getDoc, setDoc, deleteField } from 'firebase/firestore';
+import { getFirestoreDb } from '@services/firebaseClient';
 import type { UserEntitlements } from '../utils/entitlementGrants';
 
 export type { UserEntitlements } from '../utils/entitlementGrants';
 export { applyEntitlementsToCharacter, hasPendingGrants } from '../utils/entitlementGrants';
 
 function getDb() {
-  if (!isFirebaseConfigured()) return null;
-  const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
-  return getFirestore(app);
+  return getFirestoreDb();
 }
 
 export async function fetchUserEntitlements(uid: string): Promise<UserEntitlements | null> {

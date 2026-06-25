@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import { IAPProductId } from '../types';
 import { isIapNativeAvailable } from '../utils/nativeAvailability';
+import { IAP_CLIENT_GRANTS } from '../data/iapCatalog';
 
 const PRODUCT_IDS: IAPProductId[] = [
   'premium_monthly',
@@ -110,45 +111,17 @@ export function applyPurchaseToStore(
     unlockAvatarStyle?: (style: 'adventurer' | 'lorelei' | 'bottts') => void;
   },
 ): void {
-  switch (productId as IAPProductId) {
-    case 'premium_monthly':
-    case 'premium_yearly':
-      store.setPremium(true);
-      break;
-    case 'remove_ads':
-      store.setNoAds(true);
-      break;
-    case 'coins_small':
-      store.addCoins(10000);
-      break;
-    case 'coins_medium':
-      store.addCoins(50000);
-      break;
-    case 'coins_large':
-      store.addCoins(150000);
-      break;
-    case 'gems_small':
-      store.addGems(25);
-      break;
-    case 'luck_boost':
-      store.addLuckBoost(3);
-      break;
-    case 'reincarnation_scroll':
-      store.useReincarnationScroll();
-      break;
-    case 'season_pass':
-      store.setSeasonPass?.(true);
-      break;
-    case 'avatar_pack_adventurer':
-      store.unlockAvatarStyle?.('adventurer');
-      break;
-    case 'avatar_pack_lorelei':
-      store.unlockAvatarStyle?.('lorelei');
-      break;
-    case 'avatar_pack_bottts':
-      store.unlockAvatarStyle?.('bottts');
-      break;
-  }
+  const grants = IAP_CLIENT_GRANTS[productId as IAPProductId];
+  if (!grants) return;
+
+  if (grants.premium) store.setPremium(true);
+  if (grants.noAds) store.setNoAds(true);
+  if (grants.coins) store.addCoins(grants.coins);
+  if (grants.gems) store.addGems(grants.gems);
+  if (grants.luckBoost) store.addLuckBoost(grants.luckBoost);
+  if (grants.reincarnationScroll) store.useReincarnationScroll();
+  if (grants.seasonPass) store.setSeasonPass?.(true);
+  if (grants.avatarStyle) store.unlockAvatarStyle?.(grants.avatarStyle);
 }
 
 export async function verifyPurchaseOnServer(
@@ -157,12 +130,12 @@ export async function verifyPurchaseOnServer(
 ): Promise<boolean> {
   if (uid.startsWith('local_guest_')) return true;
   try {
-    const { getFunctions, httpsCallable } = await import('firebase/functions');
-    const { initializeApp, getApps } = await import('firebase/app');
-    const { firebaseConfig } = await import('../config/firebase');
-    const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
-    const fn = httpsCallable(getFunctions(app), 'verifyPurchase');
-    await fn({
+    const { httpsCallable } = await import('firebase/functions');
+    const { getFunctionsInstance } = await import('@services/firebaseClient');
+    const fn = getFunctionsInstance();
+    if (!fn) return false;
+    const callable = httpsCallable(fn, 'verifyPurchase');
+    await callable({
       productId: purchase.productId,
       transactionId: purchase.transactionId,
       platform: Platform.OS,

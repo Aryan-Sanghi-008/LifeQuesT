@@ -348,7 +348,8 @@ export const MAX_SAVE_SLOTS = 3;
 
 export type QuestObjectiveType =
   | 'age_up'
-  | 'earn_karma'
+  | 'reach_karma'
+  | 'gain_karma'
   | 'complete_activity'
   | 'study_session';
 
@@ -361,6 +362,7 @@ export interface DailyQuest {
   progress: number;
   rewardCoins: number;
   claimed: boolean;
+  karmaBaseline?: number;
 }
 
 // ─── Season Pass ─────────────────────────────────────────────────────────────

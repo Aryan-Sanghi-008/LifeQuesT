@@ -1010,7 +1010,7 @@ export const DEATH_CAUSES = [
   { minAge: 86, maxAge: 120, cause: 'peacefully in sleep, surrounded by family' },
 ] as const;
 
-// ─── IAP Products ─────────────────────────────────────────────────────────────
+// ─── IAP Products (legacy display) — canonical catalog: src/data/iapCatalog.ts ───
 export const IAP_PRODUCTS = [
   {
     id: 'premium_monthly',
@@ -1030,7 +1030,7 @@ export const IAP_PRODUCTS = [
   { id: 'remove_ads',    title: 'Remove Ads',          price: '₹199', description: 'One-time. Clean forever.',          icon: 'no-ads'  },
   { id: 'coins_small',   title: '10,000 Coins',        price: '₹99',  description: 'Boosts, potions & luck',           icon: 'coins'   },
   { id: 'luck_boost',    title: 'Luck Boost ×3',       price: '500c', description: 'Better outcomes for 3 events',    icon: 'luck'    },
-  { id: 'reincarnation', title: 'Reincarnation Scroll', price: '₹49', description: 'Carry 3 stats into your next life',icon: 'scroll'  },
+  { id: 'reincarnation_scroll', title: 'Reincarnation Scroll', price: '₹49', description: 'Carry 3 stats into your next life',icon: 'scroll'  },
   { id: 'gems_small',    title: '25 Gems',             price: '₹149', description: 'Premium currency for rare items', icon: 'gems'    },
 ] as const;
 

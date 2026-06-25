@@ -1,5 +1,6 @@
 import { Character, Person, RelationshipStage } from '../types';
 import { clamp } from './economyEngine';
+import { getRelationshipStageLabel as formatRelationshipStage } from '../utils/relationshipLabels';
 
 const STAGE_ORDER: RelationshipStage[] = [
   'single', 'dating', 'engaged', 'married', 'separated', 'divorced',
@@ -52,8 +53,7 @@ export function processDivorce(character: Character, spouseId: string): Characte
 }
 
 export function getRelationshipStageLabel(stage?: RelationshipStage): string {
-  if (!stage || stage === 'single') return 'Single';
-  return stage.charAt(0).toUpperCase() + stage.slice(1);
+  return formatRelationshipStage(stage);
 }
 
 export function stageIndex(stage?: RelationshipStage): number {

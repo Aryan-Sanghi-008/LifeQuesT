@@ -5,7 +5,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, FONTS, RADII, SPACING, SHADOWS } from '../constants/theme';
 import { useGameStore } from '../store/gameStore';
 import { AvatarById } from '../components/Avatars';
-import { StatBar, SectionLabel, Card, ScaleInView } from '../components/index';
+import { StatBar, SectionLabel, Card, ScaleInView, ScreenHeader } from '../components/index';
 import { CharacterStats, LifeEventRecord } from '../types';
 import { ACHIEVEMENTS } from '../data/gameData';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -187,6 +187,9 @@ export function StatsScreen() {
   return (
     <View style={styles.root}>
       <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={{ paddingHorizontal: SPACING.lg, paddingTop: SPACING.sm }}>
+          <ScreenHeader title="Life Stats" subtitle={`${name} · Age ${age}`} />
+        </View>
         {/* Header */}
         <View style={styles.header}>
           <View style={[styles.avatarFrame, { borderColor: `${COLORS.gold}50` }]}>

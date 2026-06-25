@@ -1,8 +1,7 @@
 import {
-  getFirestore, doc, setDoc, getDoc, collection, getDocs, serverTimestamp, Timestamp,
+  doc, setDoc, getDoc, collection, getDocs, serverTimestamp, Timestamp,
 } from 'firebase/firestore';
-import { initializeApp, getApps } from 'firebase/app';
-import { firebaseConfig, isFirebaseConfigured } from '../config/firebase';
+import { getFirestoreDb } from '@services/firebaseClient';
 import { Character, SaveSlot, MAX_SAVE_SLOTS } from '../types';
 
 export { resolveSaveConflict, mergeSlotLists } from '../utils/saveSync';
@@ -13,9 +12,7 @@ export interface CloudSavePayload {
 }
 
 function getDb() {
-  if (!isFirebaseConfigured()) return null;
-  const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
-  return getFirestore(app);
+  return getFirestoreDb();
 }
 
 export function parseFirestoreUpdatedAt(value: unknown): number {

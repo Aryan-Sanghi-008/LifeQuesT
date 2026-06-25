@@ -3,7 +3,7 @@ import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-nat
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fetchLeaderboard } from '../services/leaderboard';
 import { LeaderboardEntry } from '../types';
-import { Card } from '../components/index';
+import { Card, ScreenHeader } from '../components/index';
 import { COLORS, FONTS, SPACING } from '../constants/theme';
 
 export default function LeaderboardScreen() {
@@ -16,7 +16,7 @@ export default function LeaderboardScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <Text style={styles.title}>Leaderboard</Text>
+      <ScreenHeader title="Leaderboard" subtitle="Top lives by score" />
       {loading ? (
         <ActivityIndicator color={COLORS.sapphire} />
       ) : (

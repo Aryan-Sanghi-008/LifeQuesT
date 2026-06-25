@@ -1,0 +1,85 @@
+import { runAgeUp } from '@engine/ageUpEngine';
+import type { Character } from '../../types';
+
+function baseCharacter(overrides: Partial<Character> = {}): Character {
+  return {
+    id: '1',
+    name: 'Test User',
+    gender: 'male',
+    avatarSeed: 'seed',
+    avatarId: 'male_1',
+    lifeStage: 'adult',
+    country: 'India',
+    countryFlag: '🇮🇳',
+    countryCode: 'IN',
+    zodiac: 'aries',
+    familyBackground: 'middle',
+    traits: [],
+    job: 'Engineer',
+    age: 30,
+    birthYear: 1996,
+    stats: {
+      health: 80, happiness: 70, intelligence: 60, wealth: 40,
+      fitness: 60, looks: 60, social: 50, ambition: 50, mentalHealth: 70,
+    },
+    karma: 50,
+    bankBalance: 50000,
+    netWorthPeak: 50000,
+    relationships: 0,
+    children: 0,
+    educationLevel: 'university',
+    people: [],
+    career: null,
+    assets: [],
+    achievements: [],
+    eventHistory: [],
+    isAlive: true,
+    coins: 100,
+    gems: 0,
+    isPremium: false,
+    hasNoAds: false,
+    luckBoostsRemaining: 0,
+    hasReincarnationScroll: false,
+    businesses: [],
+    socialFollowers: 0,
+    createdAt: 1,
+    updatedAt: 1,
+    ...overrides,
+  };
+}
+
+describe('runAgeUp', () => {
+  it('returns jail_tick when character is in jail', () => {
+    const character = baseCharacter({
+      criminalRecord: { crimes: ['theft'], jailYearsRemaining: 2, onProbation: false },
+    });
+    const outcome = runAgeUp(character);
+    expect(outcome.type).toBe('jail_tick');
+    if (outcome.type === 'jail_tick') {
+      expect(outcome.criminalRecord.jailYearsRemaining).toBe(1);
+    }
+  });
+
+  it('returns death when health is zero', () => {
+    const character = baseCharacter({
+      stats: {
+        health: 0, happiness: 50, intelligence: 50, wealth: 50,
+        fitness: 50, looks: 50, social: 50, ambition: 50, mentalHealth: 50,
+      },
+    });
+    const outcome = runAgeUp(character, { forceDeath: false });
+    expect(outcome.type).toBe('death');
+    if (outcome.type === 'death') {
+      expect(outcome.patch.isAlive).toBe(false);
+      expect(outcome.patch.age).toBe(31);
+    }
+  });
+
+  it('returns complete or pending_decision for healthy character', () => {
+    const outcome = runAgeUp(baseCharacter());
+    expect(['complete', 'pending_decision']).toContain(outcome.type);
+    if (outcome.type === 'complete' || outcome.type === 'pending_decision') {
+      expect(outcome.patch.age).toBe(31);
+    }
+  });
+});

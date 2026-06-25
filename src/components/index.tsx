@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, FONTS, RADII, SPACING, SHADOWS, ANIM } from "../theme/colors";
 
 export { BottomSheet } from "./BottomSheet";
+export { ScreenHeader } from "./ScreenHeader";
 export { AvatarById } from "./Avatars";
 
 // ─── GradientButton ──────────────────────────────────────────────────────────

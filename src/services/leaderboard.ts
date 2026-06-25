@@ -1,15 +1,8 @@
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { initializeApp, getApps } from 'firebase/app';
-import { firebaseConfig, isFirebaseConfigured } from '../config/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { getFunctionsInstance } from '@services/firebaseClient';
 import { LeaderboardEntry } from '../types';
 
 export { computeLeaderboardScore } from '../utils/leaderboardScore';
-
-function getFunctionsInstance() {
-  if (!isFirebaseConfigured()) return null;
-  const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
-  return getFunctions(app);
-}
 
 export async function submitLeaderboardScore(payload: {
   score: number;

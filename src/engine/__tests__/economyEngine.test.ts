@@ -3,6 +3,7 @@ import {
   applyEffect,
   computeNetWorth,
   tickAnnualEconomy,
+  investInMarket,
 } from '@engine/economyEngine';
 import type { CharacterStats } from '../../types';
 
@@ -63,5 +64,19 @@ describe('tickAnnualEconomy', () => {
   it('has no expenses for children', () => {
     const result = tickAnnualEconomy(10, 1000, 0, []);
     expect(result.bankBalance).toBe(1000);
+  });
+});
+
+describe('investInMarket', () => {
+  it('rejects when balance is insufficient', () => {
+    const result = investInMarket({ bankBalance: 5000, assets: [], age: 25 }, 10000);
+    expect(result.ok).toBe(false);
+  });
+
+  it('creates investment asset when funded', () => {
+    const result = investInMarket({ bankBalance: 50000, assets: [], age: 25 }, 10000);
+    expect(result.ok).toBe(true);
+    expect(result.bankBalance).toBe(40000);
+    expect(result.asset?.type).toBe('investment');
   });
 });

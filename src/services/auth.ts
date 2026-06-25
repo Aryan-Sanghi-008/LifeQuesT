@@ -1,4 +1,3 @@
-import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import {
   getAuth,
   signInAnonymously,
@@ -9,11 +8,11 @@ import {
   Auth,
   User,
 } from 'firebase/auth';
-import { firebaseConfig, GOOGLE_WEB_CLIENT_ID, isFirebaseConfigured } from '../config/firebase';
+import { GOOGLE_WEB_CLIENT_ID, isFirebaseConfigured } from '../config/firebase';
+import { getFirebaseApp } from '@services/firebaseClient';
 import { isGoogleSignInAvailable } from '../utils/nativeAvailability';
 import { AppUser } from '../types';
 
-let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
 
 function getGoogleSignin() {
@@ -25,8 +24,9 @@ function getGoogleSignin() {
 
 function getFirebaseAuth(): Auth | null {
   if (!isFirebaseConfigured()) return null;
-  if (!app) {
-    app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+  const app = getFirebaseApp();
+  if (!app) return null;
+  if (!auth) {
     auth = getAuth(app);
   }
   return auth;
