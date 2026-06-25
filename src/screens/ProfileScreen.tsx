@@ -13,6 +13,7 @@ import { AvatarByCharacter } from '../components/Avatars';
 import { StatBar, Card, Badge, SectionLabel, Divider } from '../components/index';
 import { ACHIEVEMENTS } from '../data/gameData';
 import { formatCurrency } from '../utils/currency';
+import { getPrivacyPolicyUrl, getTermsUrl, openLegalUrl } from '../config/legal';
 import Svg, { Path, Circle } from 'react-native-svg';
 
 // ─── Stat Chip ────────────────────────────────────────────────────────────────
@@ -93,8 +94,29 @@ export function ProfileScreen() {
   const resetGame  = useGameStore(s => s.resetGame);
 
   const [sound, setSound]   = useState(true);
-  const [haptic, setHaptic] = useState(true);
   const [notif, setNotif]   = useState(false);
+  const [haptic, setHaptic] = useState(true);
+
+  const handleOpenPrivacy = async () => {
+    try {
+      await openLegalUrl(getPrivacyPolicyUrl());
+    } catch {
+      Alert.alert('Unable to open privacy policy', 'Set EXPO_PUBLIC_PRIVACY_POLICY_URL or deploy hosting.');
+    }
+  };
+
+  const handleOpenTerms = async () => {
+    const terms = getTermsUrl();
+    if (!terms) {
+      Alert.alert('Terms of Service', 'Terms URL not configured yet.');
+      return;
+    }
+    try {
+      await openLegalUrl(terms);
+    } catch {
+      Alert.alert('Unable to open terms', 'Try again later.');
+    }
+  };
 
   if (!character) return null;
 
@@ -310,7 +332,7 @@ export function ProfileScreen() {
           {/* ── Premium ── */}
           {!isPremium && (
             <View style={styles.section}>
-              <Pressable onPress={() => Alert.alert('Get Premium', 'Unlock all features — no ads, all life paths, 3x boosts.', [{ text: 'Not Now', style: 'cancel' }, { text: 'Get Premium', onPress: () => {} }])}>
+              <Pressable onPress={() => Alert.alert('Get Premium', 'Remove ads, get 5 luck boosts, and cloud save priority.', [{ text: 'Not Now', style: 'cancel' }, { text: 'Get Premium', onPress: () => navigation.navigate('Shop') }])}>
                 <LinearGradient
                   colors={[`${COLORS.gold2}30`, `${COLORS.gold}18`]}
                   start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
@@ -323,7 +345,7 @@ export function ProfileScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.premiumTitle}>Get Premium</Text>
-                    <Text style={styles.premiumSub}>No ads · All life paths · Unlimited boosts</Text>
+                    <Text style={styles.premiumSub}>No ads · 5 luck boosts · Cloud save priority</Text>
                   </View>
                   <View style={[styles.premiumPriceTag, { backgroundColor: COLORS.gold, borderRadius: RADII.sm }]}>
                     <Text style={styles.premiumPrice}>Premium</Text>
@@ -332,6 +354,20 @@ export function ProfileScreen() {
               </Pressable>
             </View>
           )}
+
+          {/* ── Legal ── */}
+          <View style={styles.section}>
+            <SectionLabel label="Legal" />
+            <Card style={{ gap: 0 }}>
+              <Pressable onPress={() => void handleOpenPrivacy()} style={styles.legalRow}>
+                <Text style={styles.legalRowText}>Privacy Policy</Text>
+              </Pressable>
+              <Divider />
+              <Pressable onPress={() => void handleOpenTerms()} style={styles.legalRow}>
+                <Text style={styles.legalRowText}>Terms of Service</Text>
+              </Pressable>
+            </Card>
+          </View>
 
           {/* ── Danger Zone ── */}
           <View style={styles.section}>
@@ -428,6 +464,8 @@ const styles = StyleSheet.create({
   },
   resetIcon: { width: 36, height: 36, borderRadius: RADII.xs, alignItems: 'center', justifyContent: 'center' },
   resetText: { fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.health },
+  legalRow: { paddingVertical: SPACING.md, paddingHorizontal: SPACING.lg },
+  legalRowText: { fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.sapphire },
 
   footer: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4, textAlign: 'center', paddingTop: SPACING.xl },
 });

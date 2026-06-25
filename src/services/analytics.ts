@@ -1,4 +1,4 @@
-import { isFirebaseConfigured } from '../config/firebase';
+import { isFirebaseConfigured } from '@config/firebase';
 
 type AnalyticsEvent =
   | 'age_up'
@@ -8,20 +8,36 @@ type AnalyticsEvent =
   | 'sign_in'
   | 'create_character';
 
-export async function logEvent(event: AnalyticsEvent, params?: Record<string, string | number>): Promise<void> {
+function getNativeAnalytics():
+  | { logEvent: (name: string, params?: Record<string, string | number>) => Promise<void> }
+  | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const analytics = require('@react-native-firebase/analytics').default as {
+      logEvent: (name: string, params?: Record<string, string | number>) => Promise<void>;
+    };
+    return analytics;
+  } catch {
+    return null;
+  }
+}
+
+export async function logEvent(
+  event: AnalyticsEvent,
+  params?: Record<string, string | number>,
+): Promise<void> {
   if (__DEV__) {
     console.log(`[analytics] ${event}`, params ?? {});
     return;
   }
   if (!isFirebaseConfigured()) return;
+
+  const native = getNativeAnalytics();
+  if (!native) return;
+
   try {
-    const { getAnalytics, logEvent: fbLog } = await import('firebase/analytics');
-    const { initializeApp, getApps } = await import('firebase/app');
-    const { firebaseConfig } = await import('../config/firebase');
-    const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
-    const analytics = getAnalytics(app);
-    fbLog(analytics, event as string, params);
+    await native.logEvent(event, params);
   } catch {
-    // analytics unavailable on native without web — use Firebase Analytics RN in production build
+    /* analytics must never break gameplay */
   }
 }

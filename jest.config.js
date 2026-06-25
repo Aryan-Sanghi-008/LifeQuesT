@@ -23,4 +23,5 @@ module.exports = {
     'src/store/**/*.ts',
     '!**/__tests__/**',
   ],
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/functions/'],
 };

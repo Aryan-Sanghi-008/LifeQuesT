@@ -10,9 +10,10 @@ import { FadeInView } from '../components/index';
 import {
   purchaseProduct,
   restorePurchases,
-  applyPurchaseToStore,
   getIAPProducts,
+  processVerifiedPurchase,
 } from '../services/iap';
+import { getPrivacyPolicyUrl, openLegalUrl } from '../config/legal';
 import { IAPProductId } from '../types';
 import Svg, { Path, Circle } from 'react-native-svg';
 
@@ -85,7 +86,7 @@ function PremiumBanner({ isPremium, onPress }: { isPremium: boolean; onPress: ()
                   <Text style={styles.premiumTitle}>LifeQuest Premium</Text>
                   {isPremium && <View style={styles.activeBadge}><Text style={styles.activeBadgeText}>ACTIVE</Text></View>}
                 </View>
-                <Text style={styles.premiumSub}>Unlock every life path. Zero ads. Forever.</Text>
+                <Text style={styles.premiumSub}>No ads, bonus luck boosts, and cloud save priority.</Text>
               </View>
             </View>
             {!isPremium && (
@@ -98,7 +99,7 @@ function PremiumBanner({ isPremium, onPress }: { isPremium: boolean; onPress: ()
 
           {/* Perk list */}
           <View style={styles.perks}>
-            {['Remove all ads', 'All 50+ life paths', '3× stat boosts', 'Legendary events', 'Priority reincarnation'].map((p, i) => (
+            {['Remove all ads', '5 bonus luck boosts', 'Priority cloud save', 'Support ongoing development'].map((p, i) => (
               <View key={i} style={styles.perkRow}>
                 <View style={styles.perkDot} />
                 <Text style={styles.perkText}>{p}</Text>
@@ -181,14 +182,31 @@ export function ShopScreen() {
     setPurchasing('restore');
     try {
       const purchases = await restorePurchases();
-      purchases.forEach(p => {
-        applyPurchaseToStore(p.productId, store);
-      });
-      Alert.alert('Restored', purchases.length ? `${purchases.length} purchase(s) restored.` : 'No purchases found.');
+      let granted = 0;
+      for (const p of purchases) {
+        const ok = await processVerifiedPurchase(p, store);
+        if (ok) granted += 1;
+      }
+      Alert.alert(
+        'Restored',
+        granted > 0
+          ? `${granted} purchase(s) restored.`
+          : purchases.length > 0
+            ? 'Purchases found but server verification failed. Sign in and try again.'
+            : 'No purchases found.',
+      );
     } catch (e) {
       Alert.alert('Restore failed', (e as Error).message ?? 'Try again later.');
     } finally {
       setPurchasing(null);
+    }
+  };
+
+  const openPrivacy = async () => {
+    try {
+      await openLegalUrl(getPrivacyPolicyUrl());
+    } catch {
+      Alert.alert('Unable to open privacy policy', 'Set EXPO_PUBLIC_PRIVACY_POLICY_URL or deploy hosting.');
     }
   };
 
@@ -342,6 +360,10 @@ export function ShopScreen() {
             Subscriptions auto-renew. Cancel any time. Purchases are non-refundable. Prices may vary by region.
           </Text>
 
+          <Pressable onPress={() => void openPrivacy()} style={styles.privacyLink}>
+            <Text style={styles.privacyLinkText}>Privacy Policy</Text>
+          </Pressable>
+
           <View style={{ height: SPACING.xxxl }} />
         </ScrollView>
       </SafeAreaView>
@@ -432,4 +454,6 @@ const styles = StyleSheet.create({
   restoreBtn:   { alignItems: 'center', paddingVertical: SPACING.lg },
   restoreText:  { fontFamily: FONTS.bodySemiBold, fontSize: 13, color: COLORS.t3 },
   legal:        { fontFamily: FONTS.body, fontSize: 10, color: COLORS.t4, textAlign: 'center', lineHeight: 15, marginTop: SPACING.sm },
+  privacyLink:  { alignItems: 'center', paddingVertical: SPACING.sm, marginTop: SPACING.xs },
+  privacyLinkText: { fontFamily: FONTS.bodySemiBold, fontSize: 12, color: COLORS.sapphire },
 });

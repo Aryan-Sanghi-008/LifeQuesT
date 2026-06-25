@@ -32,8 +32,7 @@ import { initAds } from "./src/services/ads";
 import {
   initIAP,
   setupPurchaseListeners,
-  applyPurchaseToStore,
-  verifyPurchaseOnServer,
+  processVerifiedPurchase,
 } from "./src/services/iap";
 import { logEvent } from "./src/services/analytics";
 import "./global.css";
@@ -91,14 +90,12 @@ export default function App() {
 
     const onPurchaseSuccess = async (purchase: { productId: string }) => {
       const state = useGameStore.getState();
-      const uid = state.user?.uid ?? "local_guest";
-      const verified = await verifyPurchaseOnServer(uid, purchase as never);
-      if (!verified && !uid.startsWith("local_guest_")) {
-        console.warn("[iap] server verification failed — granting locally in dev");
+      const granted = await processVerifiedPurchase(purchase as never, state);
+      if (!granted) {
+        console.warn("[iap] purchase not granted — server verification failed");
+        return;
       }
-      applyPurchaseToStore(purchase.productId, state);
       void logEvent("purchase", { productId: purchase.productId });
-      void state._persist();
     };
 
     const task = InteractionManager.runAfterInteractions(() => {

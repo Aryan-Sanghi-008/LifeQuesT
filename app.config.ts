@@ -1,5 +1,18 @@
 import type { ExpoConfig } from 'expo/config';
 
+const TEST_ADMOB_ANDROID = 'ca-app-pub-3940256099942544~3347511713';
+const TEST_ADMOB_IOS = 'ca-app-pub-3940256099942544~1458002511';
+
+function iosUrlSchemeFromClientId(clientId: string | undefined): string {
+  if (!clientId?.includes('.apps.googleusercontent.com')) {
+    return 'com.googleusercontent.apps.REPLACE_WITH_YOUR_IOS_CLIENT_ID';
+  }
+  const prefix = clientId.replace('.apps.googleusercontent.com', '');
+  return `com.googleusercontent.apps.${prefix}`;
+}
+
+const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+
 const config: ExpoConfig = {
   name: 'LifeQuest',
   slug: 'lifequest',
@@ -24,18 +37,19 @@ const config: ExpoConfig = {
   plugins: [
     'expo-dev-client',
     'expo-font',
+    '@react-native-firebase/app',
     [
       'react-native-google-mobile-ads',
       {
-        androidAppId: 'ca-app-pub-3940256099942544~3347511713',
-        iosAppId: 'ca-app-pub-3940256099942544~1458002511',
+        androidAppId:
+          process.env.EXPO_PUBLIC_ADMOB_ANDROID_APP_ID ?? TEST_ADMOB_ANDROID,
+        iosAppId: process.env.EXPO_PUBLIC_ADMOB_IOS_APP_ID ?? TEST_ADMOB_IOS,
       },
     ],
     [
       '@react-native-google-signin/google-signin',
       {
-        iosUrlScheme:
-          'com.googleusercontent.apps.REPLACE_WITH_YOUR_IOS_CLIENT_ID',
+        iosUrlScheme: iosUrlSchemeFromClientId(googleIosClientId),
       },
     ],
     '@iaptic/react-native-iap',

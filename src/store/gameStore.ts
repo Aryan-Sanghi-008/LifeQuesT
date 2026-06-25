@@ -674,7 +674,14 @@ export const useGameStore = create<GameStore>()(
     },
 
     setPremium: (v) => {
-      set(s => { if (s.character) { s.character.isPremium = v; if (v) s.character.hasNoAds = true; } });
+      set(s => {
+        if (!s.character) return;
+        s.character.isPremium = v;
+        if (v) {
+          s.character.hasNoAds = true;
+          s.character.luckBoostsRemaining += 5;
+        }
+      });
       void get()._persist();
     },
     setNoAds: (v) => {

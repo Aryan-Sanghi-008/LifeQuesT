@@ -1,33 +1,95 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
+import { grantsForProduct, grantsToUserPatch } from './entitlements';
+import { verifyGooglePlayPurchase, isAllowUnverifiedIap } from './verifyGooglePlay';
+import { verifyAppStorePurchase } from './verifyAppStore';
 
 admin.initializeApp();
 const db = admin.firestore();
 
-const COIN_GRANTS: Record<string, number> = {
-  coins_small: 10000,
-  coins_medium: 50000,
-  coins_large: 150000,
-};
+interface VerifyPurchasePayload {
+  productId: string;
+  transactionId?: string;
+  platform?: string;
+  purchaseToken?: string;
+  transactionReceipt?: string;
+}
+
+async function verifyPlatformPurchase(
+  platform: string,
+  productId: string,
+  purchaseToken: string | undefined,
+  transactionId: string,
+  transactionReceipt: string | undefined,
+): Promise<void> {
+  if (platform === 'android') {
+    if (!purchaseToken) {
+      throw new functions.https.HttpsError(
+        'invalid-argument',
+        'purchaseToken is required for Android purchases.',
+      );
+    }
+    try {
+      await verifyGooglePlayPurchase(productId, purchaseToken);
+    } catch (e) {
+      if (isAllowUnverifiedIap()) return;
+      const message = e instanceof Error ? e.message : 'Google Play verification failed.';
+      if (message.includes('not configured')) {
+        throw new functions.https.HttpsError('failed-precondition', message);
+      }
+      throw new functions.https.HttpsError('permission-denied', message);
+    }
+    return;
+  }
+
+  if (platform === 'ios') {
+    try {
+      await verifyAppStorePurchase(productId, transactionId, transactionReceipt);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'App Store verification failed.';
+      throw new functions.https.HttpsError('unimplemented', message);
+    }
+    return;
+  }
+
+  throw new functions.https.HttpsError(
+    'invalid-argument',
+    `Unsupported platform: ${platform}`,
+  );
+}
 
 /**
  * Callable: verify an App Store / Play Store purchase and grant entitlements.
- * Production: validate receipts with Apple/Google APIs before writing Firestore.
  */
 export const verifyPurchase = functions.https.onCall(async (data, context) => {
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'Sign in required.');
   }
 
-  const { productId, transactionId, platform, purchaseToken } = data as {
-    productId: string;
-    transactionId?: string;
-    platform?: string;
-    purchaseToken?: string;
-  };
+  const { productId, transactionId, platform, purchaseToken, transactionReceipt } =
+    data as VerifyPurchasePayload;
 
   if (!productId || !transactionId) {
-    throw new functions.https.HttpsError('invalid-argument', 'productId and transactionId required.');
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'productId and transactionId required.',
+    );
+  }
+
+  const resolvedPlatform = platform ?? 'unknown';
+  if (resolvedPlatform === 'android' || resolvedPlatform === 'ios') {
+    await verifyPlatformPurchase(
+      resolvedPlatform,
+      productId,
+      purchaseToken,
+      transactionId,
+      transactionReceipt,
+    );
+  } else if (!isAllowUnverifiedIap()) {
+    throw new functions.https.HttpsError(
+      'invalid-argument',
+      'platform must be android or ios.',
+    );
   }
 
   const uid = context.auth.uid;
@@ -36,38 +98,24 @@ export const verifyPurchase = functions.https.onCall(async (data, context) => {
 
   const existing = await purchaseRef.get();
   if (existing.exists) {
-    return { ok: true, duplicate: true };
+    return { ok: true, duplicate: true, grants: grantsForProduct(productId) };
   }
 
-  // TODO: validate purchaseToken with Google Play / App Store Server API
-  void platform;
-  void purchaseToken;
+  const grants = grantsForProduct(productId);
+  const userPatch = grantsToUserPatch(grants);
 
   const batch = db.batch();
   batch.set(purchaseRef, {
     productId,
     transactionId,
-    platform: platform ?? 'unknown',
+    platform: resolvedPlatform,
     verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
-
-  const userPatch: Record<string, unknown> = {};
-
-  if (productId === 'premium_monthly' || productId === 'premium_yearly') {
-    userPatch.isPremium = true;
-    userPatch.hasNoAds = true;
-  }
-  if (productId === 'remove_ads') {
-    userPatch.hasNoAds = true;
-  }
-  if (COIN_GRANTS[productId]) {
-    userPatch.coinsGrant = COIN_GRANTS[productId];
-  }
 
   if (Object.keys(userPatch).length > 0) {
     batch.set(userRef, userPatch, { merge: true });
   }
 
   await batch.commit();
-  return { ok: true, grants: userPatch };
+  return { ok: true, grants };
 });

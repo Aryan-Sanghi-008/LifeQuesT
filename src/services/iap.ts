@@ -149,9 +149,35 @@ export async function verifyPurchaseOnServer(
       transactionId: purchase.transactionId,
       platform: Platform.OS,
       purchaseToken: purchase.purchaseToken,
+      transactionReceipt: purchase.transactionReceipt,
     });
     return true;
   } catch {
     return false;
   }
+}
+
+/** Verify with server when signed in; guests only in dev builds. */
+export async function shouldGrantPurchaseLocally(uid: string | undefined): Promise<boolean> {
+  if (!uid || uid.startsWith('local_guest_')) return __DEV__;
+  return false;
+}
+
+export async function processVerifiedPurchase(
+  purchase: Purchase,
+  store: Parameters<typeof applyPurchaseToStore>[1] & { user: { uid: string } | null; _persist: () => Promise<void> },
+): Promise<boolean> {
+  const uid = store.user?.uid ?? 'local_guest';
+  const verified = await verifyPurchaseOnServer(uid, purchase);
+  if (!verified) {
+    if (await shouldGrantPurchaseLocally(uid)) {
+      applyPurchaseToStore(purchase.productId, store);
+      void store._persist();
+      return true;
+    }
+    return false;
+  }
+  applyPurchaseToStore(purchase.productId, store);
+  void store._persist();
+  return true;
 }
