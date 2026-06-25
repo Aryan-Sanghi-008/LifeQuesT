@@ -9,6 +9,7 @@ import { ACTIVITIES } from '../data/gameData';
 import { Activity, ActivityCategory } from '../types';
 import { ScreenHeader } from '../components/ScreenHeader';
 import Svg, { Path, Circle } from 'react-native-svg';
+import { formatCurrency } from '../utils/currency';
 
 // ─── Category SVG icons ───────────────────────────────────────────────────────
 function CatIcon({ cat, color }: { cat: ActivityCategory; color: string }) {
@@ -36,10 +37,11 @@ const CAT_META: Record<ActivityCategory, { color: string; label: string }> = {
 };
 
 // ─── Stat effect summary ──────────────────────────────────────────────────────
-function EffectChips({ activity }: { activity: Activity }) {
+function EffectChips({ activity, countryCode }: { activity: Activity; countryCode: string }) {
   const chips: Array<{ label: string; positive: boolean }> = [];
   if (activity.bankEffect) {
-    chips.push({ label: activity.bankEffect > 0 ? `+₹${(activity.bankEffect/1000).toFixed(0)}K` : `-₹${Math.abs(activity.bankEffect/1000).toFixed(0)}K`, positive: activity.bankEffect > 0 });
+    const fmtAmt = formatCurrency(Math.abs(activity.bankEffect), countryCode);
+    chips.push({ label: activity.bankEffect > 0 ? `+${fmtAmt}` : `-${fmtAmt}`, positive: activity.bankEffect > 0 });
   }
   const eff = activity.statEffect;
   if (eff.fitness)      chips.push({ label: `${eff.fitness! > 0 ? '+' : ''}${eff.fitness} Fit`, positive: (eff.fitness ?? 0) > 0 });
@@ -71,7 +73,8 @@ function ActivityCard({
   activity,
   onPress,
   disabled,
-}: { activity: Activity; onPress: () => void; disabled: boolean }) {
+  countryCode,
+}: { activity: Activity; onPress: () => void; disabled: boolean; countryCode: string }) {
   const meta = CAT_META[activity.category];
   const hasCost = (activity.bankEffect ?? 0) < 0 || (activity.cost ?? 0) > 0;
 
@@ -87,13 +90,13 @@ function ActivityCard({
       <View style={{ flex: 1 }}>
         <Text style={ac.label}>{activity.label}</Text>
         <Text style={ac.desc} numberOfLines={2}>{activity.description}</Text>
-        <EffectChips activity={activity} />
+        <EffectChips activity={activity} countryCode={countryCode} />
       </View>
       {hasCost && (
         <View style={[ac.costBadge, { borderColor: `${meta.color}40`, backgroundColor: `${meta.color}10` }]}>
           <Text style={[ac.costText, { color: meta.color }]}>
             {activity.bankEffect && activity.bankEffect < 0
-              ? `₹${Math.abs(activity.bankEffect / 1000).toFixed(0)}K`
+              ? formatCurrency(Math.abs(activity.bankEffect), countryCode)
               : `${activity.cost}c`}
           </Text>
         </View>
@@ -124,6 +127,7 @@ export function ActivitiesScreen() {
 
   if (!character) return null;
 
+  const { countryCode } = character;
   const eligible = ACTIVITIES.filter(a =>
     character.age >= a.minAge && character.age <= a.maxAge &&
     (filter === 'all' || a.category === filter)
@@ -134,7 +138,7 @@ export function ActivitiesScreen() {
     const canAffordCoins = !activity.cost || character.coins >= activity.cost;
 
     if (!canAffordBank) {
-      Alert.alert('Not Enough Money', `You need ₹${Math.abs((activity.bankEffect ?? 0) / 1000).toFixed(0)}K for this.`);
+      Alert.alert('Not Enough Money', `You need ${formatCurrency(Math.abs(activity.bankEffect ?? 0), countryCode)} for this.`);
       return;
     }
     if (!canAffordCoins) {
@@ -203,6 +207,7 @@ export function ActivitiesScreen() {
                 activity={a}
                 onPress={() => handleActivity(a)}
                 disabled={false}
+                countryCode={countryCode}
               />
             ))
           )}

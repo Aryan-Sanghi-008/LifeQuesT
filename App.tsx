@@ -37,6 +37,7 @@ import {
 import { logEvent } from "@services/analytics";
 import { initCrashReporting } from "@services/crashReporting";
 import { initNotifications } from "@services/notifications";
+import { initAudio } from "@services/audio";
 import "./global.css";
 
 void SplashScreen.preventAutoHideAsync().catch(() => {
@@ -102,6 +103,7 @@ export default function App() {
 
     const task = InteractionManager.runAfterInteractions(() => {
       if (cancelled) return;
+      void initAudio();
       void initAds();
       void initCrashReporting();
       void initNotifications();

@@ -5,6 +5,13 @@ import { CRIME_EVENTS } from './events/crime';
 import { SOCIAL_VIRALITY_EVENTS } from './events/social';
 import { COUNTRY_EVENTS } from './events/country';
 import { BUSINESS_EVENTS, EDUCATION_EVENTS } from './events/businessEducation';
+import { LIFE_EVENTS_EXPANDED } from './events/lifeEventsExpanded';
+import { CAREER_EVENTS } from './events/careerEvents';
+import { HEALTH_EVENTS } from './events/healthEvents';
+import { RELATIONSHIP_EVENTS } from './events/relationshipEvents';
+import { EDUCATION_EVENTS_2 } from './events/educationEvents2';
+import { FINANCIAL_EVENTS } from './events/financialEvents';
+import { MILESTONE_EVENTS } from './events/milestoneEvents';
 
 // ─── Avatars (legacy) ─────────────────────────────────────────────────────────
 export const AVATARS: Array<{ id: AvatarId; label: string }> = [
@@ -1167,6 +1174,13 @@ export const LIFE_EVENTS: LifeEvent[] = [
   ...EDUCATION_EVENTS,
   ...COUNTRY_EVENTS,
   ...EXPANSION_AUTHORED_EVENTS,
+  ...LIFE_EVENTS_EXPANDED,   // +200 life events (TASK 10)
+  ...CAREER_EVENTS,          // +100 career events (TASK 10)
+  ...HEALTH_EVENTS,          // +30 health events
+  ...RELATIONSHIP_EVENTS,    // +30 relationship events
+  ...EDUCATION_EVENTS_2,     // +20 education events
+  ...FINANCIAL_EVENTS,       // +25 financial events
+  ...MILESTONE_EVENTS,       // +20 milestone events
 ];
 
 export const SEASON_PASS_TIERS = [

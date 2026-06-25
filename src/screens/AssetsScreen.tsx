@@ -9,26 +9,21 @@ import { useGameStore } from '../store/gameStore';
 import { Asset } from '../types';
 import { SectionLabel } from '../components/index';
 import Svg, { Path, Circle, Rect, Polyline } from 'react-native-svg';
-
-// ─── Format currency ──────────────────────────────────────────────────────────
-function fmt(n: number): string {
-  if (n >= 10000000) return `₹${(n / 10000000).toFixed(2)}Cr`;
-  if (n >= 100000)   return `₹${(n / 100000).toFixed(1)}L`;
-  if (n >= 1000)     return `₹${(n / 1000).toFixed(0)}K`;
-  return `₹${Math.round(n)}`;
-}
+import { formatCurrency } from '../utils/currency';
 
 // ─── Balance Hero ─────────────────────────────────────────────────────────────
 interface BalanceHeroProps {
   balance: number;
   career: { salary: number } | null;
   assets: Asset[];
+  countryCode: string;
 }
 
-function BalanceHero({ balance, career, assets }: BalanceHeroProps) {
+function BalanceHero({ balance, career, assets, countryCode }: BalanceHeroProps) {
   const totalDebt   = assets.reduce((s, a) => s + (a.debt ?? 0), 0);
   const assetValue  = assets.reduce((s, a) => s + a.value, 0);
   const netWorth    = balance + assetValue - totalDebt;
+  const fmt = (n: number) => formatCurrency(n, countryCode);
 
   return (
     <LinearGradient colors={[COLORS.bg2, COLORS.bg]} style={bh.wrap}>
@@ -100,9 +95,10 @@ function AssetSvgIcon({ type }: { type: string }) {
   );
 }
 
-function AssetCard({ asset, onSell }: { asset: Asset; onSell: () => void }) {
+function AssetCard({ asset, onSell, countryCode }: { asset: Asset; onSell: () => void; countryCode: string }) {
   const equity = asset.value - (asset.debt ?? 0);
   const debtRatio = asset.debt ? (asset.debt / asset.value) * 100 : 0;
+  const fmt = (n: number) => formatCurrency(n, countryCode);
 
   return (
     <View style={asc.card}>
@@ -168,7 +164,8 @@ const BUY_OPTIONS = [
   { type: 'investment' as const, name: 'Mutual Fund',     value: 25000,  debt: 0       },
 ];
 
-function BuySheet({ balance, onBuy, onClose }: { balance: number; onBuy: (opt: typeof BUY_OPTIONS[number]) => void; onClose: () => void }) {
+function BuySheet({ balance, onBuy, onClose, countryCode }: { balance: number; onBuy: (opt: typeof BUY_OPTIONS[number]) => void; onClose: () => void; countryCode: string }) {
+  const fmt = (n: number) => formatCurrency(n, countryCode);
   return (
     <View style={bs.overlay}>
       <Pressable style={bs.backdrop} onPress={onClose} />
@@ -297,7 +294,8 @@ export function AssetsScreen() {
 
   if (!character) return null;
 
-  const { bankBalance, career, assets } = character;
+  const { bankBalance, career, assets, countryCode } = character;
+  const fmt = (n: number) => formatCurrency(n, countryCode);
 
   const handleBuy = (opt: typeof BUY_OPTIONS[number]) => {
     const success = purchaseAsset({
@@ -333,7 +331,7 @@ export function AssetsScreen() {
           <Text style={styles.headerTitle}>Assets</Text>
         </View>
 
-        <BalanceHero balance={bankBalance} career={career} assets={assets} />
+        <BalanceHero balance={bankBalance} career={career} assets={assets} countryCode={countryCode} />
 
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <View style={styles.actionRow}>
@@ -344,7 +342,7 @@ export function AssetsScreen() {
               onPress={() => {
                 Alert.alert(
                   'Invest in Stocks',
-                  'Invest ₹10,000 from your bank balance?',
+                  `Invest ${fmt(10000)} from your bank balance?`,
                   [
                     { text: 'Cancel', style: 'cancel' },
                     {
@@ -379,7 +377,7 @@ export function AssetsScreen() {
             <>
               <SectionLabel label={`Assets (${assets.length})`} style={{ marginBottom: SPACING.md }} />
               {assets.map(a => (
-                <AssetCard key={a.id} asset={a} onSell={() => handleSell(a)} />
+                <AssetCard key={a.id} asset={a} countryCode={countryCode} onSell={() => handleSell(a)} />
               ))}
             </>
           )}
@@ -412,7 +410,7 @@ export function AssetsScreen() {
       </SafeAreaView>
 
       {showBuy && (
-        <BuySheet balance={bankBalance} onBuy={handleBuy} onClose={() => setShowBuy(false)} />
+        <BuySheet balance={bankBalance} countryCode={countryCode} onBuy={handleBuy} onClose={() => setShowBuy(false)} />
       )}
       {showFoundModal && (
         <FoundBusinessSheet

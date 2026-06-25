@@ -7,6 +7,7 @@ export type LifeStage =
   | 'teen'
   | 'young_adult'
   | 'adult'
+  | 'middle_aged'
   | 'senior';
 
 export type EducationLevel =
@@ -138,8 +139,16 @@ export interface StatEffect extends Partial<CharacterStats> {
 
 export type FamilyBackground = 'poor' | 'middle' | 'wealthy' | 'royalty';
 export type AvatarId = 'male_1' | 'female_1' | 'male_2' | 'female_2';
-export type AvatarStyleId = 'pixel_art' | 'adventurer' | 'lorelei' | 'bottts';
-export type Gender = 'male' | 'female' | 'other';
+// Modern avatar styles — no pixel art
+export type AvatarStyleId =
+  | 'adventurer'          // Male / Other default — illustration style
+  | 'adventurer-neutral'  // Gender-neutral variant
+  | 'lorelei'             // Female default — elegant illustration
+  | 'lorelei-neutral'     // Gender-neutral lorelei
+  | 'bottts'              // Robot/pet style for animals
+  | 'notionists'          // Professional style for career-heavy characters
+  | 'big-smile';          // Fun cheerful style
+export type Gender = 'male' | 'female' | 'other' | 'animal'; // 'animal' for pets
 
 export interface Character {
   id: string;
@@ -164,6 +173,8 @@ export interface Character {
   relationships: number;
   children: number;
   educationLevel: EducationLevel;
+  educationStage?: string;   // EducationStage from educationDegrees.ts (new system)
+  educationBranch?: string;  // EducationBranch from educationDegrees.ts (new system)
   people: Person[];
   career: Career | null;
   assets: Asset[];
@@ -186,6 +197,8 @@ export interface Character {
   unlockedAvatarStyles?: AvatarStyleId[];
   hasSeasonPass?: boolean;
   claimedSeasonTiers?: number[];
+  degreeIds: string[];
+  eventCooldowns?: Record<string, number>; // eventId → last triggered age
   createdAt: number;
   updatedAt: number;
 }
@@ -240,6 +253,7 @@ export interface LifeEvent {
   requiresKarmaMin?: number;
   requiresMentalHealthBelow?: number;
   oneTime?: boolean;
+  weight?: number;
   updatesJob?: string;
   updatesEducation?: EducationLevel;
   addsPerson?: Partial<Person>;

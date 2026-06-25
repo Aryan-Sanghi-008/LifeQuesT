@@ -1,10 +1,11 @@
-import { useState, useRef, Fragment } from 'react';
+import { useState, useRef, Fragment, useEffect } from 'react';
 import {
   View, Text, Pressable, StyleSheet, Animated,
   TextInput, ScrollView, Dimensions, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { RouteProp } from '@react-navigation/native';
+import { StackActions } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList, FamilyBackground, Gender } from '../types';
 import { COLORS, FONTS, RADII, SPACING, SHADOWS } from '../constants/theme';
@@ -328,8 +329,22 @@ export function CharacterCreateScreen({ navigation, route }: Props) {
   const [background, setBackground] = useState<FamilyBackground>('middle');
   const [zodiac, setZodiac]         = useState('leo');
   const [traits, setTraits]         = useState<string[]>([]);
+  const [isCreating, setIsCreating] = useState(false);
 
   const slideAnim = useRef(new Animated.Value(0)).current;
+  const clearPendingReincarnation = useGameStore(s => s.clearPendingReincarnation);
+
+  // Clear reincarnation flag when this screen mounts so future saves navigate correctly
+  useEffect(() => {
+    clearPendingReincarnation();
+  }, [clearPendingReincarnation]);
+
+  // Navigate to MainTabs once character is created
+  useEffect(() => {
+    if (character && isCreating) {
+      navigation.dispatch(StackActions.replace('MainTabs'));
+    }
+  }, [character, isCreating, navigation]);
 
   const toggleTrait = (id: string) => {
     setTraits(prev => prev.includes(id) ? prev.filter(t => t !== id) : prev.length < 2 ? [...prev, id] : prev);
@@ -344,6 +359,7 @@ export function CharacterCreateScreen({ navigation, route }: Props) {
       ]).start();
       setStep(s => s + 1);
     } else {
+      setIsCreating(true);
       const selectedZodiac = ZODIACS.find(z => z.id === zodiac);
       createCharacter({
         name: name.trim(),

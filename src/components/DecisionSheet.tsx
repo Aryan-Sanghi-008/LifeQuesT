@@ -6,6 +6,8 @@ import { BottomSheet } from './BottomSheet';
 import { LifeEvent, EventChoice } from '../types';
 import { COLORS, FONTS, RADII, SPACING } from '../constants/theme';
 import Svg, { Path } from 'react-native-svg';
+import { hapticDecision, hapticButtonPress } from '../services/haptics';
+import { playSound } from '../services/audio';
 
 interface DecisionSheetProps {
   event: LifeEvent | null;
@@ -89,9 +91,10 @@ function ChoiceCard({ choice, onPress, index, accentColor }: ChoiceCardProps) {
         onPress={onPress}
         accessibilityRole="button"
         accessibilityLabel={choice.text}
-        onPressIn={() =>
-          Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, damping: 18, stiffness: 220 }).start()
-        }
+        onPressIn={() => {
+          Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, damping: 18, stiffness: 220 }).start();
+          hapticButtonPress();
+        }}
         onPressOut={() =>
           Animated.spring(scale, { toValue: 1, useNativeDriver: true, damping: 18, stiffness: 220 }).start()
         }
@@ -183,7 +186,11 @@ export default function DecisionSheet({ event, onChoice, onClose }: DecisionShee
             choice={choice}
             index={i}
             accentColor={accentColor}
-            onPress={() => onChoice(choice.id)}
+            onPress={() => {
+              hapticDecision();
+              void playSound('decision_made');
+              onChoice(choice.id);
+            }}
           />
         ))}
       </View>

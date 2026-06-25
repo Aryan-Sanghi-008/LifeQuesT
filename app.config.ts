@@ -20,6 +20,12 @@ const config: ExpoConfig = {
   orientation: 'portrait',
   userInterfaceStyle: 'dark',
   scheme: 'lifequest',
+  icon: './assets/icon.png',
+  splash: {
+    image: './assets/splash.png',
+    resizeMode: 'contain',
+    backgroundColor: '#080C14',
+  },
   ios: {
     bundleIdentifier: 'com.lifequest.app',
     supportsTablet: true,
@@ -31,6 +37,8 @@ const config: ExpoConfig = {
     googleServicesFile:
       process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
     adaptiveIcon: {
+      foregroundImage: './assets/adaptive-icon.png',
+      monochromeImage: './assets/android-icon-monochrome.png',
       backgroundColor: '#080C14',
     },
   },

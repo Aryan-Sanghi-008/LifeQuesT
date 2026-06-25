@@ -1,99 +1,129 @@
+// ─── LifeQuest Avatar System ─────────────────────────────────────────────────
+// Modern illustration-based avatars using DiceBear adventurer/lorelei/bottts.
+// NO pixel art. All avatars are gender & life-stage aware.
+
 import { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 import { Style, Avatar } from '@dicebear/core';
 import { LifeStage, Gender, Character, AvatarStyleId } from '../types';
-import { getAvatarOptionsForStage } from '../utils/lifeStage';
+import { getAvatarOptionsForStage, getDefaultAvatarStyle, getStyleFileName } from '../utils/lifeStage';
 import { COLORS } from '../theme/themes';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const pixelArtDef = require('@dicebear/styles/pixel-art.json');
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const adventurerDef = require('@dicebear/styles/adventurer.json');
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const loreleiDef = require('@dicebear/styles/lorelei.json');
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const botttsDef = require('@dicebear/styles/bottts.json');
+// ─── Load all modern DiceBear style JSON defs ─────────────────────────────────
+// Only illustration / character styles — no pixel art
 
-const STYLE_MAP: Record<AvatarStyleId, Style> = {
-  pixel_art: new Style(pixelArtDef),
-  adventurer: new Style(adventurerDef),
-  lorelei: new Style(loreleiDef),
-  bottts: new Style(botttsDef),
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const adventurerDef        = require('@dicebear/styles/dist/adventurer.min.json');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const adventurerNeutralDef = require('@dicebear/styles/dist/adventurer-neutral.min.json');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const loreleiDef           = require('@dicebear/styles/dist/lorelei.min.json');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const loreleiNeutralDef    = require('@dicebear/styles/dist/lorelei-neutral.min.json');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const botttsDef            = require('@dicebear/styles/dist/bottts.min.json');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const notionistsDef        = require('@dicebear/styles/dist/notionists.min.json');
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const bigSmileDef          = require('@dicebear/styles/dist/big-smile.min.json');
+
+const STYLE_MAP: Record<string, Style> = {
+  'adventurer':         new Style(adventurerDef),
+  'adventurer-neutral': new Style(adventurerNeutralDef),
+  'lorelei':            new Style(loreleiDef),
+  'lorelei-neutral':    new Style(loreleiNeutralDef),
+  'bottts':             new Style(botttsDef),
+  'notionists':         new Style(notionistsDef),
+  'big-smile':          new Style(bigSmileDef),
 };
+
+// ─── Core Avatar Component ────────────────────────────────────────────────────
 
 interface DiceBearAvatarProps {
   seed: string;
   lifeStage: LifeStage;
   gender: Gender;
-  avatarStyle?: AvatarStyleId;
+  avatarStyle?: AvatarStyleId | string;
   size?: number;
   showFrame?: boolean;
+  frameColor?: string;
 }
 
 export function DiceBearAvatar({
   seed,
   lifeStage,
   gender,
-  avatarStyle = 'pixel_art',
+  avatarStyle,
   size = 80,
   showFrame = false,
+  frameColor,
 }: DiceBearAvatarProps) {
+
   const xml = useMemo(() => {
     try {
       const opts = getAvatarOptionsForStage(lifeStage, gender);
-      const style = STYLE_MAP[avatarStyle] ?? STYLE_MAP.pixel_art;
+
+      // Determine style: explicit override > gender default
+      const resolvedStyleName = avatarStyle
+        ? getStyleFileName(avatarStyle)
+        : getDefaultAvatarStyle(gender);
+
+      const style = STYLE_MAP[resolvedStyleName] ?? STYLE_MAP['adventurer'];
+
       const avatar = new Avatar(style, {
         seed,
-        size: 128,
+        size: 256,
         ...opts,
       });
       return avatar.toString();
-    } catch {
+    } catch (e) {
+      // Fallback gracefully
+      console.warn('[Avatar] render error:', e);
       return null;
     }
   }, [seed, lifeStage, gender, avatarStyle]);
 
-  if (!xml) return <View style={[s.fallback, { width: size, height: size, borderRadius: size / 4 }]} />;
+  if (!xml) {
+    return (
+      <View style={[
+        s.fallback,
+        { width: size, height: size, borderRadius: size / 4 },
+      ]} />
+    );
+  }
 
-  const inner = (
-    <SvgXml xml={xml} width={size} height={size} />
-  );
+  const inner = <SvgXml xml={xml} width={size} height={size} />;
 
   if (!showFrame) return inner;
 
+  const borderCol = frameColor ?? COLORS.goldBorder;
+
   return (
     <View style={[s.frame, {
-      width: size + 4,
-      height: size + 4,
-      borderRadius: size / 4 + 2,
+      width: size + 6,
+      height: size + 6,
+      borderRadius: size / 4 + 3,
       backgroundColor: COLORS.bgCard,
-      borderColor: COLORS.goldBorder,
+      borderColor: borderCol,
     }]}>
       {inner}
     </View>
   );
 }
 
-const s = StyleSheet.create({
-  frame: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    overflow: 'hidden',
-  },
-  fallback: {
-    backgroundColor: COLORS.bgCard,
-  },
-});
+// ─── Character Avatar (uses Character data directly) ─────────────────────────
 
 interface AvatarByCharacterProps {
   character: Pick<Character, 'avatarSeed' | 'lifeStage' | 'gender' | 'avatarStyle'>;
   size?: number;
   showFrame?: boolean;
+  frameColor?: string;
 }
 
-export function AvatarByCharacter({ character, size = 80, showFrame = false }: AvatarByCharacterProps) {
+export function AvatarByCharacter({
+  character, size = 80, showFrame = false, frameColor,
+}: AvatarByCharacterProps) {
   return (
     <DiceBearAvatar
       seed={character.avatarSeed}
@@ -102,21 +132,67 @@ export function AvatarByCharacter({ character, size = 80, showFrame = false }: A
       avatarStyle={character.avatarStyle}
       size={size}
       showFrame={showFrame}
+      frameColor={frameColor}
     />
   );
 }
+
+// ─── NPC / Person Avatar ──────────────────────────────────────────────────────
 
 interface NpcAvatarProps {
   seed: string;
   gender?: Gender;
   size?: number;
   age?: number;
+  relationType?: string;
 }
 
-export function NpcAvatar({ seed, gender = 'male', size = 48, age = 30 }: NpcAvatarProps) {
-  const lifeStage: LifeStage = age < 13 ? 'child' : age < 18 ? 'teen' : age < 36 ? 'young_adult' : age < 60 ? 'adult' : 'senior';
-  return <DiceBearAvatar seed={seed} lifeStage={lifeStage} gender={gender} size={size} />;
+export function NpcAvatar({
+  seed, gender = 'male', size = 48, age = 30, relationType,
+}: NpcAvatarProps) {
+  const lifeStage: LifeStage =
+    age < 2  ? 'infant'      :
+    age < 5  ? 'toddler'     :
+    age < 13 ? 'child'       :
+    age < 18 ? 'teen'        :
+    age < 36 ? 'young_adult' :
+    age < 51 ? 'adult'       :
+    age < 66 ? 'middle_aged' : 'senior';
+
+  // Pets use bottts style
+  const avatarStyle = (relationType === 'pet' || gender === 'animal') ? 'bottts' : undefined;
+
+  return (
+    <DiceBearAvatar
+      seed={seed}
+      lifeStage={lifeStage}
+      gender={gender}
+      avatarStyle={avatarStyle}
+      size={size}
+    />
+  );
 }
+
+// ─── Pet Avatar ───────────────────────────────────────────────────────────────
+
+interface PetAvatarProps {
+  seed: string;
+  size?: number;
+}
+
+export function PetAvatar({ seed, size = 48 }: PetAvatarProps) {
+  return (
+    <DiceBearAvatar
+      seed={seed}
+      lifeStage="young_adult"
+      gender="animal"
+      avatarStyle="bottts"
+      size={size}
+    />
+  );
+}
+
+// ─── Legacy AvatarById (backward compat) ─────────────────────────────────────
 
 import { AvatarId } from '../types';
 
@@ -125,3 +201,32 @@ export function AvatarById({ id, size = 80 }: { id: AvatarId; size?: number }) {
   const gender: Gender = id === 'female_1' || id === 'female_2' ? 'female' : 'male';
   return <DiceBearAvatar seed={id} lifeStage={lifeStage} gender={gender} size={size} />;
 }
+
+// ─── Avatar style chooser (for shop / settings) ───────────────────────────────
+
+export const AVATAR_STYLE_OPTIONS: Array<{
+  id: AvatarStyleId;
+  label: string;
+  description: string;
+  gender: 'male' | 'female' | 'any';
+}> = [
+  { id: 'adventurer',          label: 'Explorer',     description: 'Adventurous illustration style',  gender: 'male'   },
+  { id: 'lorelei',             label: 'Lorelei',      description: 'Elegant feminine illustration',   gender: 'female' },
+  { id: 'adventurer-neutral',  label: 'Wanderer',     description: 'Gender-neutral explorer style',   gender: 'any'    },
+  { id: 'lorelei-neutral',     label: 'Mystic',       description: 'Gender-neutral elegant style',    gender: 'any'    },
+  { id: 'notionists',          label: 'Professional', description: 'Clean professional look',         gender: 'any'    },
+  { id: 'big-smile',           label: 'Joyful',       description: 'Fun, expressive characters',      gender: 'any'    },
+  { id: 'bottts',              label: 'Robo',         description: 'Quirky robot style for fun',      gender: 'any'    },
+];
+
+const s = StyleSheet.create({
+  frame: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2.5,
+    overflow: 'hidden',
+  },
+  fallback: {
+    backgroundColor: COLORS.bg2,
+  },
+});

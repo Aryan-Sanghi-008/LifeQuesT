@@ -27,9 +27,13 @@ function getGamePhase(
   return 'alive';
 }
 
-function getInitialRoute(phase: GamePhase): keyof RootStackParamList {
+function getInitialRoute(
+  phase: GamePhase,
+  pendingReincarnation: boolean,
+): keyof RootStackParamList {
   if (phase === 'auth') return 'Auth';
-  if (phase === 'slots') return 'SaveSlots';
+  // After reincarnation, go directly to CharacterCreate instead of SaveSlots
+  if (phase === 'slots') return pendingReincarnation ? 'CharacterCreate' : 'SaveSlots';
   if (phase === 'dead') return 'Death';
   return 'MainTabs';
 }
@@ -38,15 +42,16 @@ export default function RootNavigator() {
   const character = useGameStore(s => s.character);
   const user = useGameStore(s => s.user);
   const isHydrated = useGameStore(s => s.isHydrated);
+  const pendingReincarnation = useGameStore(s => s.pendingReincarnation);
 
   if (!isHydrated) return null;
 
   const phase = getGamePhase(user, character);
-  const initialRouteName = getInitialRoute(phase);
+  const initialRouteName = getInitialRoute(phase, pendingReincarnation);
 
   return (
     <Stack.Navigator
-      key={`${phase}_${user?.uid ?? 'none'}`}
+      key={`${phase}_${user?.uid ?? 'none'}_${pendingReincarnation ? 'reinc' : 'normal'}`}
       initialRouteName={initialRouteName}
       screenOptions={{
         headerShown: false,

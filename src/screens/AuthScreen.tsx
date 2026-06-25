@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import {
   View, Text, Pressable, StyleSheet, Animated,
-  StatusBar, ActivityIndicator, Alert,
+  StatusBar, ActivityIndicator, Alert, Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -9,16 +9,21 @@ import type { RootStackParamList } from '@/types';
 import { COLORS, FONTS, RADII, SPACING } from '@constants/theme';
 import LifeGlyph from '@components/LifeGlyph';
 import { GradientButton, FadeInView } from '@components/index';
+import { DiceBearAvatar } from '@components/Avatars';
 import { signInWithGoogle, signInAsGuest, isGoogleSignInAvailable } from '@services/auth';
 import { useGameStore } from '@store/gameStore';
 import { logEvent } from '@services/analytics';
 import { getPrivacyPolicyUrl, getTermsUrl, openLegalUrl } from '@config/legal';
 import Svg, { Path, G } from 'react-native-svg';
+import type { LifeStage, Gender } from '@/types';
+
+const { width: W, height: H } = Dimensions.get('window');
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Auth'>;
 };
 
+// ─── Google Icon ───────────────────────────────────────────────────────────────
 function GoogleIcon() {
   return (
     <Svg width={20} height={20} viewBox="0 0 48 48">
@@ -32,10 +37,187 @@ function GoogleIcon() {
   );
 }
 
+// ─── Particle Background ───────────────────────────────────────────────────────
+const PARTICLE_COUNT = 24;
+
+interface Particle {
+  x: number;
+  y: number;
+  size: number;
+  color: string;
+  anim: Animated.Value;
+  dur: number;
+  offset: number;
+}
+
+function useParticles(): Particle[] {
+  const particles = useRef<Particle[]>(
+    Array.from({ length: PARTICLE_COUNT }, (_, i) => ({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      size: 1.5 + Math.random() * 3,
+      color: [COLORS.gold, COLORS.teal, COLORS.sapphire, COLORS.orchid, COLORS.crimson][i % 5],
+      anim: new Animated.Value(0),
+      dur: 3000 + Math.random() * 4000,
+      offset: 8 + Math.random() * 20,
+    }))
+  ).current;
+
+  useEffect(() => {
+    particles.forEach(p => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(p.anim, { toValue: 1, duration: p.dur, useNativeDriver: true }),
+          Animated.timing(p.anim, { toValue: 0, duration: p.dur, useNativeDriver: true }),
+        ])
+      ).start();
+    });
+  }, []);
+
+  return particles;
+}
+
+function ParticleField() {
+  const particles = useParticles();
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {particles.map((p, i) => {
+        const translateY = p.anim.interpolate({ inputRange: [0, 1], outputRange: [0, -p.offset] });
+        const opacity = p.anim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.15, 0.5, 0.15] });
+        return (
+          <Animated.View
+            key={i}
+            style={{
+              position: 'absolute',
+              left: p.x,
+              top: p.y,
+              width: p.size,
+              height: p.size,
+              borderRadius: p.size / 2,
+              backgroundColor: p.color,
+              transform: [{ translateY }],
+              opacity,
+            }}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
+// ─── Character Carousel ────────────────────────────────────────────────────────
+const CAROUSEL_CHARS: Array<{ seed: string; stage: LifeStage; gender: Gender; label: string }> = [
+  { seed: 'hero_alex', stage: 'young_adult', gender: 'male',   label: 'The Achiever'  },
+  { seed: 'hero_maya', stage: 'adult',       gender: 'female', label: 'The Strategist' },
+  { seed: 'hero_sam',  stage: 'teen',        gender: 'other',  label: 'The Explorer'  },
+];
+
+function CharacterCarousel() {
+  const [activeIdx, setActiveIdx] = useState(0);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Fade out + slide
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 0, duration: 350, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: -30, duration: 350, useNativeDriver: true }),
+      ]).start(() => {
+        setActiveIdx(prev => (prev + 1) % CAROUSEL_CHARS.length);
+        slideAnim.setValue(30);
+        // Fade in
+        Animated.parallel([
+          Animated.spring(fadeAnim, { toValue: 1, useNativeDriver: true, damping: 20, stiffness: 180 }),
+          Animated.spring(slideAnim, { toValue: 0, useNativeDriver: true, damping: 20, stiffness: 180 }),
+        ]).start();
+      });
+    }, 3200);
+    return () => clearInterval(interval);
+  }, []);
+
+  const char = CAROUSEL_CHARS[activeIdx];
+
+  return (
+    <Animated.View style={[styles.carouselWrap, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+      <View style={styles.carouselAvatarRing}>
+        <DiceBearAvatar
+          seed={char.seed}
+          lifeStage={char.stage}
+          gender={char.gender}
+          size={84}
+          showFrame
+          frameColor={COLORS.goldBorder}
+        />
+      </View>
+      <Text style={styles.carouselLabel}>{char.label}</Text>
+      <View style={styles.carouselDots}>
+        {CAROUSEL_CHARS.map((_, i) => (
+          <View
+            key={i}
+            style={[styles.carouselDot, i === activeIdx && styles.carouselDotActive]}
+          />
+        ))}
+      </View>
+    </Animated.View>
+  );
+}
+
+// ─── Feature Pills ─────────────────────────────────────────────────────────────
+const FEATURE_PILLS = [
+  { label: '🔫 Crime & Karma',     color: COLORS.crimson   },
+  { label: '🏢 Business Empire',   color: COLORS.gold      },
+  { label: '💑 Relationships',     color: COLORS.orchid    },
+  { label: '🎓 Education Paths',   color: COLORS.sapphire  },
+  { label: '🌍 50+ Countries',     color: COLORS.teal      },
+];
+
+function FeaturePills() {
+  return (
+    <View style={styles.pillsWrap}>
+      {FEATURE_PILLS.map(pill => (
+        <View key={pill.label} style={[styles.pill, { borderColor: `${pill.color}40`, backgroundColor: `${pill.color}10` }]}>
+          <Text style={[styles.pillText, { color: pill.color }]}>{pill.label}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// ─── Stagger Animation Hook ────────────────────────────────────────────────────
+function useStaggeredEntrance(count: number, delay = 100) {
+  const anims = useRef<Animated.Value[]>(
+    Array.from({ length: count }, () => new Animated.Value(0))
+  ).current;
+
+  useEffect(() => {
+    Animated.stagger(
+      delay,
+      anims.map(a =>
+        Animated.spring(a, { toValue: 1, useNativeDriver: true, damping: 18, stiffness: 180 })
+      )
+    ).start();
+  }, []);
+
+  return anims;
+}
+
+// ─── Main Screen ───────────────────────────────────────────────────────────────
 export default function AuthScreen({ navigation }: Props) {
   const onUserChanged = useGameStore(s => s.onUserChanged);
   const [loading, setLoading] = useState<'google' | 'guest' | null>(null);
   const googleSignInAvailable = isGoogleSignInAvailable();
+
+  const anims = useStaggeredEntrance(6, 120);
+
+  const makeEntrance = (idx: number) => ({
+    opacity: anims[idx],
+    transform: [{
+      translateY: anims[idx].interpolate({ inputRange: [0, 1], outputRange: [24, 0] }),
+    }],
+  });
+
+  // Floating orbs
   const orb1Y = useRef(new Animated.Value(0)).current;
   const orb2Y = useRef(new Animated.Value(0)).current;
   const orb3Y = useRef(new Animated.Value(0)).current;
@@ -48,7 +230,6 @@ export default function AuthScreen({ navigation }: Props) {
           Animated.timing(anim, { toValue: offset,  duration: dur, useNativeDriver: true }),
         ])
       ).start();
-
     float(orb1Y, 4000, 18);
     float(orb2Y, 5500, 14);
     float(orb3Y, 3800, 22);
@@ -96,39 +277,43 @@ export default function AuthScreen({ navigation }: Props) {
     <View style={styles.root}>
       <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
 
-      {/* Background orbs */}
+      {/* Floating orbs */}
       <Animated.View style={[styles.orb, styles.orb1, { transform: [{ translateY: orb1Y }] }]} />
       <Animated.View style={[styles.orb, styles.orb2, { transform: [{ translateY: orb2Y }] }]} />
       <Animated.View style={[styles.orb, styles.orb3, { transform: [{ translateY: orb3Y }] }]} />
 
-      {/* Subtle grid */}
-      <View style={styles.grid} pointerEvents="none" />
+      {/* Particle field */}
+      <ParticleField />
 
       <SafeAreaView style={styles.safe}>
         <View style={styles.content}>
 
-          {/* Glyph */}
-          <FadeInView delay={100} style={styles.glyphWrap}>
-            <LifeGlyph size={104} />
-          </FadeInView>
-
-          {/* Wordmark */}
-          <FadeInView delay={220}>
-            <Text style={styles.wordmark}>
-              Life<Text style={styles.wordmarkAccent}>Quest</Text>
-            </Text>
+          {/* Logo + character carousel */}
+          <Animated.View style={[styles.heroSection, makeEntrance(0)]}>
+            <View style={styles.logoRow}>
+              <LifeGlyph size={44} />
+              <Text style={styles.wordmark}>
+                Life<Text style={styles.wordmarkAccent}>Quest</Text>
+              </Text>
+            </View>
+            <CharacterCarousel />
             <Text style={styles.tagline}>Every choice writes a different story.</Text>
-          </FadeInView>
+          </Animated.View>
+
+          {/* Feature pills */}
+          <Animated.View style={makeEntrance(1)}>
+            <FeaturePills />
+          </Animated.View>
 
           {/* Divider */}
-          <FadeInView delay={340} style={styles.dividerWrap}>
+          <Animated.View style={[styles.dividerWrap, makeEntrance(2)]}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>Begin your journey</Text>
+            <Text style={styles.dividerText}>BEGIN YOUR JOURNEY</Text>
             <View style={styles.dividerLine} />
-          </FadeInView>
+          </Animated.View>
 
           {/* CTA buttons */}
-          <FadeInView delay={460} style={styles.actions}>
+          <Animated.View style={[styles.actions, makeEntrance(3)]}>
             {googleSignInAvailable ? (
               <Pressable
                 onPress={() => void handleGoogle()}
@@ -143,12 +328,12 @@ export default function AuthScreen({ navigation }: Props) {
               </Pressable>
             ) : (
               <Text style={styles.unavailableHint}>
-                Google Sign-In is available in a development build. Use guest mode in Expo Go.
+                Google Sign-In available in a development build. Use guest mode in Expo Go.
               </Text>
             )}
 
             <GradientButton
-              label="Play as Guest"
+              label={loading === 'guest' ? '' : 'Play as Guest'}
               accessibilityLabel="Play as guest"
               onPress={() => void handleGuest()}
               colors={[COLORS.sapphire, COLORS.sapphire2]}
@@ -157,24 +342,20 @@ export default function AuthScreen({ navigation }: Props) {
               disabled={loading !== null}
               style={{ width: '100%' }}
             />
+          </Animated.View>
 
-            <Pressable onPress={() => void handleGuest()} style={styles.guestBtn} disabled={loading !== null}>
-              <Text style={styles.guestText}>Skip sign-in (offline guest)</Text>
-            </Pressable>
-          </FadeInView>
-
-          {/* Social proof */}
-          <FadeInView delay={560} style={styles.proof}>
+          {/* Social proof + rating */}
+          <Animated.View style={[styles.proof, makeEntrance(4)]}>
             <View style={styles.stars}>
               {[0,1,2,3,4].map(i => (
                 <Text key={i} style={styles.star}>★</Text>
               ))}
             </View>
-            <Text style={styles.proofText}>4.8 · Ranked #1 Life Sim · 2M+ lives lived</Text>
-          </FadeInView>
+            <Text style={styles.proofText}>4.8 · #1 Life Sim · 2M+ lives lived</Text>
+          </Animated.View>
 
           {/* Legal */}
-          <FadeInView delay={640}>
+          <Animated.View style={makeEntrance(5)}>
             <Text style={styles.legal}>
               By continuing you agree to our{' '}
               <Text
@@ -194,7 +375,7 @@ export default function AuthScreen({ navigation }: Props) {
               </Text>
               .
             </Text>
-          </FadeInView>
+          </Animated.View>
         </View>
       </SafeAreaView>
     </View>
@@ -207,78 +388,100 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bg,
   },
   safe: { flex: 1 },
-  orb: {
-    position: 'absolute',
-    borderRadius: 999,
-  },
-  orb1: {
-    width: 320, height: 320,
-    backgroundColor: `${COLORS.gold}09`,
-    top: -80, right: -100,
-    shadowColor: COLORS.gold, shadowRadius: 80, shadowOpacity: 0.12, elevation: 0,
-  },
-  orb2: {
-    width: 280, height: 280,
-    backgroundColor: `${COLORS.teal}07`,
-    bottom: 100, left: -100,
-  },
-  orb3: {
-    width: 200, height: 200,
-    backgroundColor: `${COLORS.crimson}05`,
-    bottom: 250, right: -50,
-  },
-  grid: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    // Handled via opacity overlay; actual grid is visual-only
-    backgroundColor: 'transparent',
-  },
+
+  // Orbs
+  orb: { position: 'absolute', borderRadius: 999 },
+  orb1: { width: 320, height: 320, backgroundColor: `${COLORS.gold}09`, top: -80, right: -100 },
+  orb2: { width: 280, height: 280, backgroundColor: `${COLORS.teal}07`, bottom: 100, left: -100 },
+  orb3: { width: 200, height: 200, backgroundColor: `${COLORS.crimson}05`, bottom: 250, right: -50 },
+
+  // Layout
   content: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: SPACING.xl + 4,
-    paddingBottom: SPACING.xxxl,
-    gap: 8,
+    paddingHorizontal: SPACING.xl,
+    paddingBottom: SPACING.xl,
+    gap: SPACING.md,
   },
-  glyphWrap: {
-    marginBottom: SPACING.lg,
-  },
+
+  // Hero
+  heroSection: { alignItems: 'center', gap: SPACING.sm },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.sm },
   wordmark: {
     fontFamily: FONTS.displayBlack,
-    fontSize: 42,
+    fontSize: 38,
     color: COLORS.t1,
-    textAlign: 'center',
     letterSpacing: -0.5,
   },
-  wordmarkAccent: {
-    color: COLORS.gold,
-  },
+  wordmarkAccent: { color: COLORS.gold },
   tagline: {
     fontFamily: FONTS.body,
-    fontSize: 15,
+    fontSize: 13,
     color: COLORS.t3,
     textAlign: 'center',
-    marginTop: 6,
+    letterSpacing: 0.3,
+  },
+
+  // Carousel
+  carouselWrap: { alignItems: 'center', gap: SPACING.sm },
+  carouselAvatarRing: {
+    width: 96,
+    height: 96,
+    borderRadius: 28,
+    overflow: 'hidden',
+    borderWidth: 2.5,
+    borderColor: `${COLORS.gold}50`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.bgCard,
+  },
+  carouselLabel: {
+    fontFamily: FONTS.bodySemiBold,
+    fontSize: 13,
+    color: COLORS.t2,
+    letterSpacing: 0.5,
+  },
+  carouselDots: { flexDirection: 'row', gap: 5 },
+  carouselDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: COLORS.border },
+  carouselDotActive: { backgroundColor: COLORS.gold, width: 14 },
+
+  // Feature pills
+  pillsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+    justifyContent: 'center',
+    paddingHorizontal: SPACING.sm,
+  },
+  pill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: RADII.full,
+    borderWidth: 1.5,
+  },
+  pillText: {
+    fontFamily: FONTS.bodySemiBold,
+    fontSize: 11,
     letterSpacing: 0.2,
   },
+
+  // Divider
   dividerWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginVertical: SPACING.lg,
+    gap: 10,
     width: '100%',
   },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: COLORS.border,
-  },
+  dividerLine: { flex: 1, height: 1, backgroundColor: COLORS.border },
   dividerText: {
     fontFamily: FONTS.body,
-    fontSize: 12,
+    fontSize: 10,
     color: COLORS.t4,
-    letterSpacing: 0.5,
+    letterSpacing: 1.5,
   },
+
+  // Actions
   actions: {
     width: '100%',
     gap: SPACING.md,
@@ -290,7 +493,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
-    paddingVertical: 16,
+    paddingVertical: 15,
     paddingHorizontal: 24,
     backgroundColor: COLORS.bgCard,
     borderRadius: RADII.lg,
@@ -304,46 +507,31 @@ const styles = StyleSheet.create({
   },
   unavailableHint: {
     fontFamily: FONTS.body,
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.t4,
     textAlign: 'center',
     lineHeight: 18,
     paddingHorizontal: SPACING.sm,
   },
-  guestBtn: {
-    paddingVertical: 12,
-  },
-  guestText: {
-    fontFamily: FONTS.bodyMedium,
-    fontSize: 14,
-    color: COLORS.t3,
-  },
-  proof: {
-    alignItems: 'center',
-    gap: 4,
-    marginTop: SPACING.sm,
-  },
-  stars: {
-    flexDirection: 'row',
-    gap: 3,
-  },
-  star: {
-    fontSize: 14,
-    color: COLORS.gold,
-  },
+
+  // Social proof
+  proof: { alignItems: 'center', gap: 3 },
+  stars: { flexDirection: 'row', gap: 2 },
+  star: { fontSize: 13, color: COLORS.gold },
   proofText: {
-    fontFamily: FONTS.body,
-    fontSize: 12,
-    color: COLORS.t4,
-    textAlign: 'center',
-  },
-  legal: {
     fontFamily: FONTS.body,
     fontSize: 11,
     color: COLORS.t4,
     textAlign: 'center',
-    lineHeight: 17,
-    marginTop: SPACING.sm,
+  },
+
+  // Legal
+  legal: {
+    fontFamily: FONTS.body,
+    fontSize: 10,
+    color: COLORS.t4,
+    textAlign: 'center',
+    lineHeight: 15,
   },
   legalLink: {
     color: COLORS.t3,

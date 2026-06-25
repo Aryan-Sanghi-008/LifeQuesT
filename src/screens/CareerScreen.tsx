@@ -12,6 +12,8 @@ import { Card, StatBar, SectionLabel, Badge } from '../components/index';
 import { JOBS } from '../data/gameData';
 import { formatCurrency } from '../utils/currency';
 import Svg, { Path, Rect } from 'react-native-svg';
+import { getEligibleCareers, checkCareerEligibility, getCountrySalary } from '../engine/careerEngine';
+import { CAREER_PATHS } from '../data/careerPaths';
 
 const EDU_ICONS: Record<string, React.ReactNode> = {
   none:        <Svg width={16} height={16} viewBox="0 0 24 24" fill="none"><Path stroke={COLORS.t4} strokeWidth={2} strokeLinecap="round" d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></Svg>,
@@ -159,35 +161,112 @@ function JobBoard() {
   if (!character || character.age < 16) return null;
   const countryCode = character.countryCode ?? 'IN';
 
+  // Get eligible careers from new engine (top 8 by hire probability)
+  const eligible = getEligibleCareers(character).slice(0, 8);
+
+  // Fall back to legacy JOBS if no eligible careers yet
+  const useLegacy = eligible.length === 0;
+
   return (
     <Card style={{ gap: SPACING.sm }}>
-      <Text style={{ fontFamily: FONTS.bodySemiBold, fontSize: 10, color: COLORS.t4, letterSpacing: 2 }}>AVAILABLE JOBS</Text>
-      {JOBS.filter(j => j.id !== 'student').slice(0, 8).map((job, i) => (
-        <Pressable
-          key={job.id}
-          onPress={() => {
-            const r = applyForJob(job.id);
-            Alert.alert(r.success ? 'Hired!' : 'Not This Time', r.message);
-          }}
-          style={[styles.jobRow, i > 0 && { borderTopWidth: 1, borderTopColor: COLORS.border }]}
-        >
-          <View style={[styles.jobIcon, { backgroundColor: `${COLORS.catCareer}12` }]}>
-            <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-              <Rect stroke={COLORS.catCareer} strokeWidth={2} x="2" y="7" width="20" height="14" rx="2"/>
-              <Path stroke={COLORS.catCareer} strokeWidth={2} strokeLinecap="round" d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>
-            </Svg>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.t1 }}>{job.label}</Text>
-            <Text style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4 }}>{job.company}</Text>
-          </View>
-          <View style={[styles.salaryBadge, { backgroundColor: `${COLORS.wealth}12`, borderColor: `${COLORS.wealth}25` }]}>
-            <Text style={{ fontFamily: FONTS.monoSemiBold, fontSize: 12, color: COLORS.wealth }}>
-              {formatCurrency(job.salary, countryCode)}/yr
-            </Text>
-          </View>
-        </Pressable>
-      ))}
+      <Text style={{ fontFamily: FONTS.bodySemiBold, fontSize: 10, color: COLORS.t4, letterSpacing: 2 }}>AVAILABLE CAREERS</Text>
+      {useLegacy ? (
+        JOBS.filter(j => j.id !== 'student').slice(0, 6).map((job, i) => (
+          <Pressable
+            key={job.id}
+            onPress={() => {
+              const r = applyForJob(job.id);
+              Alert.alert(r.success ? 'Hired!' : 'Not This Time', r.message);
+            }}
+            style={[styles.jobRow, i > 0 && { borderTopWidth: 1, borderTopColor: COLORS.border }]}
+          >
+            <View style={[styles.jobIcon, { backgroundColor: `${COLORS.catCareer}12` }]}>
+              <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+                <Rect stroke={COLORS.catCareer} strokeWidth={2} x="2" y="7" width="20" height="14" rx="2"/>
+                <Path stroke={COLORS.catCareer} strokeWidth={2} strokeLinecap="round" d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>
+              </Svg>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.t1 }}>{job.label}</Text>
+              <Text style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4 }}>{job.company}</Text>
+            </View>
+            <View style={[styles.salaryBadge, { backgroundColor: `${COLORS.wealth}12`, borderColor: `${COLORS.wealth}25` }]}>
+              <Text style={{ fontFamily: FONTS.monoSemiBold, fontSize: 12, color: COLORS.wealth }}>
+                {formatCurrency(job.salary, countryCode)}/yr
+              </Text>
+            </View>
+          </Pressable>
+        ))
+      ) : (
+        eligible.map(({ career, eligibility }, i) => {
+          const localSalary = getCountrySalary(career.baseSalary, countryCode);
+          const probColor = eligibility.hireProbability >= 70 ? COLORS.emerald
+            : eligibility.hireProbability >= 40 ? COLORS.gold : COLORS.crimson;
+          return (
+            <Pressable
+              key={career.id}
+              onPress={() => {
+                const r = applyForJob(career.id);
+                Alert.alert(r.success ? 'Hired!' : 'Not This Time', r.message);
+              }}
+              style={[styles.jobRow, i > 0 && { borderTopWidth: 1, borderTopColor: COLORS.border }]}
+            >
+              <View style={[styles.jobIcon, { backgroundColor: `${COLORS.catCareer}12` }]}>
+                <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+                  <Rect stroke={COLORS.catCareer} strokeWidth={2} x="2" y="7" width="20" height="14" rx="2"/>
+                  <Path stroke={COLORS.catCareer} strokeWidth={2} strokeLinecap="round" d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>
+                </Svg>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.t1 }}>{career.label}</Text>
+                <Text style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4 }}>{career.company}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                  <View style={{ width: 40, height: 3, backgroundColor: COLORS.bg2, borderRadius: 2, overflow: 'hidden' }}>
+                    <View style={{ width: `${eligibility.hireProbability}%` as `${number}%`, height: '100%', backgroundColor: probColor, borderRadius: 2 }} />
+                  </View>
+                  <Text style={{ fontFamily: FONTS.monoSemiBold, fontSize: 9, color: probColor }}>{eligibility.hireProbability}%</Text>
+                </View>
+              </View>
+              <View style={[styles.salaryBadge, { backgroundColor: `${COLORS.wealth}12`, borderColor: `${COLORS.wealth}25` }]}>
+                <Text style={{ fontFamily: FONTS.monoSemiBold, fontSize: 12, color: COLORS.wealth }}>
+                  {formatCurrency(localSalary, countryCode)}/yr
+                </Text>
+              </View>
+            </Pressable>
+          );
+        })
+      )}
+      {/* Show a few locked careers with requirements */}
+      {!useLegacy && (() => {
+        const locked = CAREER_PATHS
+          .filter(c => c.isEntryLevel && !eligible.find(e => e.career.id === c.id))
+          .slice(0, 3);
+        if (locked.length === 0) return null;
+        return (
+          <>
+            <Text style={{ fontFamily: FONTS.bodySemiBold, fontSize: 10, color: COLORS.t4, letterSpacing: 2, marginTop: SPACING.sm }}>LOCKED (REQUIREMENTS NOT MET)</Text>
+            {locked.map((career, i) => {
+              const check = checkCareerEligibility(character, career.id);
+              return (
+                <View key={career.id} style={[styles.jobRow, { opacity: 0.4 }, i > 0 && { borderTopWidth: 1, borderTopColor: COLORS.border }]}>
+                  <View style={[styles.jobIcon, { backgroundColor: `${COLORS.t4}12` }]}>
+                    <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+                      <Rect stroke={COLORS.t4} strokeWidth={2} x="2" y="7" width="20" height="14" rx="2"/>
+                      <Path stroke={COLORS.t4} strokeWidth={2} strokeLinecap="round" d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>
+                    </Svg>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.t3 }}>{career.label}</Text>
+                    <Text style={{ fontFamily: FONTS.body, fontSize: 10, color: COLORS.t4 }} numberOfLines={1}>
+                      {check.reason ?? `Requires: ${career.requirements.minEducationStage}`}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })}
+          </>
+        );
+      })()}
     </Card>
   );
 }

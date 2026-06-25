@@ -12,6 +12,7 @@ import { tickMentalHealth } from './mentalHealthEngine';
 import { recordCrime, tickJail, isInJail } from './crimeEngine';
 import { advanceRelationship } from './relationshipEngine';
 import { tickAllBusinesses } from './businessEngine';
+import { runAnnualSimulation } from './simulationEngine';
 
 function generateId(): string {
   return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -26,6 +27,30 @@ function applyJobUpdate(
 }
 
 const VIRAL_EVENT_IDS = ['viral_moment', 'follower_1k', 'follower_10k'];
+
+// Event cooldowns: eventId → minimum years between occurrences
+const EVENT_COOLDOWNS: Record<string, number> = {
+  doctor_visit:       1,
+  hospital_stay:      2,
+  job_market_crash:   3,
+  market_boom:        3,
+  marriage_proposal:  3,
+  divorce:            5,
+  business_fail:      3,
+  car_accident:       5,
+  house_fire:         10,
+};
+
+function isOnCooldown(
+  eventId: string,
+  currentAge: number,
+  cooldowns: Record<string, number>,
+): boolean {
+  const lastAge = cooldowns[eventId];
+  if (lastAge === undefined) return false;
+  const minGap = EVENT_COOLDOWNS[eventId] ?? 0;
+  return currentAge - lastAge < minGap;
+}
 
 export type AgeUpOutcome =
   | {
@@ -96,12 +121,49 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
 
   let career = character.career ? incrementCareerYear(character.career) : null;
   const salary = career?.salary ?? 0;
-  const ticked = tickAnnualEconomy(newAge, bankBalance, salary, character.assets);
+  const ticked = tickAnnualEconomy(newAge, bankBalance, salary, character.assets, character.countryCode ?? 'US');
   bankBalance = ticked.bankBalance;
   stats = { ...stats, wealth: clamp(ticked.netWorth / 10000) };
 
+  // ── TASK 11: Run unified simulation (interconnected system effects) ──────────
+  const simResult = runAnnualSimulation({ ...character, age: newAge, stats, bankBalance, career });
+  // Apply stat patches from simulation
+  stats = { ...stats, ...simResult.statsPatches } as typeof stats;
+  // Apply bank delta (cost of living already deducted, salary added)
+  // Note: salary was already added by tickAnnualEconomy above, so only add the delta
+  // that differs (cost of living is the primary delta from simulation)
+  bankBalance = Math.max(-500000, bankBalance + simResult.bankBalanceDelta);
+
   const newLifeStage: LifeStage = getLifeStage(newAge);
-  const deathChance = Math.max(0, (newAge - 55) * 2);
+
+  // ── Realistic death probability (Gompertz-inspired actuarial model) ─────────
+  // Mortality is negligible until ~40, then exponentially increases.
+  // Strongly modified by health, fitness, and mental health stats.
+  function computeDeathChance(age: number): number {
+    // Base Gompertz curve: near-zero until 40, doubles every 8 years after
+    const baseChance = age < 40
+      ? 0.1
+      : 0.1 * Math.pow(1.08, age - 40);
+
+    // Health modifier: low health dramatically increases death risk
+    const healthMod = stats.health < 20
+      ? 3.5 // Critical health = very high risk
+      : stats.health < 40
+        ? 1.8
+        : stats.health > 80
+          ? 0.7 // Great health = reduced risk
+          : 1.0;
+
+    // Fitness modifier: fit people live longer
+    const fitnessMod = stats.fitness > 70 ? 0.8 : stats.fitness < 30 ? 1.3 : 1.0;
+
+    // Mental health modifier
+    const mentalMod = stats.mentalHealth < 20 ? 1.5 : 1.0;
+
+    return Math.min(45, baseChance * healthMod * fitnessMod * mentalMod);
+  }
+
+  const deathChance = computeDeathChance(newAge);
   const isDead = options?.forceDeath
     || stats.health <= 0
     || Math.random() * 100 < deathChance;
@@ -123,7 +185,9 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
     };
   }
 
-  const eligible = getEligibleEvents(newAge, { ...character, age: newAge, stats, bankBalance, career });
+  const cooldowns = character.eventCooldowns ?? {};
+  const rawEligible = getEligibleEvents(newAge, { ...character, age: newAge, stats, bankBalance, career });
+  const eligible = rawEligible.filter(e => !isOnCooldown(e.id, newAge, cooldowns));
   const chosenEvents = pickEvents(eligible, Math.min(eligible.length, 1 + Math.floor(Math.random() * 2)));
   const decisionEvent = chosenEvents.find(e => e.choices && e.choices.length > 0);
   const autoEvents = chosenEvents.filter(e => !e.choices?.length);
@@ -131,7 +195,20 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
   const newRecords: LifeEventRecord[] = [];
   let updatedJob = character.job;
   let updatedEducation: EducationLevel = character.educationLevel;
-  let updatedPeople = agePeople([...character.people]);
+  let updatedPeople = agePeople([...character.people]).map(p => {
+    // Relationship decay: non-family relationships slowly fade without interaction
+    if (
+      p.isAlive &&
+      p.relationType !== 'mother' &&
+      p.relationType !== 'father' &&
+      p.relationType !== 'child' &&
+      p.relationshipScore > 10
+    ) {
+      const decayRate = p.relationType === 'spouse' ? 0.2 : p.relationType === 'friend' ? 1 : 2;
+      return { ...p, relationshipScore: Math.max(0, p.relationshipScore - decayRate) };
+    }
+    return p;
+  });
   let updatedRelationships = character.relationships;
   let updatedChildren = character.children;
   let socialFollowers = character.socialFollowers;
@@ -197,6 +274,14 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
     updatedPeople = ensureCoworkers(updatedPeople, character.name, career.title);
   }
 
+  // Update cooldowns for events that fired this tick
+  const updatedCooldowns: Record<string, number> = { ...cooldowns };
+  for (const record of newRecords) {
+    if (record.id in EVENT_COOLDOWNS) {
+      updatedCooldowns[record.id] = newAge;
+    }
+  }
+
   const netWorth = computeNetWorth({ bankBalance, assets: character.assets });
   const netWorthPeak = Math.max(character.netWorthPeak, netWorth);
 
@@ -216,6 +301,7 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
     luckBoostsRemaining: luckBoosts,
     socialFollowers,
     netWorthPeak,
+    eventCooldowns: updatedCooldowns,
   };
 
   if (decisionEvent) {

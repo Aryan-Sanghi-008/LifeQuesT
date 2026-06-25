@@ -160,11 +160,19 @@ export function normalizeCharacter(char: Character): Character {
   if (!char.assets) char.assets = [];
   if (!char.businesses) char.businesses = [];
   if (char.socialFollowers === undefined) char.socialFollowers = 0;
-  if (!char.avatarStyle) char.avatarStyle = 'pixel_art';
-  if (!char.unlockedAvatarStyles) char.unlockedAvatarStyles = ['pixel_art'];
+  if (!char.avatarStyle || char.avatarStyle === ('pixel_art' as string)) {
+    char.avatarStyle = char.gender === 'female' ? 'lorelei' : char.gender === 'other' ? 'notionists' : 'adventurer';
+  }
+  if (!char.unlockedAvatarStyles || (char.unlockedAvatarStyles as string[]).includes('pixel_art')) {
+    char.unlockedAvatarStyles = [char.avatarStyle];
+  }
   if (char.seasonXp === undefined) char.seasonXp = 0;
   if (char.hasSeasonPass === undefined) char.hasSeasonPass = false;
   if (!char.claimedSeasonTiers) char.claimedSeasonTiers = [];
+  if (!char.degreeIds) char.degreeIds = [];
+  if (!char.eventCooldowns) char.eventCooldowns = {};
+  if (!char.educationStage) char.educationStage = 'none';
+  if (!char.educationBranch) char.educationBranch = 'none';
   if (!char.stats.mentalHealth) char.stats.mentalHealth = char.stats.happiness ?? 70;
   if (!char.criminalRecord) {
     char.criminalRecord = { crimes: [], jailYearsRemaining: 0, onProbation: false };

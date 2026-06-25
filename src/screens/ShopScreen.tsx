@@ -54,7 +54,7 @@ function GoldShimmer({ style }: { style?: StyleProp<ViewStyle> }) {
 }
 
 // ─── Premium Banner ───────────────────────────────────────────────────────────
-function PremiumBanner({ isPremium, onPress }: { isPremium: boolean; onPress: () => void }) {
+function PremiumBanner({ isPremium, onPress, priceLabel }: { isPremium: boolean; onPress: () => void; priceLabel?: string }) {
   const scale = useRef(new Animated.Value(1)).current;
 
   return (
@@ -96,7 +96,7 @@ function PremiumBanner({ isPremium, onPress }: { isPremium: boolean; onPress: ()
             </View>
             {!isPremium && (
               <View style={styles.premiumCTA}>
-                <Text style={styles.premiumPrice}>₹299</Text>
+                <Text style={styles.premiumPrice}>{priceLabel ?? '$2.99'}</Text>
                 <Text style={styles.premiumPeriod}>/mo</Text>
               </View>
             )}
@@ -303,6 +303,7 @@ export function ShopScreen() {
             <PremiumBanner
               isPremium={character.isPremium}
               onPress={() => { void buy('premium_yearly'); }}
+              priceLabel={getCatalogPriceLabel('premium_yearly', storeProducts, '$2.99')}
             />
           </FadeInView>
 

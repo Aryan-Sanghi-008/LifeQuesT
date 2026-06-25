@@ -9,6 +9,7 @@ import {
 import {
   TRAITS, COUNTRIES, ACTIVITIES, JOBS, ACHIEVEMENT_COIN_REWARDS,
 } from '../data/gameData';
+import { getStartingBalance } from '../data/countryEconomy';
 import { generateParents, generatePet } from '../utils/npcGenerator';
 import { applyEffect, computeNetWorth, clamp, investInMarket } from '../engine/economyEngine';
 import {
@@ -16,8 +17,10 @@ import {
 } from '../engine/eventEngine';
 import {
   jobToCareer, applyForJobRoll, workHarder, askForRaise,
+  checkCareerEligibility, rollForHire, getCountrySalary,
   applyForPromotion,
 } from '../engine/careerEngine';
+import { getCareerById, careerPathToLegacy } from '../data/careerPaths';
 import {
   ensureCoworkers, getInteraction, getClassmates,
 } from '../engine/peopleEngine';
@@ -52,6 +55,8 @@ import {
 import { runAgeUp } from '../engine/ageUpEngine';
 import { runResolveDecision } from '../engine/resolveDecisionEngine';
 import { SEASON_PASS_TIERS } from '../data/gameData';
+import { hapticAgeUp, hapticAchievement, hapticDeath } from '../services/haptics';
+import { playSound } from '../services/audio';
 
 function generateId(): string {
   return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -107,7 +112,8 @@ function buildCharacter(data: CreateCharacterPayload): Character {
     mentalHealth: applyCarry(clamp(70 + (traitEffect.mentalHealth ?? 0)), 'mentalHealth'),
   };
 
-  const bankBalance = (wealthStart * 100) + (wealthMod * 50);
+  // Use centralized country economy for starting balance (TASK 3 fix)
+  const bankBalance = getStartingBalance(data.familyBackground, data.countryCode);
   const id = generateId();
   const parents = generateParents(data.name, data.countryCode, data.familyBackground);
 
@@ -154,8 +160,11 @@ function buildCharacter(data: CreateCharacterPayload): Character {
     hasReincarnationScroll: false,
     businesses: [],
     socialFollowers: 0,
-    avatarStyle: 'pixel_art',
-    unlockedAvatarStyles: ['pixel_art'],
+    avatarStyle: data.gender === 'female' ? 'lorelei' : data.gender === 'other' ? 'notionists' : 'adventurer',
+    unlockedAvatarStyles: [data.gender === 'female' ? 'lorelei' : data.gender === 'other' ? 'notionists' : 'adventurer'],
+    degreeIds: [],
+    educationStage: 'none',
+    educationBranch: 'none',
     seasonXp: 0,
     hasSeasonPass: false,
     claimedSeasonTiers: [],
@@ -201,6 +210,7 @@ interface GameStore {
   dailyQuests: DailyQuest[];
   studyQuestions: StudyQuestion[] | null;
   lastAgeUpNotice: string | null;
+  pendingReincarnation: boolean;
 
   setUser: (user: AppUser | null) => void;
   onUserChanged: (user: AppUser | null) => Promise<void>;
@@ -222,6 +232,7 @@ interface GameStore {
   createCharacter: (payload: CreateCharacterPayload) => void;
   ageUp: () => void;
   clearAgeUpNotice: () => void;
+  clearPendingReincarnation: () => void;
   resolveDecision: (choiceId: string) => void;
   dismissDecision: () => void;
   performActivity: (activityId: string) => { success: boolean; message: string };
@@ -268,6 +279,7 @@ export const useGameStore = create<GameStore>()(
     dailyQuests: [],
     studyQuestions: null,
     lastAgeUpNotice: null,
+    pendingReincarnation: false,
 
     setUser: (user) => set(s => { s.user = user; }),
 
@@ -587,6 +599,8 @@ export const useGameStore = create<GameStore>()(
           Object.assign(s.character, outcome.patch);
           s.isProcessing = false;
         });
+        hapticDeath();
+        void playSound('death');
         void get()._persist();
         return;
       }
@@ -604,6 +618,9 @@ export const useGameStore = create<GameStore>()(
           }
         });
       };
+
+      hapticAgeUp();
+      void playSound('age_up');
 
       if (outcome.type === 'pending_decision') {
         applyPatch(true);
@@ -625,6 +642,7 @@ export const useGameStore = create<GameStore>()(
     },
 
     clearAgeUpNotice: () => set(s => { s.lastAgeUpNotice = null; }),
+    clearPendingReincarnation: () => set(s => { s.pendingReincarnation = false; }),
 
     resolveDecision: (choiceId) => {
       const { character, pendingDecision } = get();
@@ -742,17 +760,43 @@ export const useGameStore = create<GameStore>()(
     applyForJob: (jobId) => {
       const { character } = get();
       if (!character) return { success: false, message: 'No character.' };
-      const job = JOBS.find(j => j.id === jobId);
-      if (!job) return { success: false, message: 'Job not found.' };
       if (character.age < 16) return { success: false, message: 'Too young to work.' };
 
+      // Try new career engine first
+      const careerPath = getCareerById(jobId);
+      if (careerPath) {
+        const eligibility = checkCareerEligibility(character, jobId);
+        if (!eligibility.eligible) {
+          return { success: false, message: eligibility.reason ?? 'You are not eligible for this career.' };
+        }
+        if (!rollForHire(eligibility.hireProbability)) {
+          return {
+            success: false,
+            message: `You applied for ${careerPath.label} (${eligibility.hireProbability}% chance) but didn't get it. Try again.`,
+          };
+        }
+        const localSalary = getCountrySalary(careerPath.baseSalary, character.countryCode);
+        const career = careerPathToLegacy(careerPath);
+        career.salary = localSalary;
+        set(s => {
+          if (!s.character) return;
+          s.character.career = career;
+          s.character.job = careerPath.label;
+          s.character.people = ensureCoworkers(s.character.people, s.character.name, careerPath.label);
+        });
+        void get()._persist();
+        return { success: true, message: `You're now a ${careerPath.label} at ${careerPath.company}!` };
+      }
+
+      // Legacy fallback
+      const job = JOBS.find(j => j.id === jobId);
+      if (!job) return { success: false, message: 'Job not found.' };
       const success = applyForJobRoll(character.stats.intelligence, character.educationLevel, job.minIntelligence);
       if (!success) return { success: false, message: `You didn't get the ${job.label} position.` };
-
-      const career = jobToCareer(job.label)!;
+      const legacyCareer = jobToCareer(job.label)!;
       set(s => {
         if (!s.character) return;
-        s.character.career = career;
+        s.character.career = legacyCareer;
         s.character.job = job.label;
         s.character.people = ensureCoworkers(s.character.people, s.character.name, job.label);
       });
@@ -830,6 +874,7 @@ export const useGameStore = create<GameStore>()(
         s.character = null;
         s.pendingDecision = null;
         s.sessionAges = 0;
+        s.pendingReincarnation = true;
       });
 
       const slotId = get().activeSlotId;
@@ -1005,6 +1050,7 @@ export const useGameStore = create<GameStore>()(
         if (!previous.has(id)) coinReward += ACHIEVEMENT_COIN_REWARDS[id] ?? 50;
       });
 
+      const newCount = earned.size - previous.size;
       if (earned.size !== character.achievements.length || coinReward > 0) {
         set(s => {
           if (!s.character) return;
@@ -1012,6 +1058,10 @@ export const useGameStore = create<GameStore>()(
           if (coinReward > 0) s.character.coins += coinReward;
         });
         if (coinReward > 0) void get()._persist();
+        if (newCount > 0) {
+          hapticAchievement();
+          void playSound('achievement_unlock');
+        }
       }
     },
   })),

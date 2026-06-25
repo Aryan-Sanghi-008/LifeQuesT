@@ -9,6 +9,7 @@ import { StatBar, SectionLabel, Card, ScaleInView, ScreenHeader } from '../compo
 import { CharacterStats, LifeEventRecord } from '../types';
 import { ACHIEVEMENTS } from '../data/gameData';
 import Svg, { Path, Circle } from 'react-native-svg';
+import { estimateLifeExpectancy } from '../engine/simulationEngine';
 
 // ─── All Stats Config ─────────────────────────────────────────────────────────
 
@@ -183,6 +184,9 @@ export function StatsScreen() {
   const character = useGameStore(s => s.character);
   if (!character) return null;
   const { stats, karma, achievements, eventHistory, name, age, birthYear } = character;
+  const lifeExpectancy = estimateLifeExpectancy(character);
+  const yearsLeft = Math.max(0, lifeExpectancy - age);
+  const lePercent = Math.min(100, (age / lifeExpectancy) * 100);
 
   return (
     <View style={styles.root}>
@@ -227,6 +231,28 @@ export function StatsScreen() {
               );
             })}
           </View>
+
+          {/* Life Expectancy */}
+          <SectionLabel label="Life Expectancy" style={styles.sectionLabel} />
+          <Card style={{ gap: SPACING.md }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <View>
+                <Text style={{ fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.t2 }}>Estimated Lifespan</Text>
+                <Text style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.t4, marginTop: 2 }}>Based on your health, fitness & country</Text>
+              </View>
+              <View style={[styles.agePill, { backgroundColor: `${COLORS.health}10`, borderColor: `${COLORS.health}30` }]}>
+                <Text style={[styles.ageNum, { color: COLORS.health, fontSize: 18 }]}>{lifeExpectancy}y</Text>
+              </View>
+            </View>
+            <View style={{ height: 8, backgroundColor: COLORS.bg2, borderRadius: 4, overflow: 'hidden' }}>
+              <View style={{ width: `${lePercent}%` as `${number}%`, height: '100%', backgroundColor: lePercent > 80 ? COLORS.crimson : lePercent > 60 ? COLORS.gold : COLORS.emerald, borderRadius: 4 }} />
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4 }}>Age {age}</Text>
+              <Text style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4 }}>~{yearsLeft} years remaining</Text>
+              <Text style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4 }}>{lifeExpectancy}y est.</Text>
+            </View>
+          </Card>
 
           {/* Karma */}
           <SectionLabel label="Karma" style={styles.sectionLabel} />
