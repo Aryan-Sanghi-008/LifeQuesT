@@ -1,10 +1,63 @@
 // ─── LifeQuest Settings Store ─────────────────────────────────────────────────
 // Persistent game settings: audio, haptics, notifications, etc.
 
-import { create } from "zustand";
-import { MMKV } from "react-native-mmkv";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { create } from 'zustand';
+import { isMmkvAvailable } from '@utils/nativeAvailability';
 
-const settingsStorage = new MMKV({ id: "lq_settings" });
+type SettingsStorage = {
+  getString: (key: string) => string | undefined;
+  set: (key: string, value: string) => void;
+};
+
+let settingsStorage: SettingsStorage | null = null;
+let asyncHydrated = false;
+const asyncCache = new Map<string, string>();
+
+function getSettingsStorage(): SettingsStorage {
+  if (settingsStorage) return settingsStorage;
+
+  if (isMmkvAvailable()) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { MMKV } = require('react-native-mmkv') as typeof import('react-native-mmkv');
+      const instance = new MMKV({ id: 'lq_settings' });
+      settingsStorage = {
+        getString: (key) => instance.getString(key),
+        set: (key, value) => { instance.set(key, value); },
+      };
+      return settingsStorage;
+    } catch (e) {
+      console.warn('[settings] MMKV init failed — using AsyncStorage', e);
+    }
+  }
+
+  settingsStorage = {
+    getString: (key) => asyncCache.get(key),
+    set: (key, value) => {
+      asyncCache.set(key, value);
+      void AsyncStorage.setItem(`lq_settings:${key}`, value);
+    },
+  };
+  return settingsStorage;
+}
+
+async function hydrateAsyncSettings(): Promise<void> {
+  if (asyncHydrated || isMmkvAvailable()) return;
+  asyncHydrated = true;
+  try {
+    const keys = await AsyncStorage.getAllKeys();
+    const settingKeys = keys.filter(k => k.startsWith('lq_settings:'));
+    if (settingKeys.length === 0) return;
+    const pairs = await AsyncStorage.multiGet(settingKeys);
+    for (const [fullKey, value] of pairs) {
+      if (value == null) continue;
+      asyncCache.set(fullKey.replace('lq_settings:', ''), value);
+    }
+  } catch (e) {
+    console.warn('[settings] AsyncStorage hydrate failed', e);
+  }
+}
 
 export interface SettingsState {
   // Audio
@@ -45,11 +98,10 @@ const DEFAULTS = {
 
 function load<T>(key: string, defaultVal: T): T {
   try {
-    const raw = settingsStorage.getString(key);
+    const raw = getSettingsStorage().getString(key);
     if (raw === undefined) return defaultVal;
-    if (typeof defaultVal === "boolean")
-      return (raw === "true") as unknown as T;
-    if (typeof defaultVal === "number") return parseFloat(raw) as unknown as T;
+    if (typeof defaultVal === 'boolean') return (raw === 'true') as unknown as T;
+    if (typeof defaultVal === 'number') return parseFloat(raw) as unknown as T;
     return JSON.parse(raw) as T;
   } catch {
     return defaultVal;
@@ -57,47 +109,46 @@ function load<T>(key: string, defaultVal: T): T {
 }
 
 function save(key: string, value: unknown) {
-  settingsStorage.set(key, String(value));
+  getSettingsStorage().set(key, String(value));
 }
 
+void hydrateAsyncSettings();
+
 export const useSettingsStore = create<SettingsState>()((set) => ({
-  masterVolume: load("masterVolume", DEFAULTS.masterVolume),
-  soundEnabled: load("soundEnabled", DEFAULTS.soundEnabled),
-  musicEnabled: load("musicEnabled", DEFAULTS.musicEnabled),
-  musicVolume: load("musicVolume", DEFAULTS.musicVolume),
-  hapticsEnabled: load("hapticsEnabled", DEFAULTS.hapticsEnabled),
-  notificationsEnabled: load(
-    "notificationsEnabled",
-    DEFAULTS.notificationsEnabled,
-  ),
-  reducedMotion: load("reducedMotion", DEFAULTS.reducedMotion),
+  masterVolume: load('masterVolume', DEFAULTS.masterVolume),
+  soundEnabled: load('soundEnabled', DEFAULTS.soundEnabled),
+  musicEnabled: load('musicEnabled', DEFAULTS.musicEnabled),
+  musicVolume: load('musicVolume', DEFAULTS.musicVolume),
+  hapticsEnabled: load('hapticsEnabled', DEFAULTS.hapticsEnabled),
+  notificationsEnabled: load('notificationsEnabled', DEFAULTS.notificationsEnabled),
+  reducedMotion: load('reducedMotion', DEFAULTS.reducedMotion),
 
   setMasterVolume: (v) => {
-    save("masterVolume", v);
+    save('masterVolume', v);
     set({ masterVolume: v });
   },
   setSoundEnabled: (v) => {
-    save("soundEnabled", v);
+    save('soundEnabled', v);
     set({ soundEnabled: v });
   },
   setMusicEnabled: (v) => {
-    save("musicEnabled", v);
+    save('musicEnabled', v);
     set({ musicEnabled: v });
   },
   setMusicVolume: (v) => {
-    save("musicVolume", v);
+    save('musicVolume', v);
     set({ musicVolume: v });
   },
   setHapticsEnabled: (v) => {
-    save("hapticsEnabled", v);
+    save('hapticsEnabled', v);
     set({ hapticsEnabled: v });
   },
   setNotificationsEnabled: (v) => {
-    save("notificationsEnabled", v);
+    save('notificationsEnabled', v);
     set({ notificationsEnabled: v });
   },
   setReducedMotion: (v) => {
-    save("reducedMotion", v);
+    save('reducedMotion', v);
     set({ reducedMotion: v });
   },
   resetToDefaults: () => {
