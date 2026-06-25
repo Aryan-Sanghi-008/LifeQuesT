@@ -59,6 +59,23 @@ describe('applyEntitlementsToCharacter', () => {
     expect(updated.coins).toBe(150);
     expect(updated.luckBoostsRemaining).toBe(3);
   });
+
+  it('applies season pass', () => {
+    const updated = applyEntitlementsToCharacter(baseCharacter, {
+      hasSeasonPass: true,
+    });
+    expect(updated.hasSeasonPass).toBe(true);
+    expect(updated.isPremium).toBe(false);
+  });
+
+  it('merges unlocked avatar styles with pixel_art', () => {
+    const updated = applyEntitlementsToCharacter(baseCharacter, {
+      unlockedAvatarStyles: ['adventurer', 'lorelei'],
+    });
+    expect(updated.unlockedAvatarStyles).toEqual(
+      expect.arrayContaining(['pixel_art', 'adventurer', 'lorelei']),
+    );
+  });
 });
 
 describe('hasPendingGrants', () => {

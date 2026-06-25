@@ -7,8 +7,60 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
+    function clientAllowedUserKeys() {
+      return [
+        'activeSlotId', 'displayName', 'updatedAt',
+        'coinsGrant', 'gemsGrant', 'luckBoostGrant', 'reincarnationScroll',
+      ];
+    }
+
+    function safeCreateEntitlements() {
+      return request.resource.data.get('isPremium', false) == false
+        && request.resource.data.get('hasNoAds', false) == false
+        && request.resource.data.get('hasSeasonPass', false) == false
+        && request.resource.data.get('unlockedAvatarStyles', []) == [];
+    }
+
+    function noPositiveGrants() {
+      return (!('coinsGrant' in request.resource.data)
+          || (request.resource.data.coinsGrant is number && request.resource.data.coinsGrant <= 0))
+        && (!('gemsGrant' in request.resource.data)
+          || (request.resource.data.gemsGrant is number && request.resource.data.gemsGrant <= 0))
+        && (!('luckBoostGrant' in request.resource.data)
+          || (request.resource.data.luckBoostGrant is number && request.resource.data.luckBoostGrant <= 0))
+        && request.resource.data.get('reincarnationScroll', false) == false;
+    }
+
+    function entitlementsImmutable() {
+      return request.resource.data.get('isPremium', false) == resource.data.get('isPremium', false)
+        && request.resource.data.get('hasNoAds', false) == resource.data.get('hasNoAds', false)
+        && request.resource.data.get('hasSeasonPass', false) == resource.data.get('hasSeasonPass', false)
+        && request.resource.data.get('unlockedAvatarStyles', [])
+          == resource.data.get('unlockedAvatarStyles', []);
+    }
+
+    function onlyClientAllowedKeysChanged() {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(clientAllowedUserKeys());
+    }
+
+    function safeUserCreate() {
+      return request.resource.data.keys().hasOnly(clientAllowedUserKeys())
+        && safeCreateEntitlements()
+        && noPositiveGrants();
+    }
+
+    function safeUserUpdate() {
+      return onlyClientAllowedKeysChanged()
+        && entitlementsImmutable()
+        && noPositiveGrants();
+    }
+
     match /users/{uid} {
-      allow read, write: if isOwner(uid);
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && safeUserCreate();
+      allow update: if isOwner(uid) && safeUserUpdate();
+      allow delete: if false;
 
       match /saves/{slotId} {
         allow read, write: if isOwner(uid);

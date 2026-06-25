@@ -6,8 +6,9 @@ Complete these steps when your Google Play Developer account is ready.
 
 - [ ] Copy `.firebaserc.example` to `.firebaserc` and set your Firebase project ID
 - [ ] Deploy backend: `npm run deploy:backend`
-- [ ] Deploy privacy policy: `npm run deploy:hosting`
+- [ ] Deploy privacy policy and terms: `npm run deploy:hosting`
 - [ ] Set `EXPO_PUBLIC_PRIVACY_POLICY_URL` in EAS to your hosted URL (e.g. `https://YOUR_PROJECT.web.app/privacy-policy.html`)
+- [ ] Set `EXPO_PUBLIC_TERMS_URL` in EAS (e.g. `https://YOUR_PROJECT.web.app/terms-of-service.html`)
 - [ ] Set production AdMob IDs in EAS (`EXPO_PUBLIC_ADMOB_ANDROID_APP_ID`, rewarded, interstitial)
 - [ ] Rebuild preview/production: `eas build --profile preview --platform android`
 
@@ -47,10 +48,15 @@ Create products matching `IAPProductId` in [`src/types/index.ts`](../src/types/i
 | `gems_small` | Consumable |
 | `luck_boost` | Consumable |
 | `reincarnation_scroll` | Consumable |
+| `season_pass` | One-time |
+| `avatar_pack_adventurer` | One-time |
+| `avatar_pack_lorelei` | One-time |
+| `avatar_pack_bottts` | One-time |
 
 ## Play Console — Store listing
 
 - [ ] Privacy policy URL (same as `EXPO_PUBLIC_PRIVACY_POLICY_URL`)
+- [ ] Terms of service URL (same as `EXPO_PUBLIC_TERMS_URL`)
 - [ ] Data safety form: declare Auth, Analytics, Ads, purchases
 - [ ] Add license testers for sandbox IAP
 - [ ] Complete content rating questionnaire
@@ -62,18 +68,23 @@ Create products matching `IAPProductId` in [`src/types/index.ts`](../src/types/i
 3. Restore purchases from Shop — verified grants only
 4. Firebase Console → Analytics → DebugView — confirm `age_up`, `create_character` events
 5. Firestore rules simulator — confirm another user cannot read your saves
+6. Firestore rules simulator — signed-in user **cannot** set `isPremium: true` on `users/{uid}`; **can** update `displayName` and clear `coinsGrant`
+7. Auth screen — Terms and Privacy links open hosted URLs
+8. Season pass — claim same tier twice; second attempt rejected
 
 ## P0 exit criteria
 
 | Item | Status |
 |------|--------|
-| Firestore rules deployed | Owner-only; purchases not client-writable |
-| IAP function | Android validation path; rejects without secrets |
+| Firestore rules deployed | Owner-only; entitlements server-only; purchases not client-writable |
+| IAP function | Android validation path; iOS scaffold rejects without secrets |
 | AdMob | Production app ID in EAS preview build |
 | Analytics | Events in DebugView on preview build |
 | Privacy policy | Hosted + in-app link works |
+| Terms of service | Hosted + in-app link works |
 | Shop copy | No false premium claims |
 | Restore purchases | Server verification required for signed-in users |
+| Season pass | Tier rewards claimable once per life |
 
 ## After P0 — next phase
 

@@ -1,8 +1,10 @@
-import { Character } from '../types';
+import { Character, AvatarStyleId } from '../types';
 
 export interface UserEntitlements {
   isPremium?: boolean;
   hasNoAds?: boolean;
+  hasSeasonPass?: boolean;
+  unlockedAvatarStyles?: AvatarStyleId[];
   coinsGrant?: number;
   gemsGrant?: number;
   luckBoostGrant?: number;
@@ -20,6 +22,15 @@ export function applyEntitlementsToCharacter(
     next.hasNoAds = true;
   }
   if (entitlements.hasNoAds) next.hasNoAds = true;
+  if (entitlements.hasSeasonPass) next.hasSeasonPass = true;
+  if (entitlements.unlockedAvatarStyles?.length) {
+    const styles = new Set<AvatarStyleId>([
+      ...(next.unlockedAvatarStyles ?? ['pixel_art']),
+      ...entitlements.unlockedAvatarStyles,
+    ]);
+    styles.add('pixel_art');
+    next.unlockedAvatarStyles = Array.from(styles);
+  }
   if (entitlements.coinsGrant) next.coins += entitlements.coinsGrant;
   if (entitlements.gemsGrant) next.gems += entitlements.gemsGrant;
   if (entitlements.luckBoostGrant) {

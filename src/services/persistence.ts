@@ -164,6 +164,7 @@ export function normalizeCharacter(char: Character): Character {
   if (!char.unlockedAvatarStyles) char.unlockedAvatarStyles = ['pixel_art'];
   if (char.seasonXp === undefined) char.seasonXp = 0;
   if (char.hasSeasonPass === undefined) char.hasSeasonPass = false;
+  if (!char.claimedSeasonTiers) char.claimedSeasonTiers = [];
   if (!char.stats.mentalHealth) char.stats.mentalHealth = char.stats.happiness ?? 70;
   if (!char.criminalRecord) {
     char.criminalRecord = { crimes: [], jailYearsRemaining: 0, onProbation: false };

@@ -160,6 +160,7 @@ function buildCharacter(data: CreateCharacterPayload): Character {
     unlockedAvatarStyles: ['pixel_art'],
     seasonXp: 0,
     hasSeasonPass: false,
+    claimedSeasonTiers: [],
     criminalRecord: { crimes: [], jailYearsRemaining: 0, onProbation: false },
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -400,11 +401,16 @@ export const useGameStore = create<GameStore>()(
       if (!character?.hasSeasonPass) return { ok: false, message: 'Season pass required.' };
       const tierDef = SEASON_PASS_TIERS.find(t => t.tier === tier);
       if (!tierDef) return { ok: false, message: 'Invalid tier.' };
+      if ((character.claimedSeasonTiers ?? []).includes(tier)) {
+        return { ok: false, message: 'Tier already claimed.' };
+      }
       if ((character.seasonXp ?? 0) < tierDef.xpRequired) {
         return { ok: false, message: 'Not enough season XP.' };
       }
       set(s => {
         if (!s.character) return;
+        if (!s.character.claimedSeasonTiers) s.character.claimedSeasonTiers = [];
+        s.character.claimedSeasonTiers.push(tier);
         s.character.coins += tierDef.rewardCoins;
         if (tierDef.rewardGems) s.character.gems += tierDef.rewardGems;
         if (tierDef.rewardLuckBoosts) s.character.luckBoostsRemaining += tierDef.rewardLuckBoosts;

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  View, Text, ScrollView, Pressable, StyleSheet, Alert,
+  View, Text, ScrollView, Pressable, StyleSheet, Alert, TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -208,6 +208,81 @@ const bs = StyleSheet.create({
   optPrice: { fontFamily: FONTS.monoSemiBold, fontSize: 13 },
 });
 
+function FoundBusinessSheet({
+  name,
+  onChangeName,
+  onConfirm,
+  onClose,
+}: {
+  name: string;
+  onChangeName: (v: string) => void;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <View style={bs.overlay}>
+      <Pressable style={bs.backdrop} onPress={onClose} />
+      <View style={bs.sheet}>
+        <Text style={bs.title}>Found Business</Text>
+        <Text style={bs.optSub}>Enter your company name</Text>
+        <TextInput
+          value={name}
+          onChangeText={onChangeName}
+          placeholder="Company name"
+          placeholderTextColor={COLORS.t4}
+          style={fb.input}
+          autoFocus
+          accessibilityLabel="Company name"
+        />
+        <View style={fb.actions}>
+          <Pressable onPress={onClose} style={fb.cancelBtn}>
+            <Text style={fb.cancelText}>Cancel</Text>
+          </Pressable>
+          <Pressable
+            onPress={onConfirm}
+            style={[fb.confirmBtn, !name.trim() && fb.disabled]}
+            disabled={!name.trim()}
+          >
+            <Text style={fb.confirmText}>Found Company</Text>
+          </Pressable>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const fb = StyleSheet.create({
+  input: {
+    fontFamily: FONTS.body,
+    fontSize: 16,
+    color: COLORS.t1,
+    backgroundColor: COLORS.bgCard,
+    borderRadius: RADII.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: SPACING.md,
+  },
+  actions: { flexDirection: 'row', gap: SPACING.md, marginTop: SPACING.sm },
+  cancelBtn: {
+    flex: 1,
+    padding: SPACING.md,
+    borderRadius: RADII.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: 'center',
+  },
+  cancelText: { fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.t2 },
+  confirmBtn: {
+    flex: 1,
+    padding: SPACING.md,
+    borderRadius: RADII.md,
+    backgroundColor: COLORS.gold,
+    alignItems: 'center',
+  },
+  confirmText: { fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.bg },
+  disabled: { opacity: 0.4 },
+});
+
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export function AssetsScreen() {
   const character    = useGameStore(s => s.character);
@@ -216,6 +291,8 @@ export function AssetsScreen() {
   const purchaseAsset = useGameStore(s => s.purchaseAsset);
   const sellAsset    = useGameStore(s => s.sellAsset);
   const [showBuy, setShowBuy] = useState(false);
+  const [showFoundModal, setShowFoundModal] = useState(false);
+  const [businessName, setBusinessName] = useState('');
 
   if (!character) return null;
 
@@ -294,12 +371,8 @@ export function AssetsScreen() {
           <SectionLabel label="Businesses" style={{ marginTop: SPACING.xl, marginBottom: SPACING.md }} />
           <Pressable
             onPress={() => {
-              Alert.prompt?.('Found Business', 'Enter company name', (name) => {
-                if (name) {
-                  const result = foundBusinessAction(name);
-                  Alert.alert(result.ok ? 'Success' : 'Business', result.message);
-                }
-              });
+              setBusinessName('');
+              setShowFoundModal(true);
             }}
             style={styles.actionBtn}
           >
@@ -324,6 +397,21 @@ export function AssetsScreen() {
 
       {showBuy && (
         <BuySheet balance={bankBalance} onBuy={handleBuy} onClose={() => setShowBuy(false)} />
+      )}
+      {showFoundModal && (
+        <FoundBusinessSheet
+          name={businessName}
+          onChangeName={setBusinessName}
+          onClose={() => setShowFoundModal(false)}
+          onConfirm={() => {
+            const trimmed = businessName.trim();
+            if (!trimmed) return;
+            const result = foundBusinessAction(trimmed);
+            setShowFoundModal(false);
+            setBusinessName('');
+            Alert.alert(result.ok ? 'Success' : 'Business', result.message);
+          }}
+        />
       )}
     </View>
   );

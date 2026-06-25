@@ -5,13 +5,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../types';
-import { COLORS, FONTS, RADII, SPACING } from '../constants/theme';
-import LifeGlyph from '../components/LifeGlyph';
-import { GradientButton, FadeInView } from '../components/index';
-import { signInWithGoogle, signInAsGuest, isGoogleSignInAvailable } from '../services/auth';
-import { useGameStore } from '../store/gameStore';
-import { logEvent } from '../services/analytics';
+import type { RootStackParamList } from '@/types';
+import { COLORS, FONTS, RADII, SPACING } from '@constants/theme';
+import LifeGlyph from '@components/LifeGlyph';
+import { GradientButton, FadeInView } from '@components/index';
+import { signInWithGoogle, signInAsGuest, isGoogleSignInAvailable } from '@services/auth';
+import { useGameStore } from '@store/gameStore';
+import { logEvent } from '@services/analytics';
+import { getPrivacyPolicyUrl, getTermsUrl, openLegalUrl } from '@config/legal';
 import Svg, { Path, G } from 'react-native-svg';
 
 type Props = {
@@ -80,6 +81,14 @@ export default function AuthScreen({ navigation }: Props) {
       Alert.alert('Error', (e as Error).message);
     } finally {
       setLoading(null);
+    }
+  };
+
+  const handleOpenLegal = async (url: string, label: string) => {
+    try {
+      await openLegalUrl(url);
+    } catch {
+      Alert.alert('Unable to open link', `Could not open ${label}. Check your network connection.`);
     }
   };
 
@@ -168,9 +177,22 @@ export default function AuthScreen({ navigation }: Props) {
           <FadeInView delay={640}>
             <Text style={styles.legal}>
               By continuing you agree to our{' '}
-              <Text style={styles.legalLink}>Terms</Text>
+              <Text
+                style={styles.legalLink}
+                onPress={() => void handleOpenLegal(getTermsUrl(), 'Terms of Service')}
+                accessibilityRole="link"
+              >
+                Terms
+              </Text>
               {' '}and{' '}
-              <Text style={styles.legalLink}>Privacy Policy</Text>.
+              <Text
+                style={styles.legalLink}
+                onPress={() => void handleOpenLegal(getPrivacyPolicyUrl(), 'Privacy Policy')}
+                accessibilityRole="link"
+              >
+                Privacy Policy
+              </Text>
+              .
             </Text>
           </FadeInView>
         </View>

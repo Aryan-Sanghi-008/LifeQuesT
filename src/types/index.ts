@@ -185,6 +185,7 @@ export interface Character {
   seasonXp?: number;
   unlockedAvatarStyles?: AvatarStyleId[];
   hasSeasonPass?: boolean;
+  claimedSeasonTiers?: number[];
   createdAt: number;
   updatedAt: number;
 }

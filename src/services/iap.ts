@@ -12,6 +12,10 @@ const PRODUCT_IDS: IAPProductId[] = [
   'gems_small',
   'luck_boost',
   'reincarnation_scroll',
+  'season_pass',
+  'avatar_pack_adventurer',
+  'avatar_pack_lorelei',
+  'avatar_pack_bottts',
 ];
 
 type Product = import('@iaptic/react-native-iap').Product;

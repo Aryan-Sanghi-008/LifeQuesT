@@ -373,20 +373,27 @@ export function ShopScreen() {
                 {character.hasSeasonPass ? 'Season Pass Active' : 'Unlock Season Pass'} · XP {character.seasonXp ?? 0}
               </Text>
             </Pressable>
-            {character.hasSeasonPass && SEASON_PASS_TIERS.map(tier => (
+            {character.hasSeasonPass && SEASON_PASS_TIERS.map(tier => {
+              const claimed = (character.claimedSeasonTiers ?? []).includes(tier.tier);
+              const canClaim = !claimed && (character.seasonXp ?? 0) >= tier.xpRequired;
+              return (
               <Pressable
                 key={tier.tier}
-                style={styles.rewardedBtn}
+                style={[styles.rewardedBtn, claimed && { opacity: 0.5 }]}
+                disabled={claimed}
                 onPress={() => {
+                  if (!canClaim) return;
                   const result = store.claimSeasonTier(tier.tier);
                   Alert.alert(result.ok ? 'Reward' : 'Season Pass', result.message);
                 }}
               >
                 <Text style={styles.rewardedText}>
-                  Tier {tier.tier} — {tier.rewardCoins}c {tier.rewardGems ? `+ ${tier.rewardGems} gems` : ''}
+                  {claimed ? 'Claimed — ' : ''}Tier {tier.tier} — {tier.rewardCoins}c
+                  {tier.rewardGems ? ` + ${tier.rewardGems} gems` : ''}
                 </Text>
               </Pressable>
-            ))}
+              );
+            })}
           </FadeInView>
 
           {/* Products Grid */}

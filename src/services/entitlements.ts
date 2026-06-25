@@ -26,6 +26,10 @@ export async function fetchUserEntitlements(uid: string): Promise<UserEntitlemen
 
   if (data.isPremium === true) entitlements.isPremium = true;
   if (data.hasNoAds === true) entitlements.hasNoAds = true;
+  if (data.hasSeasonPass === true) entitlements.hasSeasonPass = true;
+  if (Array.isArray(data.unlockedAvatarStyles)) {
+    entitlements.unlockedAvatarStyles = data.unlockedAvatarStyles as UserEntitlements['unlockedAvatarStyles'];
+  }
   if (typeof data.coinsGrant === 'number' && data.coinsGrant > 0) {
     entitlements.coinsGrant = data.coinsGrant;
   }

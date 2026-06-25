@@ -1,6 +1,8 @@
 export interface PurchaseGrants {
   isPremium?: boolean;
   hasNoAds?: boolean;
+  hasSeasonPass?: boolean;
+  unlockedAvatarStyles?: string[];
   coinsGrant?: number;
   gemsGrant?: number;
   luckBoostGrant?: number;
@@ -19,6 +21,12 @@ const GEMS_GRANTS: Record<string, number> = {
 
 const LUCK_BOOST_GRANTS: Record<string, number> = {
   luck_boost: 3,
+};
+
+const AVATAR_PACK_STYLES: Record<string, string> = {
+  avatar_pack_adventurer: 'adventurer',
+  avatar_pack_lorelei: 'lorelei',
+  avatar_pack_bottts: 'bottts',
 };
 
 export function grantsForProduct(productId: string): PurchaseGrants {
@@ -45,10 +53,11 @@ export function grantsForProduct(productId: string): PurchaseGrants {
     grants.reincarnationScroll = true;
   }
   if (productId === 'season_pass') {
-    grants.isPremium = true;
+    grants.hasSeasonPass = true;
   }
-  if (productId === 'avatar_pack_adventurer') {
-    grants.coinsGrant = 0; // style unlocked client-side via productId mapping
+  const avatarStyle = AVATAR_PACK_STYLES[productId];
+  if (avatarStyle) {
+    grants.unlockedAvatarStyles = [avatarStyle];
   }
 
   return grants;
@@ -58,6 +67,7 @@ export function grantsToUserPatch(grants: PurchaseGrants): Record<string, unknow
   const patch: Record<string, unknown> = {};
   if (grants.isPremium !== undefined) patch.isPremium = grants.isPremium;
   if (grants.hasNoAds !== undefined) patch.hasNoAds = grants.hasNoAds;
+  if (grants.hasSeasonPass !== undefined) patch.hasSeasonPass = grants.hasSeasonPass;
   if (grants.coinsGrant !== undefined) patch.coinsGrant = grants.coinsGrant;
   if (grants.gemsGrant !== undefined) patch.gemsGrant = grants.gemsGrant;
   if (grants.luckBoostGrant !== undefined) patch.luckBoostGrant = grants.luckBoostGrant;
@@ -65,4 +75,8 @@ export function grantsToUserPatch(grants: PurchaseGrants): Record<string, unknow
     patch.reincarnationScroll = grants.reincarnationScroll;
   }
   return patch;
+}
+
+export function avatarStylesForGrants(grants: PurchaseGrants): string[] {
+  return grants.unlockedAvatarStyles ?? [];
 }

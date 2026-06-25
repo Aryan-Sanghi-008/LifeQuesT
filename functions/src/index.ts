@@ -1,6 +1,6 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
-import { grantsForProduct, grantsToUserPatch } from './entitlements';
+import { grantsForProduct, grantsToUserPatch, avatarStylesForGrants } from './entitlements';
 import { verifyGooglePlayPurchase, isAllowUnverifiedIap } from './verifyGooglePlay';
 import { verifyAppStorePurchase } from './verifyAppStore';
 
@@ -46,7 +46,11 @@ async function verifyPlatformPurchase(
     try {
       await verifyAppStorePurchase(productId, transactionId, transactionReceipt);
     } catch (e) {
+      if (isAllowUnverifiedIap()) return;
       const message = e instanceof Error ? e.message : 'App Store verification failed.';
+      if (message.includes('not configured')) {
+        throw new functions.https.HttpsError('failed-precondition', message);
+      }
       throw new functions.https.HttpsError('unimplemented', message);
     }
     return;
@@ -103,6 +107,7 @@ export const verifyPurchase = functions.https.onCall(async (data, context) => {
 
   const grants = grantsForProduct(productId);
   const userPatch = grantsToUserPatch(grants);
+  const avatarStyles = avatarStylesForGrants(grants);
 
   const batch = db.batch();
   batch.set(purchaseRef, {
@@ -112,8 +117,12 @@ export const verifyPurchase = functions.https.onCall(async (data, context) => {
     verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
-  if (Object.keys(userPatch).length > 0) {
-    batch.set(userRef, userPatch, { merge: true });
+  if (Object.keys(userPatch).length > 0 || avatarStyles.length > 0) {
+    const patch: Record<string, unknown> = { ...userPatch };
+    if (avatarStyles.length > 0) {
+      patch.unlockedAvatarStyles = admin.firestore.FieldValue.arrayUnion(...avatarStyles);
+    }
+    batch.set(userRef, patch, { merge: true });
   }
 
   await batch.commit();
