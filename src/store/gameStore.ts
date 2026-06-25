@@ -6,7 +6,7 @@ import {
   Gender, LifeStage, EducationLevel, Asset, SaveSlot,
 } from '../types';
 import {
-  DEATH_CAUSES, TRAITS, COUNTRIES, ACTIVITIES, JOBS,
+  DEATH_CAUSES, TRAITS, COUNTRIES, ACTIVITIES, JOBS, ACHIEVEMENT_COIN_REWARDS,
 } from '../data/gameData';
 import { getLifeStage } from '../utils/lifeStage';
 import { generateParents, generatePartner, generatePet } from '../utils/npcGenerator';
@@ -25,8 +25,15 @@ import {
   getActiveSlotId, setActiveSlotId, saveCharacterLocal,
   loadCharacterLocal, deleteCharacterLocal, listLocalSlots,
   migrateLegacySaves, normalizeCharacter,
+  getDailyBonusLastClaim, setDailyBonusLastClaim,
 } from '../services/persistence';
-import { syncSaveToCloud } from '../services/cloudSave';
+import {
+  syncSaveToCloud, pullCloudSaveIfNewer, listCloudSlots,
+} from '../services/cloudSave';
+import { mergeSlotLists } from '../utils/saveSync';
+import {
+  fetchUserEntitlements, applyEntitlementsToCharacter, hasPendingGrants, clearConsumedGrants,
+} from '../services/entitlements';
 import { logEvent } from '../services/analytics';
 
 function generateId(): string {
@@ -128,6 +135,7 @@ function buildCharacter(data: CreateCharacterPayload): Character {
     luckBoostsRemaining: 0,
     hasReincarnationScroll: false,
     createdAt: Date.now(),
+    updatedAt: Date.now(),
   });
 }
 
@@ -137,6 +145,27 @@ function applyJobUpdate(
 ): { job: string; career: Character['career'] } {
   const career = jobToCareer(jobTitle) ?? currentCareer;
   return { job: jobTitle, career: career ?? currentCareer };
+}
+
+function buildLocalSlotList(): SaveSlot[] {
+  return listLocalSlots().map(slotId => {
+    const char = loadCharacterLocal(slotId);
+    if (!char) {
+      return { slotId, name: 'Empty Slot', age: 0, isAlive: false, updatedAt: 0 };
+    }
+    const normalized = normalizeCharacter(char);
+    return {
+      slotId,
+      name: normalized.name,
+      age: normalized.age,
+      isAlive: normalized.isAlive,
+      updatedAt: normalized.updatedAt,
+    };
+  });
+}
+
+function isCloudUser(uid: string | undefined): boolean {
+  return Boolean(uid && !uid.startsWith('local_guest_'));
 }
 
 interface GameStore {
@@ -149,8 +178,13 @@ interface GameStore {
   isHydrated: boolean;
   activeSlotId: string;
   carriedStatsForCreate: Partial<CharacterStats> | null;
+  slotList: SaveSlot[];
+  slotsSynced: boolean;
 
   setUser: (user: AppUser | null) => void;
+  onUserChanged: (user: AppUser | null) => Promise<void>;
+  refreshSlotList: () => Promise<SaveSlot[]>;
+  claimDailyBonus: () => { ok: boolean; message: string };
   createCharacter: (payload: CreateCharacterPayload) => void;
   ageUp: () => void;
   resolveDecision: (choiceId: string) => void;
@@ -194,14 +228,107 @@ export const useGameStore = create<GameStore>()(
     isHydrated: false,
     activeSlotId: '0',
     carriedStatsForCreate: null,
+    slotList: buildLocalSlotList(),
+    slotsSynced: false,
 
     setUser: (user) => set(s => { s.user = user; }),
+
+    onUserChanged: async (user) => {
+      set(s => { s.user = user; });
+      if (!isCloudUser(user?.uid)) {
+        set(s => {
+          s.slotList = buildLocalSlotList();
+          s.slotsSynced = false;
+        });
+        return;
+      }
+
+      try {
+        const entitlements = await fetchUserEntitlements(user!.uid);
+        if (entitlements) {
+          const { character } = get();
+          if (character) {
+            const updated = applyEntitlementsToCharacter(character, entitlements);
+            set(s => { if (s.character) s.character = updated; });
+            if (hasPendingGrants(entitlements)) {
+              await clearConsumedGrants(user!.uid);
+              void get()._persist();
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[entitlements] hydrate failed', e);
+      }
+
+      await get().refreshSlotList();
+    },
+
+    refreshSlotList: async () => {
+      const { user } = get();
+      const localSlots = buildLocalSlotList();
+
+      if (!isCloudUser(user?.uid)) {
+        set(s => {
+          s.slotList = localSlots;
+          s.slotsSynced = false;
+        });
+        return localSlots;
+      }
+
+      try {
+        const cloudSlots = await listCloudSlots(user!.uid);
+        const merged = mergeSlotLists(localSlots, cloudSlots);
+        set(s => {
+          s.slotList = merged;
+          s.slotsSynced = cloudSlots.some(slot => slot.updatedAt > 0);
+        });
+        return merged;
+      } catch (e) {
+        console.warn('[cloudSave] refreshSlotList failed', e);
+        set(s => {
+          s.slotList = localSlots;
+          s.slotsSynced = false;
+        });
+        return localSlots;
+      }
+    },
+
+    claimDailyBonus: () => {
+      const { character } = get();
+      if (!character) return { ok: false, message: 'No active character.' };
+
+      const today = new Date().toISOString().slice(0, 10);
+      const lastClaim = getDailyBonusLastClaim();
+      if (lastClaim === today) {
+        return { ok: false, message: 'Daily bonus already claimed today.' };
+      }
+
+      setDailyBonusLastClaim(today);
+      set(s => {
+        if (s.character) s.character.coins += 25;
+      });
+      void get()._persist();
+      return { ok: true, message: 'You received 25 coins!' };
+    },
 
     _persist: async () => {
       const { character, user, activeSlotId } = get();
       if (!character) return;
-      saveCharacterLocal(character, activeSlotId);
-      if (user) await syncSaveToCloud(user.uid, activeSlotId, character);
+
+      const stamped = { ...character, updatedAt: Date.now() };
+      set(s => {
+        if (s.character) s.character.updatedAt = stamped.updatedAt;
+      });
+
+      saveCharacterLocal(stamped, activeSlotId);
+
+      if (isCloudUser(user?.uid)) {
+        try {
+          await syncSaveToCloud(user!.uid, activeSlotId, stamped);
+        } catch (e) {
+          console.warn('[cloudSave] sync failed', e);
+        }
+      }
     },
 
     createCharacter: (payload) => {
@@ -696,8 +823,24 @@ export const useGameStore = create<GameStore>()(
         await migrateLegacySaves();
         const id = slotId ?? getActiveSlotId();
         setActiveSlotId(id);
+
         let char = loadCharacterLocal(id);
         if (char) char = normalizeCharacter(char);
+
+        const { user } = get();
+        if (isCloudUser(user?.uid)) {
+          try {
+            const localUpdatedAt = char?.updatedAt ?? 0;
+            const cloudChar = await pullCloudSaveIfNewer(user!.uid, id, localUpdatedAt);
+            if (cloudChar) {
+              char = normalizeCharacter(cloudChar);
+              saveCharacterLocal(char, id);
+            }
+          } catch (e) {
+            console.warn('[cloudSave] pull failed', e);
+          }
+        }
+
         set(s => {
           s.character = char;
           s.activeSlotId = id;
@@ -714,19 +857,9 @@ export const useGameStore = create<GameStore>()(
     },
 
     listSlots: (): SaveSlot[] => {
-      return listLocalSlots().map(slotId => {
-        const char = loadCharacterLocal(slotId);
-        if (!char) {
-          return { slotId, name: 'Empty Slot', age: 0, isAlive: false, updatedAt: 0 };
-        }
-        return {
-          slotId,
-          name: char.name,
-          age: char.age,
-          isAlive: char.isAlive,
-          updatedAt: char.createdAt,
-        };
-      });
+      const cached = get().slotList;
+      if (cached.length > 0) return cached;
+      return buildLocalSlotList();
     },
 
     deleteSlot: async (slotId: string) => {
@@ -751,6 +884,7 @@ export const useGameStore = create<GameStore>()(
     _checkAchievements: () => {
       const { character } = get();
       if (!character) return;
+      const previous = new Set(character.achievements);
       const earned = new Set(character.achievements);
       const { stats, karma, age, relationships, career, educationLevel } = character;
       const netWorth = computeNetWorth(character);
@@ -771,8 +905,18 @@ export const useGameStore = create<GameStore>()(
       );
       if (hasLowHealthRecord && character.isAlive && stats.health > 10) earned.add('iron_will');
 
-      if (earned.size !== character.achievements.length) {
-        set(s => { if (s.character) s.character.achievements = Array.from(earned); });
+      let coinReward = 0;
+      earned.forEach(id => {
+        if (!previous.has(id)) coinReward += ACHIEVEMENT_COIN_REWARDS[id] ?? 50;
+      });
+
+      if (earned.size !== character.achievements.length || coinReward > 0) {
+        set(s => {
+          if (!s.character) return;
+          s.character.achievements = Array.from(earned);
+          if (coinReward > 0) s.character.coins += coinReward;
+        });
+        if (coinReward > 0) void get()._persist();
       }
     },
   })),

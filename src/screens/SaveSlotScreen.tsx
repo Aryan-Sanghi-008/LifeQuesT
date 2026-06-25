@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -11,10 +12,18 @@ type Props = {
 };
 
 export function SaveSlotScreen({ navigation }: Props) {
-  const slots = useGameStore(s => s.listSlots());
+  const slots = useGameStore(s => s.slotList.length > 0 ? s.slotList : s.listSlots());
+  const slotsSynced = useGameStore(s => s.slotsSynced);
   const loadSlot = useGameStore(s => s.loadSlot);
   const deleteSlot = useGameStore(s => s.deleteSlot);
+  const refreshSlotList = useGameStore(s => s.refreshSlotList);
   const user = useGameStore(s => s.user);
+
+  useEffect(() => {
+    if (user && !user.uid.startsWith('local_guest_')) {
+      void refreshSlotList();
+    }
+  }, [user, refreshSlotList]);
 
   const handleSelect = async (slotId: string, empty: boolean) => {
     if (empty) {
@@ -41,13 +50,19 @@ export function SaveSlotScreen({ navigation }: Props) {
         <Text style={styles.title}>Your Lives</Text>
         <Text style={styles.sub}>
           {user?.displayName ? `Playing as ${user.displayName}` : 'Choose a save slot'}
+          {slotsSynced ? ' · Cloud synced' : ''}
         </Text>
 
         {slots.map(slot => {
           const empty = slot.updatedAt === 0;
           return (
             <Card key={slot.slotId} style={styles.card}>
-              <Pressable onPress={() => void handleSelect(slot.slotId, empty)} style={styles.row}>
+              <Pressable
+                onPress={() => void handleSelect(slot.slotId, empty)}
+                style={styles.row}
+                accessibilityRole="button"
+                accessibilityLabel={empty ? `Empty slot ${slot.slotId}, start new life` : `Load ${slot.name}, age ${slot.age}`}
+              >
                 <View style={{ flex: 1 }}>
                   <Text style={styles.slotName}>{empty ? 'Empty Slot' : slot.name}</Text>
                   <Text style={styles.slotMeta}>
@@ -55,7 +70,12 @@ export function SaveSlotScreen({ navigation }: Props) {
                   </Text>
                 </View>
                 {!empty && (
-                  <Pressable onPress={() => handleDelete(slot.slotId, slot.name)} hitSlop={12}>
+                  <Pressable
+                    onPress={() => handleDelete(slot.slotId, slot.name)}
+                    hitSlop={12}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Delete save ${slot.name}`}
+                  >
                     <Text style={styles.delete}>Delete</Text>
                   </Pressable>
                 )}
@@ -66,6 +86,7 @@ export function SaveSlotScreen({ navigation }: Props) {
 
         <GradientButton
           label="New Life"
+          accessibilityLabel="Start a new life"
           onPress={() => {
             const empty = slots.find(s => s.updatedAt === 0);
             const slotId = empty?.slotId ?? '0';

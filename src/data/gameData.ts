@@ -73,6 +73,21 @@ export const ACHIEVEMENTS = [
   { id: 'fitness_buff',  label: 'Iron Body',        description: 'Reach 90 Fitness',             color: COLORS.emerald  },
 ] as const;
 
+export const ACHIEVEMENT_COIN_REWARDS: Record<string, number> = {
+  millionaire: 500,
+  genius: 300,
+  centenarian: 500,
+  saint: 400,
+  heartbreaker: 150,
+  entrepreneur: 250,
+  top_grad: 200,
+  iron_will: 150,
+  social_king: 200,
+  globetrotter: 175,
+  rich_kid: 350,
+  fitness_buff: 200,
+};
+
 // ─── Jobs ─────────────────────────────────────────────────────────────────────
 export const JOBS = [
   { id: 'student',        label: 'Student',         salary: 0,    minIntelligence: 0,  company: 'School'           },

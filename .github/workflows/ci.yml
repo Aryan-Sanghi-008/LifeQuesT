@@ -25,6 +25,8 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: Functions test
+        run: cd functions && npm test
+
       - name: Lint
         run: npm run lint
-        continue-on-error: true

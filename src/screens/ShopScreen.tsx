@@ -13,6 +13,7 @@ import {
   getIAPProducts,
   processVerifiedPurchase,
 } from '../services/iap';
+import { showRewardedAd } from '../services/ads';
 import { getPrivacyPolicyUrl, openLegalUrl } from '../config/legal';
 import { IAPProductId } from '../types';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -121,15 +122,18 @@ interface ProductCardProps {
   icon: React.ReactNode;
   badge?: string;
   onPress: () => void;
+  accessibilityLabel?: string;
 }
 
-function ProductCard({ title, desc, price, color, icon, badge, onPress }: ProductCardProps) {
+function ProductCard({ title, desc, price, color, icon, badge, onPress, accessibilityLabel }: ProductCardProps) {
   const scale = useRef(new Animated.Value(1)).current;
 
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
       <Pressable
         onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel ?? `Buy ${title} for ${price}`}
         onPressIn={() => Animated.spring(scale, { toValue: 0.96, useNativeDriver: true, damping: 18, stiffness: 200 }).start()}
         onPressOut={() => Animated.spring(scale, { toValue: 1, useNativeDriver: true, damping: 18, stiffness: 200 }).start()}
         android_ripple={{ color: `${color}15` }}
@@ -217,6 +221,22 @@ export function ShopScreen() {
     }
     store.addLuckBoost(3);
     Alert.alert('Luck Boost', '3 luck boosts added to your character.');
+  };
+
+  const watchAdForLuck = async () => {
+    if (busy) return;
+    setPurchasing('rewarded_luck');
+    try {
+      const earned = await showRewardedAd();
+      if (earned) {
+        store.addLuckBoost(1);
+        Alert.alert('Luck Boost', 'You earned 1 luck boost!');
+      } else {
+        Alert.alert('Ad unavailable', 'Try again in a moment.');
+      }
+    } finally {
+      setPurchasing(null);
+    }
   };
 
   if (!character) return null;
@@ -351,8 +371,26 @@ export function ShopScreen() {
             ))}
           </View>
 
+          <Pressable
+            style={styles.rewardedBtn}
+            onPress={() => void watchAdForLuck()}
+            disabled={busy}
+            accessibilityRole="button"
+            accessibilityLabel="Watch ad for one luck boost"
+          >
+            <Text style={styles.rewardedText}>
+              {purchasing === 'rewarded_luck' ? 'Loading ad…' : 'Watch ad for +1 Luck Boost'}
+            </Text>
+          </Pressable>
+
           {/* Restore Purchases */}
-          <Pressable style={styles.restoreBtn} onPress={handleRestore} disabled={busy}>
+          <Pressable
+            style={styles.restoreBtn}
+            onPress={handleRestore}
+            disabled={busy}
+            accessibilityRole="button"
+            accessibilityLabel="Restore purchases"
+          >
             <Text style={styles.restoreText}>{purchasing === 'restore' ? 'Restoring…' : 'Restore Purchases'}</Text>
           </Pressable>
 
@@ -453,6 +491,16 @@ const styles = StyleSheet.create({
   // Footer
   restoreBtn:   { alignItems: 'center', paddingVertical: SPACING.lg },
   restoreText:  { fontFamily: FONTS.bodySemiBold, fontSize: 13, color: COLORS.t3 },
+  rewardedBtn:  {
+    alignItems: 'center',
+    paddingVertical: SPACING.md,
+    marginTop: SPACING.md,
+    borderRadius: RADII.md,
+    borderWidth: 1,
+    borderColor: `${COLORS.teal}40`,
+    backgroundColor: `${COLORS.teal}10`,
+  },
+  rewardedText: { fontFamily: FONTS.bodySemiBold, fontSize: 13, color: COLORS.teal },
   legal:        { fontFamily: FONTS.body, fontSize: 10, color: COLORS.t4, textAlign: 'center', lineHeight: 15, marginTop: SPACING.sm },
   privacyLink:  { alignItems: 'center', paddingVertical: SPACING.sm, marginTop: SPACING.xs },
   privacyLinkText: { fontFamily: FONTS.bodySemiBold, fontSize: 12, color: COLORS.sapphire },

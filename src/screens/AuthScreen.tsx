@@ -32,7 +32,7 @@ function GoogleIcon() {
 }
 
 export default function AuthScreen({ navigation }: Props) {
-  const setUser = useGameStore(s => s.setUser);
+  const onUserChanged = useGameStore(s => s.onUserChanged);
   const [loading, setLoading] = useState<'google' | 'guest' | null>(null);
   const googleSignInAvailable = isGoogleSignInAvailable();
   const orb1Y = useRef(new Animated.Value(0)).current;
@@ -59,7 +59,7 @@ export default function AuthScreen({ navigation }: Props) {
     setLoading('google');
     try {
       const user = await signInWithGoogle();
-      setUser(user);
+      await onUserChanged(user);
       void logEvent('sign_in', { method: 'google' });
       goToSlots();
     } catch (e) {
@@ -73,7 +73,7 @@ export default function AuthScreen({ navigation }: Props) {
     setLoading('guest');
     try {
       const user = await signInAsGuest();
-      setUser(user);
+      await onUserChanged(user);
       void logEvent('sign_in', { method: 'guest' });
       goToSlots();
     } catch (e) {
@@ -124,6 +124,8 @@ export default function AuthScreen({ navigation }: Props) {
               <Pressable
                 onPress={() => void handleGoogle()}
                 disabled={loading !== null}
+                accessibilityRole="button"
+                accessibilityLabel="Continue with Google"
                 android_ripple={{ color: 'rgba(255,255,255,0.08)' }}
                 style={({ pressed }) => [styles.googleBtn, pressed && { opacity: 0.85 }]}
               >
@@ -138,6 +140,7 @@ export default function AuthScreen({ navigation }: Props) {
 
             <GradientButton
               label="Play as Guest"
+              accessibilityLabel="Play as guest"
               onPress={() => void handleGuest()}
               colors={[COLORS.sapphire, COLORS.sapphire2]}
               textColor="#FFFFFF"

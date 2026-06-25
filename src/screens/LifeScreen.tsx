@@ -104,6 +104,8 @@ function AgeUpButton({ onPress, loading }: { onPress: () => void; loading: boole
         <Pressable
           onPress={onPress}
           disabled={loading}
+          accessibilityRole="button"
+          accessibilityLabel={loading ? 'Age up, loading' : 'Age up one year'}
           onPressIn={() =>
             Animated.spring(scale, { toValue: 0.94, useNativeDriver: true, ...ANIM.spring }).start()
           }

@@ -92,6 +92,7 @@ export function ProfileScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const character  = useGameStore(s => s.character);
   const resetGame  = useGameStore(s => s.resetGame);
+  const claimDailyBonus = useGameStore(s => s.claimDailyBonus);
 
   const [sound, setSound]   = useState(true);
   const [notif, setNotif]   = useState(false);
@@ -144,6 +145,11 @@ export function ProfileScreen() {
 
   const lifeStage = age < 13 ? 'Childhood' : age < 18 ? 'Teenager' : age < 30 ? 'Young Adult' : age < 60 ? 'Adult' : 'Golden Years';
   const avatarRingColor = age < 13 ? COLORS.emerald : age < 18 ? COLORS.sapphire : age < 30 ? COLORS.catCareer : age < 60 ? COLORS.gold : COLORS.orchid;
+
+  const handleClaimDailyBonus = () => {
+    const result = claimDailyBonus();
+    Alert.alert(result.ok ? 'Daily Bonus' : 'Come Back Tomorrow', result.message);
+  };
 
   const handleReset = () => {
     Alert.alert(
@@ -293,6 +299,14 @@ export function ProfileScreen() {
                   <Text style={styles.walletLbl}>Gems</Text>
                 </View>
               </View>
+              <Pressable
+                onPress={handleClaimDailyBonus}
+                style={styles.dailyBonusBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Claim daily bonus of 25 coins"
+              >
+                <Text style={styles.dailyBonusText}>Claim Daily Bonus (+25 coins)</Text>
+              </Pressable>
             </Card>
           </View>
 
@@ -466,6 +480,17 @@ const styles = StyleSheet.create({
   resetText: { fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.health },
   legalRow: { paddingVertical: SPACING.md, paddingHorizontal: SPACING.lg },
   legalRowText: { fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.sapphire },
+  dailyBonusBtn: {
+    marginTop: SPACING.md,
+    paddingVertical: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderRadius: RADII.md,
+    backgroundColor: `${COLORS.gold}15`,
+    borderWidth: 1,
+    borderColor: `${COLORS.gold}35`,
+    alignItems: 'center',
+  },
+  dailyBonusText: { fontFamily: FONTS.bodySemiBold, fontSize: 13, color: COLORS.gold3 },
 
   footer: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4, textAlign: 'center', paddingTop: SPACING.xl },
 });

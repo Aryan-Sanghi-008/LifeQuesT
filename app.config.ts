@@ -38,6 +38,7 @@ const config: ExpoConfig = {
     'expo-dev-client',
     'expo-font',
     '@react-native-firebase/app',
+    '@react-native-firebase/crashlytics',
     [
       'react-native-google-mobile-ads',
       {

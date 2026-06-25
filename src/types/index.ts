@@ -152,6 +152,7 @@ export interface Character {
   luckBoostsRemaining: number;
   hasReincarnationScroll: boolean;
   createdAt: number;
+  updatedAt: number;
 }
 
 // ─── Life Events ─────────────────────────────────────────────────────────────

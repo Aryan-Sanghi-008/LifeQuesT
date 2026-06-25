@@ -30,7 +30,7 @@ function getMmkvStorage(): MmkvStorage {
   return mmkvStorage;
 }
 
-function useMmkv(): boolean {
+function canUseMmkvStorage(): boolean {
   if (mmkvDisabled || !isMmkvAvailable()) return false;
   try {
     getMmkvStorage();
@@ -44,12 +44,12 @@ function useMmkv(): boolean {
 }
 
 function getString(key: string): string | undefined {
-  if (useMmkv()) return getMmkvStorage().getString(key);
+  if (canUseMmkvStorage()) return getMmkvStorage().getString(key);
   return asyncCache.get(key);
 }
 
 function setString(key: string, value: string): void {
-  if (useMmkv()) {
+  if (canUseMmkvStorage()) {
     getMmkvStorage().set(key, value);
     return;
   }
@@ -58,7 +58,7 @@ function setString(key: string, value: string): void {
 }
 
 function deleteKey(key: string): void {
-  if (useMmkv()) {
+  if (canUseMmkvStorage()) {
     getMmkvStorage().delete(key);
     return;
   }
@@ -67,7 +67,7 @@ function deleteKey(key: string): void {
 }
 
 async function hydrateAsyncCache(): Promise<void> {
-  if (asyncHydrated || useMmkv()) return;
+  if (asyncHydrated || canUseMmkvStorage()) return;
   asyncHydrated = true;
 
   const keys = [
@@ -139,6 +139,16 @@ export async function migrateLegacySaves(): Promise<Character | null> {
   return char;
 }
 
+const DAILY_BONUS_KEY = 'daily_bonus_last_claim';
+
+export function getDailyBonusLastClaim(): string | null {
+  return getString(DAILY_BONUS_KEY) ?? null;
+}
+
+export function setDailyBonusLastClaim(dateKey: string): void {
+  setString(DAILY_BONUS_KEY, dateKey);
+}
+
 export function normalizeCharacter(char: Character): Character {
   if (!char.gender) char.gender = 'male';
   if (!char.avatarSeed) char.avatarSeed = char.name + char.id;
@@ -150,5 +160,6 @@ export function normalizeCharacter(char: Character): Character {
   if (!char.assets) char.assets = [];
   if (char.luckBoostsRemaining === undefined) char.luckBoostsRemaining = 0;
   if (char.hasReincarnationScroll === undefined) char.hasReincarnationScroll = false;
+  if (!char.updatedAt) char.updatedAt = char.createdAt ?? Date.now();
   return char;
 }

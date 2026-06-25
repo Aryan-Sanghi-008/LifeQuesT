@@ -27,14 +27,15 @@ import {
 } from "@expo-google-fonts/jetbrains-mono";
 import RootNavigator from "@navigation/RootNavigator";
 import { useGameStore } from "@store/gameStore";
-import { initAuth, subscribeAuth } from "./src/services/auth";
-import { initAds } from "./src/services/ads";
+import { initAuth, subscribeAuth } from "@services/auth";
+import { initAds } from "@services/ads";
 import {
   initIAP,
   setupPurchaseListeners,
   processVerifiedPurchase,
-} from "./src/services/iap";
-import { logEvent } from "./src/services/analytics";
+} from "@services/iap";
+import { logEvent } from "@services/analytics";
+import { initCrashReporting } from "@services/crashReporting";
 import "./global.css";
 
 void SplashScreen.preventAutoHideAsync().catch(() => {
@@ -50,7 +51,7 @@ if (
 
 export default function App() {
   const loadGame = useGameStore((s) => s.loadGame);
-  const setUser = useGameStore((s) => s.setUser);
+  const onUserChanged = useGameStore((s) => s.onUserChanged);
 
   const [fontsLoaded, fontError] = useFonts({
     "PlayfairDisplay-Black": PlayfairDisplay_900Black,
@@ -73,13 +74,13 @@ export default function App() {
   useEffect(() => {
     initAuth();
     const unsubAuth = subscribeAuth((user) => {
-      setUser(user);
+      void onUserChanged(user);
     });
     void loadGame();
     return () => {
       unsubAuth();
     };
-  }, [loadGame, setUser]);
+  }, [loadGame, onUserChanged]);
 
   // Defer native monetization SDKs until UI is ready (avoids launch-time native crashes).
   useEffect(() => {
@@ -101,6 +102,7 @@ export default function App() {
     const task = InteractionManager.runAfterInteractions(() => {
       if (cancelled) return;
       void initAds();
+      void initCrashReporting();
       void initIAP(onPurchaseSuccess);
       cleanupIAP = setupPurchaseListeners(
         onPurchaseSuccess,

@@ -28,6 +28,7 @@ interface GradientButtonProps {
   style?: StyleProp<ViewStyle>;
   icon?: ReactNode;
   size?: "sm" | "md" | "lg";
+  accessibilityLabel?: string;
 }
 
 export function GradientButton({
@@ -40,6 +41,7 @@ export function GradientButton({
   style,
   icon,
   size = "lg",
+  accessibilityLabel,
 }: GradientButtonProps) {
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -62,6 +64,8 @@ export function GradientButton({
         onPressIn={onPressIn}
         onPressOut={onPressOut}
         disabled={disabled || loading}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel ?? label}
         android_ripple={{ color: "rgba(255,255,255,0.20)", borderless: false }}
         style={{ borderRadius: RADII.lg, overflow: "hidden" }}
       >
