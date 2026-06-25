@@ -87,6 +87,8 @@ function ChoiceCard({ choice, onPress, index, accentColor }: ChoiceCardProps) {
     <Animated.View style={{ transform: [{ scale }] }}>
       <Pressable
         onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={choice.text}
         onPressIn={() =>
           Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, damping: 18, stiffness: 220 }).start()
         }

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import {
-  Character, CharacterStats, StatEffect,
+  Character, CharacterStats,
   PendingDecision, AppUser, AvatarId, FamilyBackground,
   Gender, Asset, SaveSlot,
   DailyQuest, Person,
@@ -9,7 +9,7 @@ import {
 import {
   TRAITS, COUNTRIES, ACTIVITIES, JOBS, ACHIEVEMENT_COIN_REWARDS,
 } from '../data/gameData';
-import { generateParents, generatePartner, generatePet } from '../utils/npcGenerator';
+import { generateParents, generatePet } from '../utils/npcGenerator';
 import { applyEffect, computeNetWorth, clamp, investInMarket } from '../engine/economyEngine';
 import {
   applySuccessChance, consumeLuckBoost,
@@ -38,7 +38,6 @@ import {
 import { logEvent } from '../services/analytics';
 import { writeWidgetSnapshot } from '../services/widgetSnapshot';
 import { recordCrime } from '../engine/crimeEngine';
-import { advanceRelationship, processDivorce } from '../engine/relationshipEngine';
 import {
   foundBusiness as createBusiness,
   sellBusiness as liquidateBusiness,
@@ -51,6 +50,7 @@ import {
   pickDailyQuests, updateQuestProgress, isQuestComplete, claimQuest, stampKarmaBaseline,
 } from '../engine/questEngine';
 import { runAgeUp } from '../engine/ageUpEngine';
+import { runResolveDecision } from '../engine/resolveDecisionEngine';
 import { SEASON_PASS_TIERS } from '../data/gameData';
 
 function generateId(): string {
@@ -165,14 +165,6 @@ function buildCharacter(data: CreateCharacterPayload): Character {
   });
 }
 
-function applyJobUpdate(
-  jobTitle: string,
-  currentCareer: Character['career'],
-): { job: string; career: Character['career'] } {
-  const career = jobToCareer(jobTitle) ?? currentCareer;
-  return { job: jobTitle, career: career ?? currentCareer };
-}
-
 function buildLocalSlotList(): SaveSlot[] {
   return listLocalSlots().map(slotId => {
     const char = loadCharacterLocal(slotId);
@@ -208,6 +200,7 @@ interface GameStore {
   slotsSynced: boolean;
   dailyQuests: DailyQuest[];
   studyQuestions: StudyQuestion[] | null;
+  lastAgeUpNotice: string | null;
 
   setUser: (user: AppUser | null) => void;
   onUserChanged: (user: AppUser | null) => Promise<void>;
@@ -228,6 +221,7 @@ interface GameStore {
     setSeasonPass: (v: boolean) => void;
   createCharacter: (payload: CreateCharacterPayload) => void;
   ageUp: () => void;
+  clearAgeUpNotice: () => void;
   resolveDecision: (choiceId: string) => void;
   dismissDecision: () => void;
   performActivity: (activityId: string) => { success: boolean; message: string };
@@ -273,6 +267,7 @@ export const useGameStore = create<GameStore>()(
     slotsSynced: false,
     dailyQuests: [],
     studyQuestions: null,
+    lastAgeUpNotice: null,
 
     setUser: (user) => set(s => { s.user = user; }),
 
@@ -578,6 +573,7 @@ export const useGameStore = create<GameStore>()(
       if (outcome.type === 'jail_tick') {
         set(s => {
           if (s.character) s.character.criminalRecord = outcome.criminalRecord;
+          s.lastAgeUpNotice = outcome.message;
         });
         void get()._persist();
         return;
@@ -628,91 +624,19 @@ export const useGameStore = create<GameStore>()(
       void get()._persist();
     },
 
+    clearAgeUpNotice: () => set(s => { s.lastAgeUpNotice = null; }),
+
     resolveDecision: (choiceId) => {
       const { character, pendingDecision } = get();
       if (!character || !pendingDecision) return;
 
-      const { event } = pendingDecision;
-      const choice = event.choices?.find(c => c.id === choiceId);
-      if (!choice) return;
-
-      const isLucky = character.traits.includes('lucky');
-      const hadChance = choice.successChance !== undefined;
-      let luckBoosts = character.luckBoostsRemaining;
-      const success = applySuccessChance(choice.successChance, isLucky, luckBoosts);
-      if (hadChance && luckBoosts > 0 && !isLucky) luckBoosts = consumeLuckBoost(isLucky, luckBoosts, hadChance);
-
-      const effectToApply: StatEffect = success
-        ? { ...event.statEffect, ...choice.statEffect }
-        : event.statEffect;
-      const bankDelta = success ? (choice.bankEffect ?? event.bankEffect ?? 0) : (event.bankEffect ?? 0);
-
-      let { stats, karma, bankBalance } = applyEffect(
-        character.stats, character.karma, character.bankBalance,
-        effectToApply, bankDelta, character.assets,
-      );
-
-      let updatedJob = character.job;
-      let career = character.career;
-      let updatedEducation = character.educationLevel;
-      let updatedPeople = [...character.people];
-      let updatedRelationships = character.relationships;
-      let updatedChildren = character.children;
-
-      if (success) {
-        const jobTitle = choice.updatesJob ?? event.updatesJob;
-        if (jobTitle) {
-          const u = applyJobUpdate(jobTitle, career);
-          updatedJob = u.job;
-          if (u.career) career = u.career;
-        }
-        if (choice.updatesEducation ?? event.updatesEducation) {
-          updatedEducation = (choice.updatesEducation ?? event.updatesEducation)!;
-        }
-        if (choice.incrementsRelationships) updatedRelationships += 1;
-        if (choice.incrementsChildren) {
-          updatedChildren += 1;
-          const childName = character.name.split(' ')[0] + ' Jr.';
-          updatedPeople.push({
-            id: generateId(), name: childName, age: 0,
-            gender: Math.random() > 0.5 ? 'male' : 'female',
-            relationType: 'child', relationshipScore: 80,
-            avatarSeed: childName, isAlive: true,
-          });
-        }
-        if (choice.addsPerson?.relationType === 'spouse') {
-          const partner = { ...generatePartner(character.name, character.age), relationType: 'spouse' as const };
-          updatedPeople.push(advanceRelationship(partner, 'marry'));
-        }
-        if (event.id === 'divorce') {
-          const spouse = updatedPeople.find(p => p.relationType === 'spouse');
-          if (spouse) {
-            const divorced = processDivorce({ ...character, people: updatedPeople }, spouse.id);
-            updatedPeople = divorced.people;
-            stats = divorced.stats;
-          }
-        }
-      }
+      const result = runResolveDecision(character, pendingDecision.event, choiceId);
+      if (!result) return;
 
       set(s => {
         if (!s.character) return;
-        s.character.stats = stats;
-        s.character.karma = karma;
-        s.character.bankBalance = bankBalance;
-        s.character.job = updatedJob;
-        s.character.career = career;
-        s.character.educationLevel = updatedEducation;
-        s.character.people = updatedPeople;
-        s.character.relationships = updatedRelationships;
-        s.character.children = updatedChildren;
-        s.character.luckBoostsRemaining = luckBoosts;
-        s.character.netWorthPeak = Math.max(s.character.netWorthPeak, computeNetWorth(s.character));
-        s.character.eventHistory.push({
-          id: event.id, age: character.age, title: event.title,
-          description: success ? (choice.successText ?? choice.text) : (choice.failText ?? `${choice.text} — but it didn't work out.`),
-          statEffect: effectToApply, choiceMade: choice.text,
-          category: event.category, color: event.color, timestamp: Date.now(),
-        });
+        Object.assign(s.character, result.patch);
+        s.character.eventHistory.push(result.eventRecord);
         s.pendingDecision = null;
       });
 

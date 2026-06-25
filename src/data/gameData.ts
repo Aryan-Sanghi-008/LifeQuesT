@@ -1,6 +1,6 @@
 import { LifeEvent, AvatarId, Activity, ActivityCategory } from '../types';
 import { COLORS } from '../theme/themes';
-import { generateExpansionEvents } from './events/expansion';
+import { EXPANSION_AUTHORED_EVENTS } from './events/expansionAuthored';
 import { CRIME_EVENTS } from './events/crime';
 import { SOCIAL_VIRALITY_EVENTS } from './events/social';
 import { COUNTRY_EVENTS } from './events/country';
@@ -1166,7 +1166,7 @@ export const LIFE_EVENTS: LifeEvent[] = [
   ...BUSINESS_EVENTS,
   ...EDUCATION_EVENTS,
   ...COUNTRY_EVENTS,
-  ...generateExpansionEvents(127),
+  ...EXPANSION_AUTHORED_EVENTS,
 ];
 
 export const SEASON_PASS_TIERS = [

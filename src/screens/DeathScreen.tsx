@@ -206,7 +206,7 @@ export default function DeathScreen() {
     <View style={styles.root}>
       {/* Dark gradient bg */}
       <LinearGradient
-        colors={['#020408', '#05080F', '#020408']}
+        colors={[COLORS.deathBg, COLORS.deathBg2, COLORS.deathBg]}
         style={StyleSheet.absoluteFill}
       />
 
@@ -349,7 +349,7 @@ export default function DeathScreen() {
 }
 
 const styles = StyleSheet.create({
-  root:  { flex: 1, backgroundColor: '#020408' },
+  root:  { flex: 1, backgroundColor: COLORS.deathBg },
   safe:  { flex: 1 },
   scroll:{ paddingHorizontal: SPACING.lg, alignItems: 'center' },
 

@@ -23,7 +23,7 @@ jobs:
         run: npm run type-check
 
       - name: Test
-        run: npm test
+        run: npm test -- --coverage --watchman=false
 
       - name: Functions test
         run: cd functions && npm test

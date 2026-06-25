@@ -71,6 +71,10 @@ export const COLORS = {
   border:  '#E5E7EB',      // Standard card border
   border2: '#F3F4F6',      // Hairline / subtle divider
 
+  // ─── Death screen (dark palette) ───────────────────────────────────────────
+  deathBg:  '#020408',
+  deathBg2: '#05080F',
+
   // ─── Shadows ────────────────────────────────────────────────────────────────
   shadowCard: 'rgba(15,23,42,0.08)',
   shadowStrong: 'rgba(15,23,42,0.14)',

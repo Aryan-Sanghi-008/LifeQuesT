@@ -14,8 +14,9 @@ import { AvatarStyleId } from '../types';
 import { StatBar, Card, Badge, SectionLabel, Divider } from '../components/index';
 import { ACHIEVEMENTS } from '../data/gameData';
 import { formatCurrency } from '../utils/currency';
+import { formatCount } from '../utils/formatCount';
 import { getPrivacyPolicyUrl, getTermsUrl, openLegalUrl } from '../config/legal';
-import { getNotificationsEnabled } from '../services/persistence';
+import { getNotificationsEnabled, getHapticsEnabled, setHapticsEnabled, getSoundEnabled, setSoundEnabled } from '../services/persistence';
 import { setNotificationsPreference } from '../services/notifications';
 import Svg, { Path, Circle } from 'react-native-svg';
 
@@ -101,9 +102,9 @@ export function ProfileScreen() {
   const claimQuestReward = useGameStore(s => s.claimQuestReward);
   const setAvatarStyle = useGameStore(s => s.setAvatarStyle);
 
-  const [sound, setSound]   = useState(true);
+  const [sound, setSound]   = useState(getSoundEnabled());
   const [notif, setNotif]   = useState(getNotificationsEnabled());
-  const [haptic, setHaptic] = useState(true);
+  const [haptic, setHaptic] = useState(getHapticsEnabled());
 
   useEffect(() => {
     loadDailyQuests();
@@ -132,7 +133,7 @@ export function ProfileScreen() {
     zodiac, traits, karma, achievements, eventHistory,
     relationships, children, isPremium,
     coins, gems, bankBalance, countryCode,
-    avatarStyle, unlockedAvatarStyles,
+    avatarStyle, unlockedAvatarStyles, socialFollowers,
   } = character;
 
   const AVATAR_STYLE_LABELS: Record<AvatarStyleId, string> = {
@@ -177,12 +178,12 @@ export function ProfileScreen() {
   };
 
   return (
-    <View style={styles.root}>
-      <SafeAreaView style={styles.safe} edges={['top']}>
+    <View className="flex-1 bg-bg">
+      <SafeAreaView className="flex-1" edges={['top']}>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
           {/* ── Hero ── */}
-          <View style={styles.hero}>
+          <View className="items-center pt-6 pb-5 px-4 gap-3 overflow-hidden">
             {/* Soft gradient banner */}
             <LinearGradient
               colors={[`${avatarRingColor}18`, `${avatarRingColor}04`, COLORS.bg]}
@@ -227,7 +228,7 @@ export function ProfileScreen() {
             </View>
 
             <Text style={styles.heroName}>{name}</Text>
-            <Text style={styles.heroSub}>{job} · {countryFlag} {country}</Text>
+            <Text className="font-body text-[13px] text-t-3">{job} · {countryFlag} {country}</Text>
 
             {/* Badges row */}
             <View style={styles.heroBadges}>
@@ -288,6 +289,8 @@ export function ProfileScreen() {
               <LifeStatRow icon={<Svg width={16} height={16} viewBox="0 0 24 24" fill="none"><Path stroke={COLORS.health} strokeWidth={2} fill="none" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></Svg>} label="Relationships" value={relationships} color={COLORS.health} />
               <Divider />
               <LifeStatRow icon={<Svg width={16} height={16} viewBox="0 0 24 24" fill="none"><Circle stroke={COLORS.gold} strokeWidth={2} cx="9" cy="7" r="4"/><Path stroke={COLORS.gold} strokeWidth={2} strokeLinecap="round" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M23 21v-2a4 4 0 00-3-3.87"/></Svg>} label="Children" value={children} color={COLORS.gold} />
+              <Divider />
+              <LifeStatRow icon={<Svg width={16} height={16} viewBox="0 0 24 24" fill="none"><Circle stroke={COLORS.social} strokeWidth={2} cx="9" cy="7" r="4"/><Path stroke={COLORS.social} strokeWidth={2} strokeLinecap="round" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M23 21v-2a4 4 0 00-3-3.87"/></Svg>} label="Followers" value={formatCount(socialFollowers ?? 0)} color={COLORS.social} />
               <Divider />
               <LifeStatRow icon={<Svg width={16} height={16} viewBox="0 0 24 24" fill="none"><Path stroke={COLORS.orchid} strokeWidth={2} d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></Svg>} label="Achievements" value={`${unlockedAch} / ${ACHIEVEMENTS.length}`} color={COLORS.orchid} />
               <Divider />
@@ -378,7 +381,7 @@ export function ProfileScreen() {
                 label="Sound Effects"
                 desc="In-game sounds and music"
                 value={sound}
-                onChange={setSound}
+                onChange={(v) => { setSound(v); setSoundEnabled(v); }}
                 iconBg={`${COLORS.sapphire}12`}
               />
               <Divider />
@@ -399,7 +402,7 @@ export function ProfileScreen() {
                 label="Haptic Feedback"
                 desc="Vibration on button press"
                 value={haptic}
-                onChange={setHaptic}
+                onChange={(v) => { setHaptic(v); setHapticsEnabled(v); }}
                 iconBg={`${COLORS.orchid}12`}
               />
             </Card>

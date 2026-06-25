@@ -203,3 +203,33 @@ export function saveWidgetSnapshot(snapshot: string): void {
 export function getWidgetSnapshot(): string | null {
   return getString(WIDGET_SNAPSHOT_KEY) ?? null;
 }
+
+const HAPTICS_KEY = 'haptics_enabled';
+const SOUND_KEY = 'sound_enabled';
+const LEADERBOARD_CACHE_KEY = 'leaderboard_cache';
+
+export function getHapticsEnabled(): boolean {
+  const v = getString(HAPTICS_KEY);
+  return v === null || v === 'true';
+}
+
+export function setHapticsEnabled(enabled: boolean): void {
+  setString(HAPTICS_KEY, enabled ? 'true' : 'false');
+}
+
+export function getSoundEnabled(): boolean {
+  const v = getString(SOUND_KEY);
+  return v === null || v === 'true';
+}
+
+export function setSoundEnabled(enabled: boolean): void {
+  setString(SOUND_KEY, enabled ? 'true' : 'false');
+}
+
+export function getLeaderboardCache(): string | null {
+  return getString(LEADERBOARD_CACHE_KEY) ?? null;
+}
+
+export function setLeaderboardCache(json: string): void {
+  setString(LEADERBOARD_CACHE_KEY, json);
+}

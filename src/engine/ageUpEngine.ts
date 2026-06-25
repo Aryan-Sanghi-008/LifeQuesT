@@ -28,7 +28,12 @@ function applyJobUpdate(
 const VIRAL_EVENT_IDS = ['viral_moment', 'follower_1k', 'follower_10k'];
 
 export type AgeUpOutcome =
-  | { type: 'jail_tick'; criminalRecord: NonNullable<Character['criminalRecord']> }
+  | {
+    type: 'jail_tick';
+    criminalRecord: NonNullable<Character['criminalRecord']>;
+    yearsRemaining: number;
+    message: string;
+  }
   | { type: 'death'; patch: Partial<Character> }
   | {
     type: 'pending_decision';
@@ -53,9 +58,15 @@ export interface AgeUpOptions {
 export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOutcome {
   if (isInJail(character)) {
     const jailed = tickJail(character);
+    const yearsRemaining = jailed.criminalRecord?.jailYearsRemaining ?? 0;
+    const message = yearsRemaining > 0
+      ? `Serving time — ${yearsRemaining} year${yearsRemaining === 1 ? '' : 's'} left`
+      : 'Your sentence is complete. You are free.';
     return {
       type: 'jail_tick',
       criminalRecord: jailed.criminalRecord!,
+      yearsRemaining,
+      message,
     };
   }
 

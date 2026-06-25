@@ -6,18 +6,20 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, FONTS, RADII, SPACING, ANIM } from '../constants/theme';
-import { RootStackParamList } from '../types';
-import { useGameStore } from '../store/gameStore';
-import { AvatarByCharacter } from '../components/Avatars';
-import EventCard from '../components/EventCard';
-import DecisionSheet from '../components/DecisionSheet';
-import { StatBar } from '../components/index';
-import { LifeEventRecord, CharacterStats } from '../types';
-import { maybeShowInterstitial } from '../services/ads';
-import { INTERSTITIAL_EVERY_N_AGEUPS } from '../config/ads';
-import { logEvent } from '../services/analytics';
-import { formatCurrency } from '../utils/currency';
+import { COLORS, FONTS, RADII, SPACING, ANIM } from '@constants/theme';
+import { RootStackParamList } from '@/types';
+import { useGameStore } from '@store/gameStore';
+import { AvatarByCharacter } from '@components/Avatars';
+import EventCard from '@components/EventCard';
+import DecisionSheet from '@components/DecisionSheet';
+import { StatBar } from '@components/StatBar';
+import { LifeEventRecord, CharacterStats } from '@/types';
+import { maybeShowInterstitial } from '@services/ads';
+import { INTERSTITIAL_EVERY_N_AGEUPS } from '@config/ads';
+import { logEvent } from '@services/analytics';
+import { formatCurrency } from '@utils/currency';
+import { triggerLightImpact } from '@utils/haptics';
+import { isInJail } from '@engine/crimeEngine';
 import Svg, { Path, Circle } from 'react-native-svg';
 
 // ─── Stat config ──────────────────────────────────────────────────────────────
@@ -33,15 +35,15 @@ const MINI_STATS = [
 
 function StatsStrip({ stats }: { stats: Pick<CharacterStats, 'health' | 'happiness' | 'intelligence' | 'fitness'> }) {
   return (
-    <View style={strip.row}>
+    <View className="flex-row gap-2 px-4 py-3 bg-bg-card border-t border-border">
       {MINI_STATS.map((s, i) => (
-        <View key={s.key} style={strip.item}>
-          <View style={strip.labelRow}>
-            <View style={[strip.iconDot, { backgroundColor: `${s.color}15` }]}>
+        <View key={s.key} className="flex-1 gap-[5px]">
+          <View className="flex-row items-center gap-1">
+            <View className="w-[18px] h-[18px] rounded-[5px] items-center justify-center" style={{ backgroundColor: `${s.color}15` }}>
               {s.icon(s.color)}
             </View>
-            <Text style={strip.label}>{s.label}</Text>
-            <Text style={[strip.val, { color: s.color }]}>{stats[s.key]}</Text>
+            <Text className="font-body text-[9px] text-t-3 flex-1 tracking-wide">{s.label}</Text>
+            <Text className="font-mono-semibold text-[10px] font-bold" style={{ color: s.color }}>{stats[s.key]}</Text>
           </View>
           <StatBar value={stats[s.key] as number} color={s.color} height={4} delay={i * 40} />
         </View>
@@ -49,15 +51,6 @@ function StatsStrip({ stats }: { stats: Pick<CharacterStats, 'health' | 'happine
     </View>
   );
 }
-
-const strip = StyleSheet.create({
-  row:      { flexDirection: 'row', gap: SPACING.sm, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, backgroundColor: COLORS.bgCard, borderTopWidth: 1, borderTopColor: COLORS.border },
-  item:     { flex: 1, gap: 5 },
-  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  iconDot:  { width: 18, height: 18, borderRadius: 5, alignItems: 'center', justifyContent: 'center' },
-  label:    { fontFamily: FONTS.body, fontSize: 9, color: COLORS.t3, flex: 1, letterSpacing: 0.3 },
-  val:      { fontFamily: FONTS.monoSemiBold, fontSize: 10, fontWeight: '700' },
-});
 
 // ─── Age Up Button ────────────────────────────────────────────────────────────
 
@@ -232,12 +225,21 @@ export function LifeScreen() {
   const character     = useGameStore(s => s.character);
   const pendingDecision = useGameStore(s => s.pendingDecision);
   const isProcessing  = useGameStore(s => s.isProcessing);
+  const lastAgeUpNotice = useGameStore(s => s.lastAgeUpNotice);
+  const clearAgeUpNotice = useGameStore(s => s.clearAgeUpNotice);
   const ageUp         = useGameStore(s => s.ageUp);
   const resolveDecision = useGameStore(s => s.resolveDecision);
   const dismissDecision = useGameStore(s => s.dismissDecision);
 
+  useEffect(() => {
+    if (!lastAgeUpNotice) return;
+    const timer = setTimeout(() => clearAgeUpNotice(), 5000);
+    return () => clearTimeout(timer);
+  }, [lastAgeUpNotice, clearAgeUpNotice]);
+
   const handleAgeUp = useCallback(async () => {
     const wasAlive = useGameStore.getState().character?.isAlive;
+    void triggerLightImpact();
     ageUp();
     const after = useGameStore.getState().character;
     void logEvent('age_up', { age: after?.age ?? 0 });
@@ -254,44 +256,43 @@ export function LifeScreen() {
   const countryCode = character.countryCode ?? 'IN';
   const bankStr = formatCurrency(character.bankBalance, countryCode);
   const lifeStage = character.age < 13 ? 'Childhood' : character.age < 18 ? 'Teenager' : character.age < 30 ? 'Young Adult' : character.age < 60 ? 'Adult' : 'Golden Years';
+  const jailed = isInJail(character);
+  const jailYears = character.criminalRecord?.jailYearsRemaining ?? 0;
+  const jailBannerText = lastAgeUpNotice ?? (jailed ? `Serving time — ${jailYears} year${jailYears === 1 ? '' : 's'} left` : null);
 
   return (
-    <View style={styles.root}>
-      <SafeAreaView style={styles.safe} edges={['top']}>
+    <View className="flex-1 bg-bg">
+      <SafeAreaView className="flex-1" edges={['top']}>
 
         {/* ── Header ── */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            {/* Avatar + live dot */}
-            <View style={styles.avatarContainer}>
-              <View style={styles.avatarWrap}>
+        <View className="flex-row justify-between items-center px-4 py-3 bg-bg-card border-b border-border">
+          <View className="flex-row items-center gap-3 flex-1">
+            <View className="relative">
+              <View className="rounded-[27px] border-[2.5px] border-gold overflow-hidden">
                 <AvatarByCharacter character={character} size={46} />
               </View>
-              <View style={styles.liveDot} />
+              <View className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald border-2 border-bg-card" />
             </View>
 
-            <View style={styles.headerInfo}>
-              <Text style={styles.charName} numberOfLines={1}>{character.name}</Text>
-              <View style={styles.headerMeta}>
-                <View style={[styles.jobBadge, { backgroundColor: `${COLORS.sapphire}12`, borderColor: `${COLORS.sapphire}25` }]}>
-                  <Text style={[styles.jobBadgeText, { color: COLORS.sapphire }]}>{character.job}</Text>
+            <View className="flex-1 gap-[5px]">
+              <Text className="font-body-bold text-[17px] text-t-1" numberOfLines={1}>{character.name}</Text>
+              <View className="flex-row items-center gap-2">
+                <View className="px-2 py-[3px] rounded-full border" style={{ backgroundColor: `${COLORS.sapphire}12`, borderColor: `${COLORS.sapphire}25` }}>
+                  <Text className="font-body-semibold text-[10px] text-sapphire">{character.job}</Text>
                 </View>
-                <Text style={styles.metaText}>{character.countryFlag}</Text>
+                <Text className="font-body text-[13px] text-t-3">{character.countryFlag}</Text>
               </View>
             </View>
           </View>
 
-          <View style={styles.headerRight}>
-            {/* Age circle */}
-            <View style={styles.ageBubble}>
-              <Text style={styles.ageNum}>{character.age}</Text>
-              <Text style={styles.ageLabel}>yrs</Text>
-            </View>
+          <View className="w-[52px] h-[52px] rounded-full bg-sapphire items-center justify-center">
+            <Text className="font-body-bold text-[20px] text-white leading-6">{character.age}</Text>
+            <Text className="font-body text-[9px] text-white/80 leading-[11px]">yrs</Text>
           </View>
         </View>
 
         {/* ── Currency row ── */}
-        <View style={styles.currencyRow}>
+        <View className="flex-row items-center gap-2 px-4 py-2 bg-bg-2 border-b border-border">
           <CurrencyPill
             icon={<Svg width={12} height={12} viewBox="0 0 24 24" fill="none"><Path stroke={COLORS.catFinancial} strokeWidth={2} strokeLinecap="round" d="M3 22h18M3 10h18M5 6l7-4 7 4"/></Svg>}
             value={bankStr}
@@ -314,6 +315,15 @@ export function LifeScreen() {
             <Text style={styles.actBtnText}>Activities</Text>
           </Pressable>
         </View>
+
+        {jailBannerText ? (
+          <Pressable
+            onPress={clearAgeUpNotice}
+            className="mx-4 mt-2 px-3 py-2 rounded-md border border-crimson/25 bg-crimson/10"
+          >
+            <Text className="font-body-semibold text-[13px] text-crimson text-center">{jailBannerText}</Text>
+          </Pressable>
+        ) : null}
 
         {/* ── Life Log ── */}
         {sections.length === 0 ? (
@@ -340,9 +350,9 @@ export function LifeScreen() {
         <StatsStrip stats={character.stats} />
 
         {/* ── Age Up area ── */}
-        <View style={[styles.ageWrap, { paddingBottom: insets.bottom > 0 ? 0 : SPACING.sm }]}>
+        <View className="px-4 pt-2 bg-bg-card border-t border-border gap-1" style={{ paddingBottom: insets.bottom > 0 ? 0 : SPACING.sm }}>
           <AgeUpButton onPress={handleAgeUp} loading={isProcessing} />
-          <Text style={styles.ageHint}>
+          <Text className="font-body text-[11px] text-t-4 text-center pb-2">
             {lifeStage}{' · '}Born {character.birthYear}
           </Text>
         </View>
@@ -358,45 +368,6 @@ export function LifeScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
-  safe: { flex: 1 },
-
-  // Header
-  header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md,
-    backgroundColor: COLORS.bgCard,
-    borderBottomWidth: 1, borderBottomColor: COLORS.border,
-  },
-  headerLeft:  { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, flex: 1 },
-  headerRight: { alignItems: 'center' },
-  avatarContainer: { position: 'relative' },
-  avatarWrap:  { borderRadius: 27, borderWidth: 2.5, borderColor: COLORS.gold, overflow: 'hidden' },
-  liveDot:     { position: 'absolute', bottom: 0, right: 0, width: 12, height: 12, borderRadius: 6, backgroundColor: COLORS.emerald, borderWidth: 2, borderColor: COLORS.bgCard },
-  headerInfo:  { flex: 1, gap: 5 },
-  charName:    { fontFamily: FONTS.bodyBold, fontSize: 17, color: COLORS.t1 },
-  headerMeta:  { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  jobBadge:    { paddingHorizontal: 8, paddingVertical: 3, borderRadius: RADII.full, borderWidth: 1 },
-  jobBadgeText:{ fontFamily: FONTS.bodySemiBold, fontSize: 10 },
-  metaText:    { fontFamily: FONTS.body, fontSize: 13, color: COLORS.t3 },
-
-  // Age bubble
-  ageBubble: {
-    width: 52, height: 52, borderRadius: 26,
-    backgroundColor: COLORS.sapphire,
-    borderWidth: 0,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  ageNum:   { fontFamily: FONTS.bodyBold, fontSize: 20, color: '#FFFFFF', lineHeight: 24 },
-  ageLabel: { fontFamily: FONTS.body, fontSize: 9, color: 'rgba(255,255,255,0.80)', lineHeight: 11 },
-
-  // Currency row
-  currencyRow: {
-    flexDirection: 'row', alignItems: 'center', gap: SPACING.sm,
-    paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm,
-    backgroundColor: COLORS.bg2,
-    borderBottomWidth: 1, borderBottomColor: COLORS.border,
-  },
   actBtn: {
     marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 5,
     paddingHorizontal: 10, paddingVertical: 5,
@@ -404,13 +375,4 @@ const styles = StyleSheet.create({
     borderRadius: RADII.full, borderWidth: 1, borderColor: `${COLORS.orchid}25`,
   },
   actBtnText: { fontFamily: FONTS.bodySemiBold, fontSize: 11, color: COLORS.orchid },
-
-  // Age up area
-  ageWrap: {
-    paddingHorizontal: SPACING.lg, paddingTop: SPACING.sm,
-    backgroundColor: COLORS.bgCard,
-    borderTopWidth: 1, borderTopColor: COLORS.border,
-    gap: 4,
-  },
-  ageHint: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4, textAlign: 'center', paddingBottom: SPACING.sm },
 });

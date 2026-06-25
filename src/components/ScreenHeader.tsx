@@ -1,6 +1,6 @@
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { COLORS, FONTS, RADII, SPACING } from '@constants/theme';
+import { COLORS } from '@constants/theme';
 import Svg, { Path } from 'react-native-svg';
 
 interface ScreenHeaderProps {
@@ -13,15 +13,17 @@ export function ScreenHeader({ title, subtitle, showClose = true }: ScreenHeader
   const navigation = useNavigation();
 
   return (
-    <View style={styles.row}>
-      <View style={styles.textCol}>
-        <Text style={styles.title}>{title}</Text>
-        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+    <View className="flex-row items-start justify-between mb-3">
+      <View className="flex-1 pr-3">
+        <Text className="font-display-bold text-[28px] text-t-1">{title}</Text>
+        {subtitle ? (
+          <Text className="font-body text-[13px] text-t-3 mt-1">{subtitle}</Text>
+        ) : null}
       </View>
       {showClose ? (
         <Pressable
           onPress={() => navigation.goBack()}
-          style={styles.closeBtn}
+          className="w-10 h-10 rounded-md border border-border items-center justify-center bg-bg-card"
           accessibilityRole="button"
           accessibilityLabel="Close"
         >
@@ -33,25 +35,3 @@ export function ScreenHeader({ title, subtitle, showClose = true }: ScreenHeader
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: SPACING.md,
-  },
-  textCol: { flex: 1, paddingRight: SPACING.md },
-  title: { fontFamily: FONTS.displayBold, fontSize: 28, color: COLORS.t1 },
-  subtitle: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.t3, marginTop: 4 },
-  closeBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: RADII.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.bgCard,
-  },
-});

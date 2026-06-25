@@ -20,9 +20,16 @@ module.exports = {
   },
   collectCoverageFrom: [
     'src/engine/**/*.ts',
-    'src/store/**/*.ts',
-    '!**/__tests__/**',
+    '!src/engine/**/__tests__/**',
   ],
+  coverageThreshold: {
+    global: {
+      lines: 0,
+    },
+    'src/engine/': {
+      lines: 50,
+    },
+  },
   testPathIgnorePatterns: ['/node_modules/', '<rootDir>/functions/'],
   transformIgnorePatterns: [
     'node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg|immer|zustand)',

@@ -3,11 +3,11 @@ import {
   View, Text, ScrollView, Pressable, StyleSheet, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, FONTS, RADII, SPACING } from '../constants/theme';
 import { useGameStore } from '../store/gameStore';
 import { ACTIVITIES } from '../data/gameData';
 import { Activity, ActivityCategory } from '../types';
+import { ScreenHeader } from '../components/ScreenHeader';
 import Svg, { Path, Circle } from 'react-native-svg';
 
 // ─── Category SVG icons ───────────────────────────────────────────────────────
@@ -161,10 +161,9 @@ export function ActivitiesScreen() {
   return (
     <View style={styles.root}>
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <LinearGradient colors={[COLORS.bg2, COLORS.bg]} style={styles.header}>
-          <Text style={styles.headerTitle}>Activities</Text>
-          <Text style={styles.headerSub}>Things you can do right now</Text>
-        </LinearGradient>
+        <View style={styles.headerWrap}>
+          <ScreenHeader title="Activities" subtitle="Things you can do right now" />
+        </View>
 
         {/* Filter chips */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterBar} contentContainerStyle={styles.filterContent}>
@@ -217,9 +216,7 @@ export function ActivitiesScreen() {
 const styles = StyleSheet.create({
   root:         { flex: 1, backgroundColor: COLORS.bg },
   safe:         { flex: 1 },
-  header:       { paddingHorizontal: SPACING.lg, paddingVertical: SPACING.lg, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  headerTitle:  { fontFamily: FONTS.displayBold, fontSize: 22, color: COLORS.t1 },
-  headerSub:    { fontFamily: FONTS.body, fontSize: 12, color: COLORS.t3, marginTop: 2 },
+  headerWrap:   { paddingHorizontal: SPACING.lg, paddingTop: SPACING.md },
   filterBar:    { borderBottomWidth: 1, borderBottomColor: COLORS.border, backgroundColor: COLORS.bg2 },
   filterContent:{ flexDirection: 'row', gap: SPACING.sm, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm },
   filterChip:   { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: SPACING.md, paddingVertical: 6, backgroundColor: COLORS.bgCard, borderRadius: RADII.full, borderWidth: 1, borderColor: COLORS.border },

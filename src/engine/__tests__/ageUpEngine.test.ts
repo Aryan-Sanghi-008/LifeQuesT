@@ -57,6 +57,8 @@ describe('runAgeUp', () => {
     expect(outcome.type).toBe('jail_tick');
     if (outcome.type === 'jail_tick') {
       expect(outcome.criminalRecord.jailYearsRemaining).toBe(1);
+      expect(outcome.yearsRemaining).toBe(1);
+      expect(outcome.message).toContain('Serving time');
     }
   });
 

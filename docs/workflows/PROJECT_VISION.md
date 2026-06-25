@@ -30,23 +30,23 @@ A mobile life-simulation RPG (React Native / Expo SDK 56) where players live vir
 - [x] Reincarnation with stat carry
 
 ### Phase 2 — Depth & Engagement
-- [ ] Expanded event library (500+ events)
-- [ ] Personality traits expansion (25+ traits)
-- [ ] Education mini-games (study sessions)
-- [ ] Crime & karma consequences
-- [ ] Mental health stat
-- [ ] Relationship depth (dating → marriage → divorce)
-- [ ] Social media virality events
-- [ ] Business ownership engine
-- [ ] Leaderboards (Firebase)
+- [ ] Expanded event library (500+ events) — ~50 authored expansion batch shipped; full library ongoing
+- [x] Personality traits expansion (15 traits shipped; 25+ roadmap)
+- [x] Education mini-games (study sessions)
+- [x] Crime & karma consequences
+- [x] Mental health stat
+- [x] Relationship depth (dating → marriage → divorce)
+- [x] Social media virality events
+- [x] Business ownership engine
+- [x] Leaderboards (Firebase)
 
 ### Phase 3 — Growth & Monetization
-- [ ] Daily challenges / quests
-- [ ] Season pass system
-- [ ] Cosmetic avatar packs
-- [ ] Country-specific event libraries
-- [ ] Push notifications (life reminders)
-- [ ] Android widget
+- [x] Daily challenges / quests
+- [x] Season pass system
+- [x] Cosmetic avatar packs
+- [x] Country-specific event libraries
+- [x] Push notifications (life reminders)
+- [ ] Android widget (JS snapshot only; native widget deferred)
 
 ### Phase 4 — Platform & Scale
 - [ ] iOS & Android store release

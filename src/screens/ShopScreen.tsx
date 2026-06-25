@@ -67,7 +67,7 @@ function PremiumBanner({ isPremium, onPress }: { isPremium: boolean; onPress: ()
         style={{ borderRadius: RADII.xl, overflow: 'hidden' }}
       >
         <LinearGradient
-          colors={['#1E3A8A', '#2563EB', '#1E40AF']}
+          colors={[COLORS.sapphire2, COLORS.sapphire, COLORS.sapphire2]}
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
           style={styles.premiumCard}
         >
