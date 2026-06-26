@@ -38,7 +38,6 @@ import { logEvent } from "@services/analytics";
 import { initCrashReporting } from "@services/crashReporting";
 import { initNotifications } from "@services/notifications";
 import { initAudio } from "@services/audio";
-import "./global.css";
 
 void SplashScreen.preventAutoHideAsync().catch(() => {
   /* splash plugin unavailable in some builds */

@@ -178,12 +178,12 @@ export function ProfileScreen() {
   };
 
   return (
-    <View className="flex-1 bg-bg">
-      <SafeAreaView className="flex-1" edges={['top']}>
+    <View style={styles.root}>
+      <SafeAreaView style={styles.safe} edges={['top']}>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
           {/* ── Hero ── */}
-          <View className="items-center pt-6 pb-5 px-4 gap-3 overflow-hidden">
+          <View style={styles.hero}>
             {/* Soft gradient banner */}
             <LinearGradient
               colors={[`${avatarRingColor}18`, `${avatarRingColor}04`, COLORS.bg]}
@@ -228,7 +228,7 @@ export function ProfileScreen() {
             </View>
 
             <Text style={styles.heroName}>{name}</Text>
-            <Text className="font-body text-[13px] text-t-3">{job} · {countryFlag} {country}</Text>
+            <Text style={styles.heroSub}>{job} · {countryFlag} {country}</Text>
 
             {/* Badges row */}
             <View style={styles.heroBadges}>
@@ -480,9 +480,15 @@ const styles = StyleSheet.create({
 
   // Hero
   hero: {
-    alignItems: 'center', paddingBottom: SPACING.xxl, paddingTop: SPACING.xl,
-    gap: SPACING.sm, overflow: 'hidden', position: 'relative',
-    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+    alignItems: 'center',
+    paddingTop: SPACING.xl,
+    paddingBottom: SPACING.xl,
+    paddingHorizontal: SPACING.lg,
+    gap: SPACING.md,
+    overflow: 'hidden',
+    position: 'relative',
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
   },
   avatarContainer: { position: 'relative' },
   avatarRing: { borderRadius: 54, borderWidth: 3, overflow: 'hidden', ...SHADOWS.card },

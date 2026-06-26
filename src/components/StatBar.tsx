@@ -1,5 +1,6 @@
 import { useRef, useEffect } from 'react';
-import { View, Animated } from 'react-native';
+import { View, Animated, StyleSheet } from 'react-native';
+import { COLORS } from '@constants/theme';
 
 export interface StatBarProps {
   value: number;
@@ -45,10 +46,7 @@ export function StatBar({
   const r = rounded ? height / 2 : 2;
 
   return (
-    <View
-      className="w-full overflow-hidden bg-border-2"
-      style={{ height, borderRadius: r }}
-    >
+    <View style={[styles.track, { height, borderRadius: r }]}>
       <Animated.View
         style={{
           width: widthPct,
@@ -60,3 +58,11 @@ export function StatBar({
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  track: {
+    width: '100%',
+    overflow: 'hidden',
+    backgroundColor: COLORS.border2,
+  },
+});
