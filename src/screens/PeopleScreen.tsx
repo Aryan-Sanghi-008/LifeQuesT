@@ -10,6 +10,7 @@ import { NpcAvatar } from '../components/Avatars';
 import { Card, SectionLabel } from '../components/index';
 import { Person, RelationType } from '../types';
 import { getRelationshipStageLabel } from '@utils/relationshipLabels';
+import { isRelationshipDrifting } from '@engine/relationshipEngine';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 
 // ─── Relationship bar ─────────────────────────────────────────────────────────
@@ -48,6 +49,9 @@ function PersonRow({ person, onPress }: { person: Person; onPress: () => void })
       <View style={pr.info}>
         <Text style={[pr.name, dead && { color: COLORS.t4 }]}>{person.name}</Text>
         <Text style={pr.sub}>{relationLabel[person.relationType]} {person.age > 0 ? `· Age ${person.age}` : ''}</Text>
+        {isRelationshipDrifting(person) && (
+          <Text style={pr.driftChip}>Drifting</Text>
+        )}
         {person.occupation && <Text style={pr.occ}>{person.occupation}</Text>}
       </View>
       <View style={pr.right}>
@@ -75,6 +79,7 @@ const pr = StyleSheet.create({
   info:       { flex: 1, gap: 2 },
   name:       { fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.t1 },
   sub:        { fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4 },
+  driftChip:  { fontFamily: FONTS.bodySemiBold, fontSize: 9, color: COLORS.crimson, marginTop: 2 },
   occ:        { fontFamily: FONTS.body, fontSize: 10, color: COLORS.t4 },
   right:      { width: 52, gap: 4, alignItems: 'flex-end' },
   score:      { fontFamily: FONTS.monoSemiBold, fontSize: 12, color: COLORS.t3 },

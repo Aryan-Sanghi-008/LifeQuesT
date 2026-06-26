@@ -1,51 +1,19 @@
 import { runResolveDecision } from '@engine/resolveDecisionEngine';
-import type { Character, LifeEvent } from '../../types';
+import { createTestCharacter } from '../../test/fixtures/character';
+import type { LifeEvent } from '../../types';
 
-function baseCharacter(overrides: Partial<Character> = {}): Character {
-  return {
-    id: '1',
-    name: 'Test User',
-    gender: 'male',
-    avatarSeed: 'seed',
-    avatarId: 'male_1',
-    lifeStage: 'adult',
-    country: 'India',
-    countryFlag: '🇮🇳',
-    countryCode: 'IN',
-    zodiac: 'aries',
-    familyBackground: 'middle',
-    traits: [],
+function baseCharacter(overrides: Parameters<typeof createTestCharacter>[0] = {}) {
+  return createTestCharacter({
     job: 'Engineer',
     age: 30,
     birthYear: 1996,
-    stats: {
-      health: 80, happiness: 70, intelligence: 60, wealth: 40,
-      fitness: 60, looks: 60, social: 50, ambition: 50, mentalHealth: 70,
-    },
-    karma: 50,
+    educationLevel: 'university',
     bankBalance: 50000,
     netWorthPeak: 50000,
-    relationships: 0,
-    children: 0,
-    educationLevel: 'university',
-    people: [],
-    career: null,
-    assets: [],
-    achievements: [],
-    eventHistory: [],
-    isAlive: true,
     coins: 100,
-    gems: 0,
-    isPremium: false,
-    hasNoAds: false,
     luckBoostsRemaining: 1,
-    hasReincarnationScroll: false,
-    businesses: [],
-    socialFollowers: 0,
-    createdAt: 1,
-    updatedAt: 1,
     ...overrides,
-  };
+  });
 }
 
 const choiceEvent: LifeEvent = {

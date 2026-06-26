@@ -1,51 +1,16 @@
 import {
   applyEntitlementsToCharacter, hasPendingGrants,
 } from '@utils/entitlementGrants';
-import type { Character } from '../../types';
+import { createTestCharacter } from '../../test/fixtures/character';
 
-const baseCharacter: Character = {
-  id: '1',
-  name: 'Test',
-  gender: 'male',
-  avatarSeed: 'seed',
-  avatarId: 'male_1',
-  lifeStage: 'adult',
-  country: 'India',
-  countryFlag: '🇮🇳',
-  countryCode: 'IN',
-  zodiac: 'aries',
-  familyBackground: 'middle',
-  traits: [],
-  job: 'Student',
+const baseCharacter = createTestCharacter({
   age: 20,
   birthYear: 2000,
-  stats: {
-    health: 50, happiness: 50, intelligence: 50, wealth: 50,
-    fitness: 50, looks: 50, social: 50, ambition: 50, mentalHealth: 70,
-  },
-  karma: 50,
+  educationLevel: 'none',
   bankBalance: 0,
   netWorthPeak: 0,
-  relationships: 0,
-  children: 0,
-  educationLevel: 'none',
-  people: [],
-  career: null,
-  assets: [],
-  achievements: [],
-  eventHistory: [],
-  isAlive: true,
   coins: 100,
-  gems: 0,
-  isPremium: false,
-  hasNoAds: false,
-  luckBoostsRemaining: 0,
-  hasReincarnationScroll: false,
-  businesses: [],
-  socialFollowers: 0,
-  createdAt: 1,
-  updatedAt: 1,
-};
+});
 
 describe('applyEntitlementsToCharacter', () => {
   it('applies premium and consumable grants', () => {

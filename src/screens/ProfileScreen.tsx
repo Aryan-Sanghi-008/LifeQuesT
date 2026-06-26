@@ -13,6 +13,7 @@ import { AvatarByCharacter } from '../components/Avatars';
 import { StatBar, Card, Badge, SectionLabel, Divider } from '../components/index';
 import { ACHIEVEMENTS } from '../data/gameData';
 import { formatCurrency } from '../utils/currency';
+import { getFinanceSummary } from '../utils/financeSummary';
 import { formatCount } from '../utils/formatCount';
 import { getPrivacyPolicyUrl, getTermsUrl, openLegalUrl } from '../config/legal';
 import { getNotificationsEnabled, getHapticsEnabled, setHapticsEnabled, getSoundEnabled, setSoundEnabled } from '../services/persistence';
@@ -150,7 +151,11 @@ export function ProfileScreen() {
   ];
 
   const cc = countryCode ?? 'IN';
+  const finance = getFinanceSummary(character);
   const bankStr = formatCurrency(bankBalance, cc);
+  const assetsStr = formatCurrency(finance.assetValue, cc);
+  const debtStr = formatCurrency(finance.totalDebt, cc);
+  const netWorthStr = formatCurrency(finance.netWorth, cc);
   const unlockedAch = achievements.length;
 
   const karmaLabel =
@@ -270,27 +275,34 @@ export function ProfileScreen() {
           <View style={styles.section}>
             <SectionLabel label="Finances" />
             <Card>
-              <View style={styles.financeRow}>
-                <View style={[styles.financeIconWrap, { backgroundColor: `${COLORS.wealth}12` }]}>
-                  <Svg width={20} height={20} viewBox="0 0 24 24" fill={COLORS.wealth}>
-                    <Path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
-                  </Svg>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.financeLabel}>Bank Balance</Text>
+              <View style={styles.financeGrid}>
+                <View style={styles.financeCell}>
+                  <Text style={styles.financeLabel}>Bank</Text>
                   <Text style={[styles.financeVal, { color: COLORS.wealth }]}>{bankStr}</Text>
                 </View>
-                <Pressable
-                  onPress={() => navigation.navigate('Shop')}
-                  style={[styles.shopBtn, { backgroundColor: `${COLORS.gold}12`, borderColor: `${COLORS.gold}30` }]}
-                >
-                  <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-                    <Path stroke={COLORS.gold3} strokeWidth={2} strokeLinecap="round" d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
-                    <Path stroke={COLORS.gold3} strokeWidth={2} strokeLinecap="round" d="M3 6h18M16 10a4 4 0 01-8 0"/>
-                  </Svg>
-                  <Text style={styles.shopBtnText}>Shop</Text>
-                </Pressable>
+                <View style={styles.financeCell}>
+                  <Text style={styles.financeLabel}>Assets</Text>
+                  <Text style={[styles.financeVal, { color: COLORS.sapphire }]}>{assetsStr}</Text>
+                </View>
+                <View style={styles.financeCell}>
+                  <Text style={styles.financeLabel}>Debt</Text>
+                  <Text style={[styles.financeVal, { color: COLORS.crimson }]}>{debtStr}</Text>
+                </View>
+                <View style={styles.financeCell}>
+                  <Text style={styles.financeLabel}>Net Worth</Text>
+                  <Text style={[styles.financeVal, { color: COLORS.teal }]}>{netWorthStr}</Text>
+                </View>
               </View>
+              <Pressable
+                onPress={() => navigation.navigate('Shop')}
+                style={[styles.shopBtn, { backgroundColor: `${COLORS.gold}12`, borderColor: `${COLORS.gold}30`, alignSelf: 'flex-end', marginTop: SPACING.sm }]}
+              >
+                <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+                  <Path stroke={COLORS.gold3} strokeWidth={2} strokeLinecap="round" d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+                  <Path stroke={COLORS.gold3} strokeWidth={2} strokeLinecap="round" d="M3 6h18M16 10a4 4 0 01-8 0"/>
+                </Svg>
+                <Text style={styles.shopBtnText}>Shop</Text>
+              </Pressable>
             </Card>
           </View>
 
@@ -536,6 +548,8 @@ const styles = StyleSheet.create({
   section: { paddingHorizontal: SPACING.lg, paddingTop: SPACING.xl },
 
   // Finance
+  financeGrid:   { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.md },
+  financeCell:   { width: '47%', gap: 2 },
   financeRow:    { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
   financeIconWrap:{ width: 44, height: 44, borderRadius: RADII.sm, alignItems: 'center', justifyContent: 'center' },
   financeLabel:  { fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4, textTransform: 'uppercase', letterSpacing: 0.8 },

@@ -5,8 +5,8 @@ import {
 
 describe('jobToCareer', () => {
   it('maps job title to career', () => {
-    const career = jobToCareer('Doctor');
-    expect(career?.title).toBe('Doctor');
+    const career = jobToCareer('Junior Developer');
+    expect(career?.title).toBe('Junior Developer');
     expect(career?.salary).toBeGreaterThan(0);
   });
 
@@ -44,7 +44,7 @@ describe('askForRaise', () => {
 describe('applyForPromotion', () => {
   it('promotes when successful with good performance', () => {
     const career = {
-      title: 'Junior Dev', company: 'Tech Corp', salary: 35000, yearsEmployed: 2, performance: 70,
+      title: 'Junior Developer', company: 'Tech Corp', salary: 35000, yearsEmployed: 3, performance: 70,
     };
     const result = applyForPromotion(career, true);
     expect(result.newTitle).toBeDefined();
@@ -67,6 +67,8 @@ describe('checkCareerEligibility', () => {
     educationLevel: 'university' as const,
     educationStage: 'undergraduate',
     degreeIds: [] as string[],
+    certificationIds: [] as string[],
+    career: null,
     stats: {
       health: 70, happiness: 70, intelligence: 80, wealth: 50,
       fitness: 60, looks: 60, social: 50, ambition: 50, mentalHealth: 70,
@@ -87,6 +89,29 @@ describe('checkCareerEligibility', () => {
     const result = checkCareerEligibility(
       { ...baseChar, degreeIds: ['bsc_cs'] },
       'junior_dev',
+    );
+    expect(result.eligible).toBe(true);
+  });
+
+  it('rejects junior_lawyer without bar_exam certification', () => {
+    const result = checkCareerEligibility(
+      { ...baseChar, age: 26, degreeIds: ['llb'], stats: { ...baseChar.stats, intelligence: 80 } },
+      'junior_lawyer',
+    );
+    expect(result.eligible).toBe(false);
+    expect(result.reason).toContain('certification');
+  });
+
+  it('accepts junior_lawyer with degree and bar_exam', () => {
+    const result = checkCareerEligibility(
+      {
+        ...baseChar,
+        age: 26,
+        degreeIds: ['llb'],
+        certificationIds: ['bar_exam'],
+        stats: { ...baseChar.stats, intelligence: 80 },
+      },
+      'junior_lawyer',
     );
     expect(result.eligible).toBe(true);
   });

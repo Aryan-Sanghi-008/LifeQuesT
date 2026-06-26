@@ -172,6 +172,7 @@ export function normalizeCharacter(char: Character): Character {
   if (char.hasSeasonPass === undefined) char.hasSeasonPass = false;
   if (!char.claimedSeasonTiers) char.claimedSeasonTiers = [];
   if (!char.degreeIds) char.degreeIds = [];
+  if (!char.certificationIds) char.certificationIds = [];
   if (!char.eventCooldowns) char.eventCooldowns = {};
   if (!char.educationStage) char.educationStage = 'none';
   if (!char.educationBranch) char.educationBranch = 'none';

@@ -9,6 +9,8 @@ import { StatBar, SectionLabel, Card, ScaleInView, ScreenHeader } from '../compo
 import { CharacterStats, LifeEventRecord } from '../types';
 import { ACHIEVEMENTS } from '../data/gameData';
 import Svg, { Path, Circle } from 'react-native-svg';
+import { formatCurrency } from '../utils/currency';
+import { getFinanceSummary } from '../utils/financeSummary';
 import { estimateLifeExpectancy } from '../engine/simulationEngine';
 
 // ─── All Stats Config ─────────────────────────────────────────────────────────
@@ -183,7 +185,8 @@ const tl = StyleSheet.create({
 export function StatsScreen() {
   const character = useGameStore(s => s.character);
   if (!character) return null;
-  const { stats, karma, achievements, eventHistory, name, age, birthYear } = character;
+  const { stats, karma, achievements, eventHistory, name, age, birthYear, bankBalance, assets, career, countryCode } = character;
+  const netWorthLabel = formatCurrency(getFinanceSummary({ bankBalance, assets, career }).netWorth, countryCode ?? 'IN');
   const lifeExpectancy = estimateLifeExpectancy(character);
   const yearsLeft = Math.max(0, lifeExpectancy - age);
   const lePercent = Math.min(100, (age / lifeExpectancy) * 100);
@@ -222,6 +225,9 @@ export function StatsScreen() {
                     {cfg.icon(cfg.color)}
                   </View>
                   <Text style={styles.statLabel}>{cfg.label}</Text>
+                  {cfg.key === 'wealth' && (
+                    <Text style={styles.statSublabel}>Based on net worth · {netWorthLabel}</Text>
+                  )}
                   <Text style={[styles.statVal, { color: cfg.color }]}>{val}</Text>
                   <StatBar value={val} color={cfg.color} height={5} delay={i * 60} />
                   <View style={[styles.tierBadge, { backgroundColor: `${cfg.color}12`, borderColor: `${cfg.color}28` }]}>
@@ -319,6 +325,7 @@ const styles = StyleSheet.create({
   },
   statIcon:  { width: 40, height: 40, borderRadius: RADII.sm, alignItems: 'center', justifyContent: 'center' },
   statLabel: { fontFamily: FONTS.bodySemiBold, fontSize: 12, color: COLORS.t2 },
+  statSublabel: { fontFamily: FONTS.body, fontSize: 9, color: COLORS.t4, marginTop: 1 },
   statVal:   { fontFamily: FONTS.bodyBold, fontSize: 28, lineHeight: 32 },
   tierBadge: { paddingHorizontal: 7, paddingVertical: 3, borderRadius: RADII.full, borderWidth: 1, alignSelf: 'flex-start', marginTop: 2 },
   tierText:  { fontFamily: FONTS.bodySemiBold, fontSize: 9, letterSpacing: 0.3 },

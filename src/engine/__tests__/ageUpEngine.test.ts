@@ -1,54 +1,19 @@
 import { runAgeUp } from '@engine/ageUpEngine';
 import { tickAnnualEconomy } from '@engine/economyEngine';
-import type { Character } from '../../types';
+import { createTestCharacter } from '../../test/fixtures/character';
 
-function baseCharacter(overrides: Partial<Character> = {}): Character {
-  return {
-    id: '1',
-    name: 'Test User',
-    gender: 'male',
-    avatarSeed: 'seed',
-    avatarId: 'male_1',
-    lifeStage: 'adult',
-    country: 'India',
-    countryFlag: '🇮🇳',
-    countryCode: 'IN',
-    zodiac: 'aries',
-    familyBackground: 'middle',
-    traits: [],
+function baseCharacter(overrides: Parameters<typeof createTestCharacter>[0] = {}) {
+  return createTestCharacter({
     job: 'Engineer',
     age: 30,
     birthYear: 1996,
-    stats: {
-      health: 80, happiness: 70, intelligence: 60, wealth: 40,
-      fitness: 60, looks: 60, social: 50, ambition: 50, mentalHealth: 70,
-    },
-    karma: 50,
-    bankBalance: 50000,
-    netWorthPeak: 50000,
-    relationships: 0,
-    children: 0,
     educationLevel: 'university',
     educationStage: 'undergraduate',
-    degreeIds: [],
-    people: [],
-    career: null,
-    assets: [],
-    achievements: [],
-    eventHistory: [],
-    isAlive: true,
+    bankBalance: 50000,
+    netWorthPeak: 50000,
     coins: 100,
-    gems: 0,
-    isPremium: false,
-    hasNoAds: false,
-    luckBoostsRemaining: 0,
-    hasReincarnationScroll: false,
-    businesses: [],
-    socialFollowers: 0,
-    createdAt: 1,
-    updatedAt: 1,
     ...overrides,
-  };
+  });
 }
 
 describe('runAgeUp', () => {
@@ -97,7 +62,7 @@ describe('runAgeUp', () => {
         title: 'Engineer',
         company: 'Tech Co',
         salary: 50_000,
-        yearsInRole: 2,
+        yearsEmployed: 2,
         performance: 70,
       },
     });

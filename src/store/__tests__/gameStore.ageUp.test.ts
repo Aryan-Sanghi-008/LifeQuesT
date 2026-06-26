@@ -36,63 +36,18 @@ jest.mock('@services/widgetSnapshot', () => ({
 
 import { useGameStore } from '@store/gameStore';
 import { saveCharacterLocal } from '@services/persistence';
-import type { Character } from '../../types';
+import { createTestCharacter } from '../../test/fixtures/character';
 
-const baseStats = {
-  health: 50,
-  happiness: 50,
-  intelligence: 50,
-  wealth: 50,
-  fitness: 50,
-  looks: 50,
-  social: 50,
-  ambition: 50,
-  mentalHealth: 70,
-};
-
-function makeCharacter(overrides: Partial<Character> = {}): Character {
-  return {
-    id: 'test-char',
-    name: 'Test',
-    gender: 'male',
-    avatarSeed: 'seed',
-    avatarId: 'male_1',
-    lifeStage: 'adult',
-    country: 'India',
-    countryFlag: '🇮🇳',
-    countryCode: 'IN',
-    zodiac: 'Aries',
-    familyBackground: 'middle',
-    traits: [],
+function makeCharacter(overrides: Parameters<typeof createTestCharacter>[0] = {}) {
+  return createTestCharacter({
     job: 'Engineer',
     age: 25,
     birthYear: 2000,
-    stats: baseStats,
-    karma: 50,
-    bankBalance: 1000,
-    netWorthPeak: 1000,
-    relationships: 0,
-    children: 0,
     educationLevel: 'graduate',
-    people: [],
-    career: null,
-    assets: [],
-    achievements: [],
-    eventHistory: [],
-    isAlive: true,
     coins: 100,
-    gems: 0,
-    isPremium: false,
-    hasNoAds: false,
-    luckBoostsRemaining: 0,
-    hasReincarnationScroll: false,
-    businesses: [],
-    socialFollowers: 0,
     criminalRecord: { crimes: ['theft'], jailYearsRemaining: 2, onProbation: false },
-    createdAt: 1,
-    updatedAt: 1,
     ...overrides,
-  };
+  });
 }
 
 describe('gameStore.ageUp', () => {

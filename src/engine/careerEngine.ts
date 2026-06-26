@@ -2,9 +2,9 @@
 // Realistic career eligibility checking, hiring probability, and progression.
 
 import { Career, EducationLevel, Character } from '../types';
-import { JOBS } from '../data/gameData';
 import { CAREER_PATHS, CareerPath, getCareerById, careerPathToLegacy } from '../data/careerPaths';
 import { getCountryEconomy } from '../data/countryEconomy';
+import { getCertificationLabel } from './certificationEngine';
 
 // ─── Eligibility System ───────────────────────────────────────────────────────
 
@@ -31,7 +31,7 @@ function getEducationRank(level: string): number {
  * Returns detailed eligibility result with reason and hire probability.
  */
 export function checkCareerEligibility(
-  character: Pick<Character, 'age' | 'educationLevel' | 'educationStage' | 'degreeIds' | 'stats' | 'traits' | 'countryCode' | 'criminalRecord' | 'assets'>,
+  character: Pick<Character, 'age' | 'educationLevel' | 'educationStage' | 'degreeIds' | 'certificationIds' | 'stats' | 'traits' | 'countryCode' | 'criminalRecord' | 'assets' | 'career'>,
   careerId: string,
 ): EligibilityResult {
   const career = getCareerById(careerId);
@@ -82,6 +82,29 @@ export function checkCareerEligibility(
         hireProbability: 0,
       };
     }
+  }
+
+  // Certification requirements — ALL required
+  if (req.certifications?.length) {
+    const owned = new Set(character.certificationIds ?? []);
+    const missing = req.certifications.filter(id => !owned.has(id));
+    if (missing.length > 0) {
+      const labels = missing.map(getCertificationLabel).join(', ');
+      return {
+        eligible: false,
+        reason: `Missing certification: ${labels}. Take the exam in Career.`,
+        hireProbability: 0,
+      };
+    }
+  }
+
+  // Years of experience (current role as proxy)
+  if (req.minYearsExperience && (character.career?.yearsEmployed ?? 0) < req.minYearsExperience) {
+    return {
+      eligible: false,
+      reason: `Requires at least ${req.minYearsExperience} years of work experience.`,
+      hireProbability: 0,
+    };
   }
 
   // Criminal record check
@@ -190,34 +213,44 @@ export function rollForHire(hireProbability: number): boolean {
 
 const JOB_TITLE_MAP: Record<string, string> = {
   'Junior Developer': 'junior_dev',
+  'Junior Dev': 'junior_dev',
   'Senior Developer': 'senior_dev',
+  'Senior Dev': 'senior_dev',
   'Entrepreneur': 'entrepreneur',
+  'Intern': 'qa_intern',
   'Student': 'student',
-  'Unemployed': 'student',
-  'Retired': 'student',
+  'Unemployed': 'unemployed',
+  'Retired': 'retired',
+  'Teacher': 'teacher',
+  'Doctor': 'general_practitioner',
+  'Lawyer': 'lawyer',
+  'Police Officer': 'police_officer',
+  'Chef': 'chef',
+  'Banker': 'banker',
+  'Pilot': 'pilot',
+  'Artist': 'artist',
+  'Nurse': 'nurse',
+  'Professional Athlete': 'athlete',
 };
 
-export function findJobByTitle(title: string) {
+export function findCareerPathByTitle(title: string): CareerPath | undefined {
   const key = JOB_TITLE_MAP[title] ?? title.toLowerCase().replace(/\s+/g, '_');
-  return JOBS.find(j => j.id === key || j.label === title);
+  return getCareerById(key) ?? CAREER_PATHS.find(c => c.label === title);
+}
+
+/** @deprecated Use findCareerPathByTitle */
+export function findJobByTitle(title: string) {
+  return findCareerPathByTitle(title);
 }
 
 export function jobToCareer(jobTitle: string): Career | null {
-  // Try new career system first
-  const newCareer = CAREER_PATHS.find(c => c.label === jobTitle || c.id === jobTitle.toLowerCase().replace(/\s+/g, '_'));
-  if (newCareer) {
-    return careerPathToLegacy(newCareer);
+  if (['Student', 'Unemployed', 'Retired'].includes(jobTitle)) return null;
+
+  const path = findCareerPathByTitle(jobTitle);
+  if (path) {
+    return careerPathToLegacy(path);
   }
-  // Fall back to legacy
-  const job = findJobByTitle(jobTitle);
-  if (!job || job.id === 'student') return null;
-  return {
-    title: job.label,
-    company: job.company,
-    salary: job.salary,
-    yearsEmployed: 0,
-    performance: 50,
-  };
+  return null;
 }
 
 /**
@@ -272,19 +305,7 @@ export function applyForPromotion(career: Career, success: boolean): { career: C
     }
   }
 
-  // Legacy fallback
-  const promoted = JOBS.find(j => j.salary > career.salary && j.minIntelligence <= 80);
-  if (!promoted) return { career: { ...career, performance: Math.min(100, career.performance + 5) } };
-  return {
-    career: {
-      ...career,
-      title: promoted.label,
-      company: promoted.company,
-      salary: promoted.salary,
-      performance: 55,
-    },
-    newTitle: promoted.label,
-  };
+  return { career: { ...career, performance: Math.min(100, career.performance + 5) } };
 }
 
 export function incrementCareerYear(career: Career): Career {

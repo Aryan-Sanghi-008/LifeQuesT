@@ -13,9 +13,11 @@ import { EducationStage } from '../data/educationDegrees';
 import { ensureClassmates, ensureCoworkers, agePeople } from './peopleEngine';
 import { tickMentalHealth } from './mentalHealthEngine';
 import { recordCrime, tickJail, isInJail } from './crimeEngine';
-import { advanceRelationship } from './relationshipEngine';
+import { advanceRelationship, applyRelationshipDecay } from './relationshipEngine';
 import { tickAllBusinesses } from './businessEngine';
 import { runAnnualSimulation } from './simulationEngine';
+import { computeDeathChance } from './mortalityEngine';
+import { inferContextualCertification } from './certificationEngine';
 
 function generateId(): string {
   return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -201,34 +203,7 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
 
   const newLifeStage: LifeStage = getLifeStage(newAge);
 
-  // ── Realistic death probability (Gompertz-inspired actuarial model) ─────────
-  // Mortality is negligible until ~40, then exponentially increases.
-  // Strongly modified by health, fitness, and mental health stats.
-  function computeDeathChance(age: number): number {
-    // Base Gompertz curve: near-zero until 40, doubles every 8 years after
-    const baseChance = age < 40
-      ? 0.1
-      : 0.1 * Math.pow(1.08, age - 40);
-
-    // Health modifier: low health dramatically increases death risk
-    const healthMod = stats.health < 20
-      ? 3.5 // Critical health = very high risk
-      : stats.health < 40
-        ? 1.8
-        : stats.health > 80
-          ? 0.7 // Great health = reduced risk
-          : 1.0;
-
-    // Fitness modifier: fit people live longer
-    const fitnessMod = stats.fitness > 70 ? 0.8 : stats.fitness < 30 ? 1.3 : 1.0;
-
-    // Mental health modifier
-    const mentalMod = stats.mentalHealth < 20 ? 1.5 : 1.0;
-
-    return Math.min(45, baseChance * healthMod * fitnessMod * mentalMod);
-  }
-
-  const deathChance = computeDeathChance(newAge);
+  const deathChance = computeDeathChance(newAge, stats);
   const isDead = options?.forceDeath
     || stats.health <= 0
     || Math.random() * 100 < deathChance;
@@ -301,20 +276,13 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
 
   const newRecords: LifeEventRecord[] = [...economyRecords, ...stressRecords, ...eduMilestoneRecords];
   let updatedJob = character.job;
-  let updatedPeople = agePeople([...character.people]).map(p => {
-    // Relationship decay: non-family relationships slowly fade without interaction
-    if (
-      p.isAlive &&
-      p.relationType !== 'mother' &&
-      p.relationType !== 'father' &&
-      p.relationType !== 'child' &&
-      p.relationshipScore > 10
-    ) {
-      const decayRate = p.relationType === 'spouse' ? 0.2 : p.relationType === 'friend' ? 1 : 2;
-      return { ...p, relationshipScore: Math.max(0, p.relationshipScore - decayRate) };
-    }
-    return p;
-  });
+  let certificationIds = [...(character.certificationIds ?? [])];
+
+  const agedPeople = agePeople([...character.people]);
+  const decayResult = applyRelationshipDecay(agedPeople, newAge);
+  let updatedPeople = decayResult.people;
+  newRecords.push(...decayResult.records);
+
   let updatedRelationships = character.relationships;
   let updatedChildren = character.children;
   let socialFollowers = character.socialFollowers;
@@ -328,6 +296,13 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
     if (event.category === 'crime') {
       const updated = recordCrime({ ...character, stats, karma, bankBalance }, event.id);
       karma = updated.karma;
+    }
+
+    if (event.id === 'ce_certification_achieved') {
+      const contextual = inferContextualCertification(character.degreeIds ?? [], certificationIds);
+      if (contextual && !certificationIds.includes(contextual)) {
+        certificationIds.push(contextual);
+      }
     }
 
     if (event.updatesJob) {
@@ -403,6 +378,7 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
     career,
     educationLevel: updatedEducation,
     educationStage: updatedEducationStage,
+    certificationIds,
     people: updatedPeople,
     relationships: updatedRelationships,
     children: updatedChildren,

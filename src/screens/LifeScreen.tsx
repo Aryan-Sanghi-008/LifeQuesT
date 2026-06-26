@@ -4,10 +4,11 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, FONTS, RADII, SPACING, ANIM } from '@constants/theme';
-import { RootStackParamList } from '@/types';
+import { RootStackParamList, MainTabParamList } from '@/types';
 import { useGameStore } from '@store/gameStore';
 import { AvatarByCharacter } from '@components/Avatars';
 import EventCard from '@components/EventCard';
@@ -18,6 +19,7 @@ import { maybeShowInterstitial } from '@services/ads';
 import { INTERSTITIAL_EVERY_N_AGEUPS } from '@config/ads';
 import { logEvent } from '@services/analytics';
 import { formatCurrency } from '@utils/currency';
+import { getFinanceSummary } from '@utils/financeSummary';
 import { getEducationLabel } from '@engine/educationEngine';
 import { triggerLightImpact } from '@utils/haptics';
 import { isInJail } from '@engine/crimeEngine';
@@ -255,6 +257,7 @@ function groupByAge(events: LifeEventRecord[]) {
 
 export function LifeScreen() {
   const navigation    = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const tabNavigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
   const insets        = useSafeAreaInsets();
   const character     = useGameStore(s => s.character);
   const pendingDecision = useGameStore(s => s.pendingDecision);
@@ -289,6 +292,8 @@ export function LifeScreen() {
   const sections = groupByAge(character.eventHistory);
   const countryCode = character.countryCode ?? 'IN';
   const bankStr = formatCurrency(character.bankBalance, countryCode);
+  const finance = getFinanceSummary(character);
+  const netWorthStr = formatCurrency(finance.netWorth, countryCode);
   const educationLabel = getEducationLabel(character.educationStage, character.educationLevel);
   const lifeStage = character.age < 13 ? 'Childhood' : character.age < 18 ? 'Teenager' : character.age < 30 ? 'Young Adult' : character.age < 60 ? 'Adult' : 'Golden Years';
   const jailed = isInJail(character);
@@ -337,6 +342,14 @@ export function LifeScreen() {
             color={COLORS.catFinancial}
             bgColor={`${COLORS.catFinancial}10`}
           />
+          <Pressable onPress={() => tabNavigation.navigate('Assets')}>
+            <CurrencyPill
+              icon={<Svg width={12} height={12} viewBox="0 0 24 24" fill="none"><Path stroke={COLORS.teal} strokeWidth={2} strokeLinecap="round" d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></Svg>}
+              value={netWorthStr}
+              color={COLORS.teal}
+              bgColor={`${COLORS.teal}10`}
+            />
+          </Pressable>
           <CurrencyPill
             icon={<Svg width={12} height={12} viewBox="0 0 24 24" fill={COLORS.gold}><Circle cx="12" cy="12" r="10" fill={`${COLORS.gold}20`} stroke={COLORS.gold} strokeWidth={2}/></Svg>}
             value={character.coins >= 1000 ? `${(character.coins / 1000).toFixed(0)}K` : String(character.coins)}

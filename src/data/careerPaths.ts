@@ -377,6 +377,20 @@ export const CAREER_PATHS: CareerPath[] = [
 
   // ═══ FOOD & SERVICE ═══════════════════════════════════════════════════════
 
+  { id: 'retail_associate',
+    label: 'Retail Associate', category: 'service', isEntryLevel: true, seniorityLevel: 1,
+    description: 'Work part-time at a retail store while finishing school.',
+    company: 'Local Retail', baseSalary: 12000, maxSalary: 22000, stressLevel: 3, workLifeBalance: 7,
+    requirements: { minAge: 16, minEducationStage: 'high_school', minIntelligence: 30 },
+    progressionPaths: [{ id: 'sales_executive', minYearsInRole: 2, minPerformance: 55, requiresPromotion: false }] },
+
+  { id: 'food_service_worker',
+    label: 'Food Service Worker', category: 'service', isEntryLevel: true, seniorityLevel: 1,
+    description: 'Serve customers and earn your first paycheck in hospitality.',
+    company: 'Quick Bites', baseSalary: 14000, maxSalary: 24000, stressLevel: 4, workLifeBalance: 6,
+    requirements: { minAge: 16, minEducationStage: 'high_school', minIntelligence: 28 },
+    progressionPaths: [{ id: 'chef', minYearsInRole: 3, minPerformance: 60, requiresPromotion: false }] },
+
   { id: 'chef',
     label: 'Chef', category: 'service', isEntryLevel: true, seniorityLevel: 2,
     description: 'Create culinary dishes in professional kitchen environments.',

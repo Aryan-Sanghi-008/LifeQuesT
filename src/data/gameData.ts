@@ -109,25 +109,6 @@ export const ACHIEVEMENT_COIN_REWARDS: Record<string, number> = {
   fitness_buff: 200,
 };
 
-// ─── Jobs ─────────────────────────────────────────────────────────────────────
-export const JOBS = [
-  { id: 'student',        label: 'Student',         salary: 0,    minIntelligence: 0,  company: 'School'           },
-  { id: 'intern',         label: 'Intern',          salary: 8000, minIntelligence: 40, company: 'Various'          },
-  { id: 'junior_dev',     label: 'Junior Dev',      salary: 35000,minIntelligence: 60, company: 'Tech Corp'        },
-  { id: 'senior_dev',     label: 'Senior Dev',      salary: 80000,minIntelligence: 75, company: 'Tech Corp'        },
-  { id: 'teacher',        label: 'Teacher',         salary: 28000,minIntelligence: 55, company: 'Public School'    },
-  { id: 'doctor',         label: 'Doctor',          salary: 120000,minIntelligence: 80,company: 'City Hospital'    },
-  { id: 'lawyer',         label: 'Lawyer',          salary: 90000,minIntelligence: 75, company: 'Law Firm'         },
-  { id: 'entrepreneur',   label: 'Entrepreneur',    salary: 0,    minIntelligence: 50, company: 'Self-Employed'    },
-  { id: 'artist',         label: 'Artist',          salary: 18000,minIntelligence: 30, company: 'Freelance'        },
-  { id: 'police_officer', label: 'Police Officer',  salary: 38000,minIntelligence: 40, company: 'City Police Dept' },
-  { id: 'nurse',          label: 'Nurse',           salary: 42000,minIntelligence: 55, company: 'City Hospital'    },
-  { id: 'chef',           label: 'Chef',            salary: 32000,minIntelligence: 35, company: 'Restaurant'       },
-  { id: 'banker',         label: 'Banker',          salary: 65000,minIntelligence: 65, company: 'National Bank'    },
-  { id: 'athlete',        label: 'Professional Athlete', salary: 60000, minIntelligence: 20, company: 'Sports Club' },
-  { id: 'pilot',          label: 'Pilot',           salary: 85000,minIntelligence: 70, company: 'AirLine Co.'     },
-] as const;
-
 // ─── Life Events (core) ──────────────────────────────────────────────────────
 export const CORE_LIFE_EVENTS: LifeEvent[] = [
 

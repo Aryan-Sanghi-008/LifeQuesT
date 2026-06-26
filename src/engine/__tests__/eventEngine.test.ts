@@ -32,6 +32,7 @@ const baseCharacter: Character = {
   educationLevel: 'secondary',
   educationStage: 'middle_school',
   degreeIds: [],
+  certificationIds: [],
   people: [],
   career: null,
   assets: [],

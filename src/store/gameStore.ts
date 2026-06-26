@@ -7,7 +7,7 @@ import {
   DailyQuest, Person,
 } from '../types';
 import {
-  TRAITS, COUNTRIES, ACTIVITIES, JOBS, ACHIEVEMENT_COIN_REWARDS,
+  TRAITS, COUNTRIES, ACTIVITIES, ACHIEVEMENT_COIN_REWARDS,
 } from '../data/gameData';
 import { getStartingBalance, getCountryEconomy } from '../data/countryEconomy';
 import { generateParents, generatePet } from '../utils/npcGenerator';
@@ -16,10 +16,13 @@ import {
   applySuccessChance, consumeLuckBoost,
 } from '../engine/eventEngine';
 import {
-  jobToCareer, applyForJobRoll, workHarder, askForRaise,
+  workHarder, askForRaise,
   checkCareerEligibility, rollForHire, getCountrySalary,
   applyForPromotion,
 } from '../engine/careerEngine';
+import {
+  checkCertificationEligibility, rollCertificationExam,
+} from '../engine/certificationEngine';
 import { getCareerById, careerPathToLegacy } from '../data/careerPaths';
 import {
   ensureCoworkers, getInteraction, getClassmates,
@@ -173,6 +176,7 @@ function buildCharacter(data: CreateCharacterPayload): Character {
     avatarStyle: data.gender === 'female' ? 'lorelei' : data.gender === 'other' ? 'notionists' : 'adventurer',
     unlockedAvatarStyles: [data.gender === 'female' ? 'lorelei' : data.gender === 'other' ? 'notionists' : 'adventurer'],
     degreeIds: [],
+    certificationIds: [],
     educationStage: 'none',
     educationBranch: 'none',
     seasonXp: 0,
@@ -234,6 +238,7 @@ interface GameStore {
   completeStudySession: (answers: number[]) => StudySessionResult;
   grantDegree: (degreeId: string) => { ok: boolean; message: string };
   enrollInDegree: (degreeId: string) => { ok: boolean; message: string };
+  takeCertificationExam: (certId: string) => { ok: boolean; message: string };
   foundBusiness: (name: string) => { ok: boolean; message: string };
   sellBusiness: (businessId: string) => { ok: boolean; message: string };
   getClassmates: () => Person[];
@@ -560,6 +565,40 @@ export const useGameStore = create<GameStore>()(
       };
     },
 
+    takeCertificationExam: (certId) => {
+      const { character } = get();
+      if (!character) return { ok: false, message: 'No character.' };
+
+      const eligibility = checkCertificationEligibility(character, certId);
+      if (!eligibility.eligible) {
+        return { ok: false, message: eligibility.reason ?? 'Not eligible for this exam.' };
+      }
+
+      if (character.bankBalance < eligibility.cost) {
+        const eco = getCountryEconomy(character.countryCode);
+        return {
+          ok: false,
+          message: `Insufficient funds. Exam fee is ${eco.currencySymbol}${eligibility.cost.toLocaleString(eco.currencyLocale)}.`,
+        };
+      }
+
+      const exam = rollCertificationExam(character, certId);
+      set(s => {
+        if (!s.character) return;
+        s.character.bankBalance = Math.max(0, s.character.bankBalance - eligibility.cost);
+        if (exam.passed) {
+          if (!s.character.certificationIds) s.character.certificationIds = [];
+          if (!s.character.certificationIds.includes(certId)) {
+            s.character.certificationIds.push(certId);
+          }
+          s.character.stats.intelligence = clamp(s.character.stats.intelligence + 2);
+        }
+      });
+
+      void get()._persist();
+      return { ok: exam.passed, message: exam.message };
+    },
+
     foundBusiness: (name) => {
       const { character } = get();
       if (!character) return { ok: false, message: 'No character.' };
@@ -844,7 +883,10 @@ export const useGameStore = create<GameStore>()(
       set(s => {
         if (!s.character) return;
         const p = s.character.people.find(x => x.id === personId);
-        if (p) p.relationshipScore = Math.max(0, Math.min(100, p.relationshipScore + interaction.delta));
+        if (p) {
+          const engagementBonus = 5;
+          p.relationshipScore = Math.max(0, Math.min(100, p.relationshipScore + interaction.delta + engagementBonus));
+        }
         s.character.stats = stats;
         s.character.karma = karma;
         s.character.bankBalance = bankBalance;
@@ -885,20 +927,7 @@ export const useGameStore = create<GameStore>()(
         return { success: true, message: `You're now a ${careerPath.label} at ${careerPath.company}!` };
       }
 
-      // Legacy fallback
-      const job = JOBS.find(j => j.id === jobId);
-      if (!job) return { success: false, message: 'Job not found.' };
-      const success = applyForJobRoll(character.stats.intelligence, character.educationLevel, job.minIntelligence);
-      if (!success) return { success: false, message: `You didn't get the ${job.label} position.` };
-      const legacyCareer = jobToCareer(job.label)!;
-      set(s => {
-        if (!s.character) return;
-        s.character.career = legacyCareer;
-        s.character.job = job.label;
-        s.character.people = ensureCoworkers(s.character.people, s.character.name, job.label);
-      });
-      void get()._persist();
-      return { success: true, message: `You're now a ${job.label} at ${job.company}!` };
+      return { success: false, message: 'Career not found.' };
     },
 
     workHarder: () => {
