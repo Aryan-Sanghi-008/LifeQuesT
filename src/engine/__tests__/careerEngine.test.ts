@@ -1,7 +1,8 @@
 import {
   jobToCareer, workHarder, askForRaise, applyForPromotion, incrementCareerYear,
-  checkCareerEligibility, syncJobLabel,
+  checkCareerEligibility, syncJobLabel, applyJobTitleUpdate, getCountrySalary,
 } from '@engine/careerEngine';
+import { getCareerById } from '@data/careerPaths';
 
 describe('jobToCareer', () => {
   it('maps job title to career', () => {
@@ -46,9 +47,62 @@ describe('applyForPromotion', () => {
     const career = {
       title: 'Junior Developer', company: 'Tech Corp', salary: 35000, yearsEmployed: 3, performance: 70,
     };
-    const result = applyForPromotion(career, true);
+    const result = applyForPromotion(career, true, {
+      age: 25,
+      educationLevel: 'university',
+      educationStage: 'undergraduate',
+      degreeIds: ['bsc_cs'],
+      certificationIds: [],
+      totalCareerYears: 3,
+      stats: {
+        health: 70, happiness: 70, intelligence: 80, wealth: 50,
+        fitness: 60, looks: 60, social: 50, ambition: 50, mentalHealth: 70,
+      },
+      traits: [],
+      countryCode: 'US',
+      criminalRecord: { crimes: [], jailYearsRemaining: 0, onProbation: false },
+      assets: [],
+      career,
+    });
     expect(result.newTitle).toBeDefined();
     expect(result.career.salary).toBeGreaterThanOrEqual(career.salary);
+  });
+
+  it('blocks promotion when target role requirements are not met', () => {
+    const career = {
+      title: 'Paralegal', company: 'Law Firm', salary: 35000, yearsEmployed: 3, performance: 70,
+    };
+    const result = applyForPromotion(career, true, {
+      age: 24,
+      educationLevel: 'secondary',
+      educationStage: 'high_school',
+      degreeIds: [],
+      certificationIds: [],
+      totalCareerYears: 3,
+      stats: {
+        health: 70, happiness: 70, intelligence: 55, wealth: 50,
+        fitness: 60, looks: 60, social: 50, ambition: 50, mentalHealth: 70,
+      },
+      traits: [],
+      countryCode: 'US',
+      criminalRecord: { crimes: [], jailYearsRemaining: 0, onProbation: false },
+      assets: [],
+      career,
+    });
+    expect(result.newTitle).toBeUndefined();
+    expect(result.career.title).toBe('Paralegal');
+    expect(result.career.performance).toBeGreaterThan(career.performance);
+  });
+});
+
+describe('applyJobTitleUpdate', () => {
+  it('sets country-localized salary for non-US country', () => {
+    const path = getCareerById('senior_dev')!;
+    const usSalary = getCountrySalary(path.baseSalary, 'US');
+    const inSalary = getCountrySalary(path.baseSalary, 'IN');
+    const { career } = applyJobTitleUpdate('Senior Developer', 'IN', null);
+    expect(career?.salary).toBe(inSalary);
+    expect(career?.salary).not.toBe(usSalary);
   });
 });
 
@@ -69,6 +123,7 @@ describe('checkCareerEligibility', () => {
     degreeIds: [] as string[],
     certificationIds: [] as string[],
     career: null,
+    totalCareerYears: 0,
     stats: {
       health: 70, happiness: 70, intelligence: 80, wealth: 50,
       fitness: 60, looks: 60, social: 50, ambition: 50, mentalHealth: 70,
@@ -114,6 +169,68 @@ describe('checkCareerEligibility', () => {
       'junior_lawyer',
     );
     expect(result.eligible).toBe(true);
+  });
+
+  it('rejects surgeon without all required degrees', () => {
+    const result = checkCareerEligibility(
+      {
+        ...baseChar,
+        age: 35,
+        educationStage: 'masters',
+        degreeIds: ['mbbs'],
+        stats: { ...baseChar.stats, intelligence: 90, fitness: 70 },
+      },
+      'surgeon',
+    );
+    expect(result.eligible).toBe(false);
+    expect(result.reason).toContain('md');
+  });
+
+  it('accepts surgeon with mbbs and md', () => {
+    const result = checkCareerEligibility(
+      {
+        ...baseChar,
+        age: 35,
+        educationStage: 'masters',
+        degreeIds: ['mbbs', 'md'],
+        stats: { ...baseChar.stats, intelligence: 90, fitness: 70 },
+      },
+      'surgeon',
+    );
+    expect(result.eligible).toBe(true);
+  });
+
+  it('uses totalCareerYears for experience gate across job changes', () => {
+    const result = checkCareerEligibility(
+      {
+        ...baseChar,
+        age: 45,
+        educationStage: 'masters',
+        degreeIds: ['mbbs', 'md'],
+        totalCareerYears: 16,
+        career: { title: 'Nurse', company: 'Hospital', salary: 60000, yearsEmployed: 1, performance: 50 },
+        stats: { ...baseChar.stats, intelligence: 95, fitness: 70 },
+      },
+      'chief_surgeon',
+    );
+    expect(result.eligible).toBe(true);
+  });
+
+  it('rejects chief_surgeon when totalCareerYears below minimum', () => {
+    const result = checkCareerEligibility(
+      {
+        ...baseChar,
+        age: 45,
+        educationStage: 'masters',
+        degreeIds: ['mbbs', 'md'],
+        totalCareerYears: 5,
+        career: { title: 'Surgeon', company: 'Hospital', salary: 300000, yearsEmployed: 5, performance: 90 },
+        stats: { ...baseChar.stats, intelligence: 95, fitness: 70 },
+      },
+      'chief_surgeon',
+    );
+    expect(result.eligible).toBe(false);
+    expect(result.reason).toContain('experience');
   });
 });
 

@@ -1,12 +1,19 @@
 import { Business, Character } from '../types';
+import { getCareerById } from '../data/careerPaths';
 
 function generateId(): string {
   return `biz_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
+function isEntrepreneurCareer(character: Character): boolean {
+  const entrepreneurPath = getCareerById('entrepreneur');
+  if (!entrepreneurPath) return false;
+  return character.job === entrepreneurPath.label
+    || character.career?.title === entrepreneurPath.label;
+}
+
 export function canFoundBusiness(character: Character): boolean {
-  return character.job === 'Entrepreneur'
-    || character.career?.title === 'Entrepreneur'
+  return isEntrepreneurCareer(character)
     || character.eventHistory.some(e => e.id === 'startup');
 }
 

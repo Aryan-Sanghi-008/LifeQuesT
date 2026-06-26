@@ -298,7 +298,11 @@ export function LifeScreen() {
   const lifeStage = character.age < 13 ? 'Childhood' : character.age < 18 ? 'Teenager' : character.age < 30 ? 'Young Adult' : character.age < 60 ? 'Adult' : 'Golden Years';
   const jailed = isInJail(character);
   const jailYears = character.criminalRecord?.jailYearsRemaining ?? 0;
+  const onProbation = !jailed && (character.criminalRecord?.onProbation ?? false);
   const jailBannerText = lastAgeUpNotice ?? (jailed ? `Serving time — ${jailYears} year${jailYears === 1 ? '' : 's'} left` : null);
+  const probationBannerText = !lastAgeUpNotice && onProbation
+    ? 'On probation — career opportunities limited'
+    : null;
 
   return (
     <View style={styles.root}>
@@ -371,6 +375,10 @@ export function LifeScreen() {
           <Pressable onPress={clearAgeUpNotice} style={styles.jailBanner}>
             <Text style={styles.jailBannerText}>{jailBannerText}</Text>
           </Pressable>
+        ) : probationBannerText ? (
+          <View style={styles.probationBanner}>
+            <Text style={styles.probationBannerText}>{probationBannerText}</Text>
+          </View>
         ) : null}
 
         {/* ── Life Log ── */}
@@ -492,6 +500,22 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bodySemiBold,
     fontSize: 13,
     color: COLORS.crimson,
+    textAlign: 'center',
+  },
+  probationBanner: {
+    marginHorizontal: SPACING.lg,
+    marginTop: 8,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 8,
+    borderRadius: RADII.md,
+    borderWidth: 1,
+    borderColor: `${COLORS.gold}40`,
+    backgroundColor: `${COLORS.gold}1A`,
+  },
+  probationBannerText: {
+    fontFamily: FONTS.bodySemiBold,
+    fontSize: 13,
+    color: COLORS.gold,
     textAlign: 'center',
   },
   footer: {

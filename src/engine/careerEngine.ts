@@ -31,7 +31,7 @@ function getEducationRank(level: string): number {
  * Returns detailed eligibility result with reason and hire probability.
  */
 export function checkCareerEligibility(
-  character: Pick<Character, 'age' | 'educationLevel' | 'educationStage' | 'degreeIds' | 'certificationIds' | 'stats' | 'traits' | 'countryCode' | 'criminalRecord' | 'assets' | 'career'>,
+  character: Pick<Character, 'age' | 'educationLevel' | 'educationStage' | 'degreeIds' | 'certificationIds' | 'stats' | 'traits' | 'countryCode' | 'criminalRecord' | 'assets' | 'career' | 'totalCareerYears'>,
   careerId: string,
 ): EligibilityResult {
   const career = getCareerById(careerId);
@@ -84,6 +84,19 @@ export function checkCareerEligibility(
     }
   }
 
+  // Degree requirements — ALL of requiredDegreeAll
+  if (req.requiredDegreeAll?.length) {
+    const owned = new Set(character.degreeIds ?? []);
+    const missing = req.requiredDegreeAll.filter(id => !owned.has(id));
+    if (missing.length > 0) {
+      return {
+        eligible: false,
+        reason: `Missing required degrees: ${missing.join(', ')}.`,
+        hireProbability: 0,
+      };
+    }
+  }
+
   // Certification requirements — ALL required
   if (req.certifications?.length) {
     const owned = new Set(character.certificationIds ?? []);
@@ -98,8 +111,9 @@ export function checkCareerEligibility(
     }
   }
 
-  // Years of experience (current role as proxy)
-  if (req.minYearsExperience && (character.career?.yearsEmployed ?? 0) < req.minYearsExperience) {
+  // Years of experience — cumulative across roles
+  const experienceYears = character.totalCareerYears ?? character.career?.yearsEmployed ?? 0;
+  if (req.minYearsExperience && experienceYears < req.minYearsExperience) {
     return {
       eligible: false,
       reason: `Requires at least ${req.minYearsExperience} years of work experience.`,
@@ -283,29 +297,76 @@ export function askForRaise(career: Career, success: boolean): Career {
   };
 }
 
-export function applyForPromotion(career: Career, success: boolean): { career: Career; newTitle?: string } {
+export function applyForPromotion(
+  career: Career,
+  success: boolean,
+  character?: Pick<Character, 'age' | 'educationLevel' | 'educationStage' | 'degreeIds' | 'certificationIds' | 'stats' | 'traits' | 'countryCode' | 'criminalRecord' | 'assets' | 'career' | 'totalCareerYears'>,
+): { career: Career; newTitle?: string } {
   if (!success || career.performance < 60) return { career };
 
-  // Try to find a progression in the new system
-  const currentCareer = CAREER_PATHS.find(c => c.label === career.title);
-  if (currentCareer && currentCareer.progressionPaths.length > 0) {
-    const nextProg = currentCareer.progressionPaths[0];
-    const nextCareer = getCareerById(nextProg.id);
-    if (nextCareer && career.yearsEmployed >= nextProg.minYearsInRole && career.performance >= nextProg.minPerformance) {
-      return {
-        career: {
-          ...career,
-          title: nextCareer.label,
-          company: nextCareer.company,
-          salary: Math.round(nextCareer.baseSalary * (1 + career.performance / 200)),
-          performance: 55,
-        },
-        newTitle: nextCareer.label,
-      };
+  const target = getPromotionTarget(career);
+  if (!target) {
+    return { career: { ...career, performance: Math.min(100, career.performance + 5) } };
+  }
+
+  if (character) {
+    const eligibility = checkCareerEligibility(character, target.id);
+    if (!eligibility.eligible) {
+      return { career: { ...career, performance: Math.min(100, career.performance + 5) } };
     }
   }
 
-  return { career: { ...career, performance: Math.min(100, career.performance + 5) } };
+  return {
+    career: {
+      ...career,
+      title: target.label,
+      company: target.company,
+      salary: Math.round(target.baseSalary * (1 + career.performance / 200)),
+      performance: 55,
+    },
+    newTitle: target.label,
+  };
+}
+
+/**
+ * Find the next promotion target for a career based on years and performance.
+ */
+export function getPromotionTarget(career: Career): CareerPath | null {
+  const currentCareer = CAREER_PATHS.find(c => c.label === career.title);
+  if (!currentCareer) return null;
+
+  for (const nextProg of currentCareer.progressionPaths) {
+    if (career.yearsEmployed >= nextProg.minYearsInRole && career.performance >= nextProg.minPerformance) {
+      const nextCareer = getCareerById(nextProg.id);
+      if (nextCareer) return nextCareer;
+    }
+  }
+  return null;
+}
+
+/**
+ * Apply a job title change with country-localized salary.
+ */
+export function applyJobTitleUpdate(
+  jobTitle: string,
+  countryCode: string,
+  currentCareer: Career | null,
+): { job: string; career: Career | null } {
+  const path = findCareerPathByTitle(jobTitle);
+  if (!path) {
+    const legacy = jobToCareer(jobTitle);
+    return { job: jobTitle, career: legacy ?? currentCareer };
+  }
+  const base = careerPathToLegacy(path);
+  return {
+    job: jobTitle,
+    career: {
+      ...base,
+      salary: getCountrySalary(path.baseSalary, countryCode),
+      yearsEmployed: currentCareer?.yearsEmployed ?? 0,
+      performance: currentCareer?.performance ?? 50,
+    },
+  };
 }
 
 export function incrementCareerYear(career: Career): Career {

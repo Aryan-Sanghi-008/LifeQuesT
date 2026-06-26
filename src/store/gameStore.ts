@@ -43,7 +43,7 @@ import {
 } from '../services/entitlements';
 import { logEvent } from '../services/analytics';
 import { writeWidgetSnapshot } from '../services/widgetSnapshot';
-import { recordCrime } from '../engine/crimeEngine';
+import { recordCrime, isInJail } from '../engine/crimeEngine';
 import {
   foundBusiness as createBusiness,
   sellBusiness as liquidateBusiness,
@@ -177,6 +177,7 @@ function buildCharacter(data: CreateCharacterPayload): Character {
     unlockedAvatarStyles: [data.gender === 'female' ? 'lorelei' : data.gender === 'other' ? 'notionists' : 'adventurer'],
     degreeIds: [],
     certificationIds: [],
+    totalCareerYears: 0,
     educationStage: 'none',
     educationBranch: 'none',
     seasonXp: 0,
@@ -899,6 +900,7 @@ export const useGameStore = create<GameStore>()(
     applyForJob: (jobId) => {
       const { character } = get();
       if (!character) return { success: false, message: 'No character.' };
+      if (isInJail(character)) return { success: false, message: 'You cannot work while serving time.' };
       if (character.age < 16) return { success: false, message: 'Too young to work.' };
 
       // Try new career engine first
@@ -931,6 +933,9 @@ export const useGameStore = create<GameStore>()(
     },
 
     workHarder: () => {
+      const { character } = get();
+      if (!character?.career) return;
+      if (isInJail(character)) return;
       set(s => {
         if (!s.character?.career) return;
         s.character.career = workHarder(s.character.career);
@@ -942,6 +947,7 @@ export const useGameStore = create<GameStore>()(
     askForRaise: () => {
       const { character } = get();
       if (!character?.career) return { success: false, message: 'You need a job first.' };
+      if (isInJail(character)) return { success: false, message: 'You cannot work while serving time.' };
       const success = Math.random() < 0.65;
       set(s => {
         if (!s.character?.career) return;
@@ -966,12 +972,13 @@ export const useGameStore = create<GameStore>()(
     applyForPromotion: () => {
       const { character } = get();
       if (!character?.career) return { success: false, message: 'You need a job first.' };
+      if (isInJail(character)) return { success: false, message: 'You cannot work while serving time.' };
       const perfOk = character.career.performance >= 55;
       const success = perfOk && Math.random() < 0.6;
       let message = 'Promotion denied — improve your performance.';
       set(s => {
         if (!s.character?.career) return;
-        const result = applyForPromotion(s.character.career, success);
+        const result = applyForPromotion(s.character.career, success, s.character);
         s.character.career = result.career;
         if (result.newTitle) {
           s.character.job = result.newTitle;

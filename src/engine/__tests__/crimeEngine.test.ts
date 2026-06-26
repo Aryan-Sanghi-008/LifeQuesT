@@ -1,4 +1,4 @@
-import { recordCrime, isInJail, tickJail } from '@engine/crimeEngine';
+import { recordCrime, isInJail, tickJail, tickProbation } from '@engine/crimeEngine';
 import { createTestCharacter } from '../../test/fixtures/character';
 
 const baseChar = () => createTestCharacter({
@@ -21,5 +21,17 @@ describe('crimeEngine', () => {
     let char = recordCrime(baseChar(), 'arrest');
     char = tickJail(char);
     expect(char.criminalRecord?.jailYearsRemaining).toBe(1);
+  });
+
+  it('clears probation after 3 crime-free years', () => {
+    let char = recordCrime(baseChar(), 'shoplifting');
+    expect(char.criminalRecord?.onProbation).toBe(true);
+    char = { ...char, age: char.age + 1 };
+    char = { ...char, ...tickProbation(char) } as typeof char;
+    char = { ...char, age: char.age + 1 };
+    char = { ...char, ...tickProbation(char) } as typeof char;
+    char = { ...char, age: char.age + 1 };
+    char = { ...char, ...tickProbation(char) } as typeof char;
+    expect(char.criminalRecord?.onProbation).toBe(false);
   });
 });

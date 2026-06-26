@@ -57,6 +57,7 @@ export interface CriminalRecord {
   crimes: string[];
   jailYearsRemaining: number;
   onProbation: boolean;
+  probationYearsRemaining?: number;
 }
 
 export interface Business {
@@ -199,6 +200,7 @@ export interface Character {
   claimedSeasonTiers?: number[];
   degreeIds: string[];
   certificationIds: string[];
+  totalCareerYears: number;
   enrolledDegreeId?: string;
   eventCooldowns?: Record<string, number>; // eventId → last triggered age
   createdAt: number;

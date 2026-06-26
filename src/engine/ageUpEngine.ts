@@ -7,12 +7,12 @@ import { generatePartner, generatePet } from '../utils/npcGenerator';
 import { applyEffect, tickAnnualEconomy, computeNetWorth, clamp, AnnualEconomyResult } from './economyEngine';
 import { getCountryEconomy } from '../data/countryEconomy';
 import { getEligibleEvents, pickWeightedEvents, getGuaranteedMilestones } from './eventEngine';
-import { jobToCareer, incrementCareerYear, syncJobLabel } from './careerEngine';
+import { incrementCareerYear, syncJobLabel, applyJobTitleUpdate } from './careerEngine';
 import { advanceEducationByAge } from './educationEngine';
 import { EducationStage } from '../data/educationDegrees';
 import { ensureClassmates, ensureCoworkers, agePeople } from './peopleEngine';
 import { tickMentalHealth } from './mentalHealthEngine';
-import { recordCrime, tickJail, isInJail } from './crimeEngine';
+import { recordCrime, tickJail, isInJail, tickProbation } from './crimeEngine';
 import { advanceRelationship, applyRelationshipDecay } from './relationshipEngine';
 import { tickAllBusinesses } from './businessEngine';
 import { runAnnualSimulation } from './simulationEngine';
@@ -21,14 +21,6 @@ import { inferContextualCertification } from './certificationEngine';
 
 function generateId(): string {
   return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-}
-
-function applyJobUpdate(
-  jobTitle: string,
-  currentCareer: Character['career'],
-): { job: string; career: Character['career'] } {
-  const career = jobToCareer(jobTitle) ?? currentCareer;
-  return { job: jobTitle, career: career ?? currentCareer };
 }
 
 const VIRAL_EVENT_IDS = ['viral_moment', 'follower_1k', 'follower_10k'];
@@ -189,6 +181,8 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
   }
 
   let career = character.career ? incrementCareerYear(character.career) : null;
+  let totalCareerYears = character.totalCareerYears ?? 0;
+  if (character.career) totalCareerYears += 1;
   const salary = career?.salary ?? 0;
   const countryCode = character.countryCode ?? 'US';
   const economy = tickAnnualEconomy(newAge, bankBalance, salary, character.assets, countryCode);
@@ -306,7 +300,7 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
     }
 
     if (event.updatesJob) {
-      const u = applyJobUpdate(event.updatesJob, career);
+      const u = applyJobTitleUpdate(event.updatesJob, countryCode, career);
       updatedJob = u.job;
       if (u.career) career = u.career;
     }
@@ -368,6 +362,8 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
   const netWorth = computeNetWorth({ bankBalance, assets: character.assets });
   const netWorthPeak = Math.max(character.netWorthPeak, netWorth);
 
+  const probationPatch = tickProbation({ ...character, age: newAge, career, criminalRecord: character.criminalRecord });
+
   const patch: Partial<Character> = {
     age: newAge,
     stats,
@@ -376,6 +372,7 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
     lifeStage: newLifeStage,
     job: updatedJob,
     career,
+    totalCareerYears,
     educationLevel: updatedEducation,
     educationStage: updatedEducationStage,
     certificationIds,
@@ -387,6 +384,7 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
     socialFollowers,
     netWorthPeak,
     eventCooldowns: updatedCooldowns,
+    ...probationPatch,
   };
 
   if (decisionEvent) {

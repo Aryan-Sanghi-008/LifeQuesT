@@ -29,6 +29,7 @@ export function recordCrime(character: Character, crimeId: string): Character {
       crimes: [...record.crimes, crimeId],
       jailYearsRemaining: Math.max(record.jailYearsRemaining, jailYears),
       onProbation: jailYears === 0,
+      probationYearsRemaining: jailYears === 0 ? 3 : record.probationYearsRemaining,
     },
   };
 }
@@ -44,6 +45,32 @@ export function tickJail(character: Character): Character {
       ...record,
       jailYearsRemaining: remaining,
       onProbation: remaining === 0 && record.crimes.length > 0,
+      probationYearsRemaining: remaining === 0 && record.crimes.length > 0 ? 3 : record.probationYearsRemaining,
+    },
+  };
+}
+
+/**
+ * Decrement probation timer; clears onProbation after 3 crime-free years.
+ */
+export function tickProbation(character: Character): Partial<Character> {
+  const record = getCriminalRecord(character);
+  if (!record.onProbation || isInJail(character)) return {};
+
+  const yearsLeft = (record.probationYearsRemaining ?? 3) - 1;
+  if (yearsLeft <= 0) {
+    return {
+      criminalRecord: {
+        ...record,
+        onProbation: false,
+        probationYearsRemaining: 0,
+      },
+    };
+  }
+  return {
+    criminalRecord: {
+      ...record,
+      probationYearsRemaining: yearsLeft,
     },
   };
 }

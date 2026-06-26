@@ -38,6 +38,7 @@ export function createTestCharacter(overrides: Partial<Character> = {}): Charact
     educationStage: 'middle_school',
     degreeIds: [],
     certificationIds: [],
+    totalCareerYears: 0,
     people: [],
     career: null,
     assets: [],
