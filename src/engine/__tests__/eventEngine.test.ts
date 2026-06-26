@@ -1,5 +1,6 @@
 import {
   hasJob, isEligible, applySuccessChance, consumeLuckBoost, getEligibleEvents,
+  pickWeightedEvents, getGuaranteedMilestones,
 } from '@engine/eventEngine';
 import type { Character } from '../../types';
 
@@ -29,6 +30,8 @@ const baseCharacter: Character = {
   relationships: 0,
   children: 0,
   educationLevel: 'secondary',
+  educationStage: 'middle_school',
+  degreeIds: [],
   people: [],
   career: null,
   assets: [],
@@ -110,5 +113,42 @@ describe('getEligibleEvents', () => {
     const events = getEligibleEvents(20, baseCharacter);
     expect(events.length).toBeGreaterThan(0);
     expect(events.every(e => 20 >= e.minAge && 20 <= e.maxAge)).toBe(true);
+  });
+});
+
+describe('pickWeightedEvents', () => {
+  it('returns at most count events', () => {
+    const pool = [
+      { id: 'a', minAge: 0, maxAge: 99, title: 'A', description: '', statEffect: {}, category: 'random' as const, color: '#000', weight: 5 },
+      { id: 'b', minAge: 0, maxAge: 99, title: 'B', description: '', statEffect: {}, category: 'random' as const, color: '#000', weight: 1 },
+      { id: 'c', minAge: 0, maxAge: 99, title: 'C', description: '', statEffect: {}, category: 'random' as const, color: '#000' },
+    ];
+    expect(pickWeightedEvents(pool, 2)).toHaveLength(2);
+  });
+});
+
+describe('getGuaranteedMilestones', () => {
+  it('includes school_start at age 5 when education is none', () => {
+    const char = {
+      ...baseCharacter,
+      age: 5,
+      educationLevel: 'none' as const,
+      educationStage: 'none',
+      eventHistory: [],
+    };
+    const milestones = getGuaranteedMilestones(5, char);
+    expect(milestones.some(e => e.id === 'school_start')).toBe(true);
+  });
+
+  it('skips school_start when education already progressed', () => {
+    const char = {
+      ...baseCharacter,
+      age: 5,
+      educationLevel: 'elementary' as const,
+      educationStage: 'primary',
+      eventHistory: [],
+    };
+    const milestones = getGuaranteedMilestones(5, char);
+    expect(milestones.some(e => e.id === 'school_start')).toBe(false);
   });
 });

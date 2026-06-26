@@ -18,6 +18,7 @@ import { maybeShowInterstitial } from '@services/ads';
 import { INTERSTITIAL_EVERY_N_AGEUPS } from '@config/ads';
 import { logEvent } from '@services/analytics';
 import { formatCurrency } from '@utils/currency';
+import { getEducationLabel } from '@engine/educationEngine';
 import { triggerLightImpact } from '@utils/haptics';
 import { isInJail } from '@engine/crimeEngine';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -288,6 +289,7 @@ export function LifeScreen() {
   const sections = groupByAge(character.eventHistory);
   const countryCode = character.countryCode ?? 'IN';
   const bankStr = formatCurrency(character.bankBalance, countryCode);
+  const educationLabel = getEducationLabel(character.educationStage, character.educationLevel);
   const lifeStage = character.age < 13 ? 'Childhood' : character.age < 18 ? 'Teenager' : character.age < 30 ? 'Young Adult' : character.age < 60 ? 'Adult' : 'Golden Years';
   const jailed = isInJail(character);
   const jailYears = character.criminalRecord?.jailYearsRemaining ?? 0;
@@ -312,6 +314,9 @@ export function LifeScreen() {
               <View style={styles.jobRow}>
                 <View style={[styles.jobPill, { backgroundColor: `${COLORS.sapphire}12`, borderColor: `${COLORS.sapphire}25` }]}>
                   <Text style={styles.jobText}>{character.job}</Text>
+                </View>
+                <View style={[styles.jobPill, { backgroundColor: `${COLORS.catEducation}12`, borderColor: `${COLORS.catEducation}25` }]}>
+                  <Text style={[styles.jobText, { color: COLORS.catEducation }]}>{educationLabel}</Text>
                 </View>
                 <Text style={styles.flag}>{character.countryFlag}</Text>
               </View>

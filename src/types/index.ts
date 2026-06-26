@@ -198,6 +198,7 @@ export interface Character {
   hasSeasonPass?: boolean;
   claimedSeasonTiers?: number[];
   degreeIds: string[];
+  enrolledDegreeId?: string;
   eventCooldowns?: Record<string, number>; // eventId → last triggered age
   createdAt: number;
   updatedAt: number;

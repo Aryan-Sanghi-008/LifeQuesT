@@ -178,7 +178,15 @@ export function ProfileScreen() {
       'This will permanently delete your character and start over. Are you sure?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'End Life', style: 'destructive', onPress: () => { void resetGame(); } },
+        {
+          text: 'End Life',
+          style: 'destructive',
+          onPress: () => {
+            void resetGame().then(() => {
+              navigation.reset({ index: 0, routes: [{ name: 'SaveSlots' }] });
+            });
+          },
+        },
       ]
     );
   };

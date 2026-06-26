@@ -29,6 +29,8 @@ function baseCharacter(overrides: Partial<Character> = {}): Character {
     relationships: 0,
     children: 0,
     educationLevel: 'university',
+    educationStage: 'undergraduate',
+    degreeIds: [],
     people: [],
     career: null,
     assets: [],
@@ -134,5 +136,19 @@ describe('runAgeUp', () => {
     if (outcome.type !== 'complete' && outcome.type !== 'pending_decision') return;
     const expenseRecord = outcome.newEventRecords.find(r => r.id === 'annual_expenses');
     expect(expenseRecord).toBeUndefined();
+  });
+
+  it('advances education at age 5 with milestone record', () => {
+    const character = baseCharacter({
+      age: 4,
+      educationLevel: 'none',
+      educationStage: 'none',
+    });
+    const outcome = runAgeUp(character);
+    if (outcome.type !== 'complete' && outcome.type !== 'pending_decision') return;
+    expect(outcome.patch.educationStage).toBe('primary');
+    expect(outcome.patch.educationLevel).toBe('elementary');
+    const milestone = outcome.newEventRecords.find(r => r.id === 'edu_milestone_primary');
+    expect(milestone).toBeDefined();
   });
 });

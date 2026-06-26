@@ -13,6 +13,7 @@ import { JOBS } from '../data/gameData';
 import { formatCurrency } from '../utils/currency';
 import Svg, { Path, Rect } from 'react-native-svg';
 import { getEligibleCareers, checkCareerEligibility, getCountrySalary } from '../engine/careerEngine';
+import { resolveEducationLevelForDisplay } from '../engine/educationEngine';
 import { CAREER_PATHS } from '../data/careerPaths';
 
 const EDU_ICONS: Record<string, React.ReactNode> = {
@@ -294,7 +295,10 @@ export function CareerScreen() {
         </View>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <SectionLabel label="Education" style={{ marginBottom: SPACING.md }} />
-          <EducationTrack current={character.educationLevel} countryCode={cc} />
+          <EducationTrack
+            current={resolveEducationLevelForDisplay(character.educationStage, character.educationLevel)}
+            countryCode={cc}
+          />
           {character.age >= 13 && character.age <= 24 && character.educationLevel !== 'graduate' && (
             <Pressable
               style={[styles.btn, { borderColor: COLORS.sapphire, marginTop: SPACING.md }]}

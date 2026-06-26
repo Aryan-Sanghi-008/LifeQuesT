@@ -1,7 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Character, MAX_SAVE_SLOTS } from '../types';
+import { Character, MAX_SAVE_SLOTS, EducationLevel } from '../types';
 import { getLifeStage } from '../utils/lifeStage';
 import { isMmkvAvailable } from '../utils/nativeAvailability';
+import { stageToLegacyEducationLevel } from '../data/educationDegrees';
+import type { EducationStage } from '../data/educationDegrees';
 
 const LEGACY_KEY = 'lifequest_v3_save';
 const LEGACY_V2_KEY = 'lifequest_v2_save';
@@ -173,6 +175,15 @@ export function normalizeCharacter(char: Character): Character {
   if (!char.eventCooldowns) char.eventCooldowns = {};
   if (!char.educationStage) char.educationStage = 'none';
   if (!char.educationBranch) char.educationBranch = 'none';
+  if (char.educationStage && char.educationStage !== 'none') {
+    const fromStage = stageToLegacyEducationLevel(char.educationStage as EducationStage);
+    const levels: EducationLevel[] = ['none', 'elementary', 'secondary', 'university', 'graduate'];
+    const stageIdx = levels.indexOf(fromStage);
+    const levelIdx = levels.indexOf(char.educationLevel ?? 'none');
+    if (stageIdx > levelIdx) {
+      char.educationLevel = fromStage;
+    }
+  }
   if (!char.stats.mentalHealth) char.stats.mentalHealth = char.stats.happiness ?? 70;
   if (!char.criminalRecord) {
     char.criminalRecord = { crimes: [], jailYearsRemaining: 0, onProbation: false };

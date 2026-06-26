@@ -1,6 +1,8 @@
 // ─── LifeQuest Education System ──────────────────────────────────────────────
 // Full education progression: Preschool → PhD, with branches and GPA tracking.
 
+import type { EducationLevel } from '../types';
+
 export type EducationStage =
   | "none"
   | "preschool"
@@ -40,6 +42,23 @@ export interface Degree {
   wealthEffect: number; // Career salary multiplier (1.0 = no change)
   unlocksCareerIds: string[]; // Career IDs this degree unlocks
   description: string;
+}
+
+const STAGE_TO_LEGACY_LEVEL: Record<EducationStage, EducationLevel> = {
+  none: 'none',
+  preschool: 'elementary',
+  primary: 'elementary',
+  middle_school: 'secondary',
+  high_school: 'secondary',
+  diploma: 'university',
+  undergraduate: 'university',
+  masters: 'graduate',
+  phd: 'graduate',
+};
+
+/** Map education stage to legacy educationLevel (for saves and UI). */
+export function stageToLegacyEducationLevel(stage: EducationStage): EducationLevel {
+  return STAGE_TO_LEGACY_LEVEL[stage] ?? 'none';
 }
 
 export interface EducationRecord {

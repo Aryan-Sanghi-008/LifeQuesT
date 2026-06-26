@@ -1,6 +1,7 @@
 import { Character, LifeEvent } from '../types';
 import { LIFE_EVENTS } from '../data/gameData';
 import { isEventBlockedByCrime, isInJail } from './crimeEngine';
+import type { EducationStage } from '../data/educationDegrees';
 
 export function hasJob(character: Character): boolean {
   if (isInJail(character)) return false;
@@ -44,9 +45,58 @@ export function getEligibleEvents(age: number, character: Character): LifeEvent[
   return LIFE_EVENTS.filter(e => isEligible(e, age, usedIds, character));
 }
 
+/**
+ * Weighted random selection without replacement.
+ */
+export function pickWeightedEvents(eligible: LifeEvent[], count: number): LifeEvent[] {
+  if (count <= 0 || eligible.length === 0) return [];
+
+  const pool = [...eligible];
+  const picked: LifeEvent[] = [];
+  const pickCount = Math.min(count, pool.length);
+
+  for (let i = 0; i < pickCount; i++) {
+    const totalWeight = pool.reduce((sum, e) => sum + (e.weight ?? 1), 0);
+    let roll = Math.random() * totalWeight;
+    let idx = 0;
+    for (let j = 0; j < pool.length; j++) {
+      roll -= pool[j].weight ?? 1;
+      if (roll <= 0) {
+        idx = j;
+        break;
+      }
+    }
+    picked.push(pool[idx]);
+    pool.splice(idx, 1);
+  }
+
+  return picked;
+}
+
+/** @deprecated Use pickWeightedEvents */
 export function pickEvents(eligible: LifeEvent[], count: number): LifeEvent[] {
-  const shuffled = [...eligible].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, count);
+  return pickWeightedEvents(eligible, count);
+}
+
+/**
+ * Milestone events that must fire when age/education conditions are met.
+ * Skips school_start if age-based education already progressed past none.
+ */
+export function getGuaranteedMilestones(age: number, character: Character): LifeEvent[] {
+  const usedIds = new Set(character.eventHistory.map(e => e.id));
+  const guaranteed: LifeEvent[] = [];
+
+  const stage = (character.educationStage as EducationStage | undefined) ?? 'none';
+  const eduStillNone = stage === 'none' && character.educationLevel === 'none';
+
+  if (age === 5 && eduStillNone && !usedIds.has('school_start')) {
+    const schoolStart = LIFE_EVENTS.find(e => e.id === 'school_start');
+    if (schoolStart && isEligible(schoolStart, age, [...usedIds], character)) {
+      guaranteed.push(schoolStart);
+    }
+  }
+
+  return guaranteed;
 }
 
 export function applySuccessChance(

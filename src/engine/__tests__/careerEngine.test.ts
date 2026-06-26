@@ -1,5 +1,6 @@
 import {
   jobToCareer, workHarder, askForRaise, applyForPromotion, incrementCareerYear,
+  checkCareerEligibility, syncJobLabel,
 } from '@engine/careerEngine';
 
 describe('jobToCareer', () => {
@@ -57,5 +58,57 @@ describe('incrementCareerYear', () => {
       title: 'Doctor', company: 'Hospital', salary: 100000, yearsEmployed: 3, performance: 50,
     };
     expect(incrementCareerYear(career).yearsEmployed).toBe(4);
+  });
+});
+
+describe('checkCareerEligibility', () => {
+  const baseChar = {
+    age: 22,
+    educationLevel: 'university' as const,
+    educationStage: 'undergraduate',
+    degreeIds: [] as string[],
+    stats: {
+      health: 70, happiness: 70, intelligence: 80, wealth: 50,
+      fitness: 60, looks: 60, social: 50, ambition: 50, mentalHealth: 70,
+    },
+    traits: [] as string[],
+    countryCode: 'US',
+    criminalRecord: { crimes: [] as string[], jailYearsRemaining: 0, onProbation: false },
+    assets: [] as [],
+  };
+
+  it('rejects careers requiring specific degrees when none earned', () => {
+    const result = checkCareerEligibility(baseChar, 'junior_dev');
+    expect(result.eligible).toBe(false);
+    expect(result.reason).toContain('degree');
+  });
+
+  it('accepts careers when required degree is earned', () => {
+    const result = checkCareerEligibility(
+      { ...baseChar, degreeIds: ['bsc_cs'] },
+      'junior_dev',
+    );
+    expect(result.eligible).toBe(true);
+  });
+});
+
+describe('syncJobLabel', () => {
+  it('returns Student for minors without career', () => {
+    expect(syncJobLabel(10, null, 'Student')).toBe('Student');
+  });
+
+  it('returns Unemployed for adults without career', () => {
+    expect(syncJobLabel(25, null, 'Student')).toBe('Unemployed');
+  });
+
+  it('returns career title when employed', () => {
+    const career = {
+      title: 'Engineer', company: 'Co', salary: 50000, yearsEmployed: 1, performance: 50,
+    };
+    expect(syncJobLabel(30, career, 'Student')).toBe('Engineer');
+  });
+
+  it('preserves Retired status', () => {
+    expect(syncJobLabel(70, null, 'Retired')).toBe('Retired');
   });
 });

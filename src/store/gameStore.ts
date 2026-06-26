@@ -48,7 +48,7 @@ import {
 } from '../engine/businessEngine';
 import {
   pickStudyQuestions, gradeStudySession, canStudy, StudyQuestion, StudySessionResult,
-  advanceEducation,
+  advanceEducation, enrollInProgram,
 } from '../engine/educationEngine';
 import {
   pickDailyQuests, updateQuestProgress, isQuestComplete, claimQuest, stampKarmaBaseline,
@@ -233,6 +233,7 @@ interface GameStore {
   startStudySession: () => StudyQuestion[];
   completeStudySession: (answers: number[]) => StudySessionResult;
   grantDegree: (degreeId: string) => { ok: boolean; message: string };
+  enrollInDegree: (degreeId: string) => { ok: boolean; message: string };
   foundBusiness: (name: string) => { ok: boolean; message: string };
   sellBusiness: (businessId: string) => { ok: boolean; message: string };
   getClassmates: () => Person[];
@@ -483,6 +484,9 @@ export const useGameStore = create<GameStore>()(
       if ((character.degreeIds ?? []).includes(degreeId)) {
         return { ok: false, message: 'You already have this degree.' };
       }
+      if (character.enrolledDegreeId && character.enrolledDegreeId !== degreeId) {
+        return { ok: false, message: 'You are enrolled in a different program. Finish or re-enroll.' };
+      }
 
       const advResult = advanceEducation(character, degreeId);
       if (!advResult.ok || !advResult.degreeEarned) {
@@ -490,8 +494,7 @@ export const useGameStore = create<GameStore>()(
       }
 
       const degree = advResult.degreeEarned;
-      const eco = getCountryEconomy(character.countryCode);
-      const tuition = Math.round(degree.baseAnnualCost * eco.salaryMultiplier);
+      const alreadyEnrolled = character.enrolledDegreeId === degreeId;
 
       set(s => {
         if (!s.character) return;
@@ -509,13 +512,51 @@ export const useGameStore = create<GameStore>()(
             s.character.stats.intelligence + advResult.intelligenceGain,
           );
         }
-        s.character.bankBalance = Math.max(0, s.character.bankBalance - tuition);
+        // Tuition already paid at enrollment
+        if (!alreadyEnrolled) {
+          const eco = getCountryEconomy(s.character.countryCode);
+          const tuition = Math.round(degree.baseAnnualCost * eco.salaryMultiplier);
+          s.character.bankBalance = Math.max(0, s.character.bankBalance - tuition);
+        }
+        s.character.enrolledDegreeId = undefined;
       });
 
       void get()._persist();
       return {
         ok: true,
-        message: `${advResult.message} Tuition paid: ${eco.currencySymbol}${tuition.toLocaleString(eco.currencyLocale)}.`,
+        message: advResult.message,
+      };
+    },
+
+    enrollInDegree: (degreeId) => {
+      const { character } = get();
+      if (!character) return { ok: false, message: 'No character.' };
+
+      if (character.enrolledDegreeId === degreeId) {
+        return { ok: true, message: 'Already enrolled in this program.' };
+      }
+
+      const enrollResult = enrollInProgram(character, degreeId);
+      if (!enrollResult.ok) {
+        return { ok: false, message: enrollResult.message };
+      }
+
+      const eco = getCountryEconomy(character.countryCode);
+      const tuition = Math.round((enrollResult.annualCost ?? 0) * eco.salaryMultiplier);
+      if (character.bankBalance < tuition) {
+        return { ok: false, message: `Insufficient funds. Tuition is ${eco.currencySymbol}${tuition.toLocaleString(eco.currencyLocale)}.` };
+      }
+
+      set(s => {
+        if (!s.character) return;
+        s.character.bankBalance = Math.max(0, s.character.bankBalance - tuition);
+        s.character.enrolledDegreeId = degreeId;
+      });
+
+      void get()._persist();
+      return {
+        ok: true,
+        message: `${enrollResult.message} Tuition paid: ${eco.currencySymbol}${tuition.toLocaleString(eco.currencyLocale)}.`,
       };
     },
 

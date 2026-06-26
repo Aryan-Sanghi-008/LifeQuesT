@@ -31,7 +31,7 @@ function getEducationRank(level: string): number {
  * Returns detailed eligibility result with reason and hire probability.
  */
 export function checkCareerEligibility(
-  character: Pick<Character, 'age' | 'educationLevel' | 'stats' | 'traits' | 'countryCode' | 'criminalRecord' | 'assets'>,
+  character: Pick<Character, 'age' | 'educationLevel' | 'educationStage' | 'degreeIds' | 'stats' | 'traits' | 'countryCode' | 'criminalRecord' | 'assets'>,
   careerId: string,
 ): EligibilityResult {
   const career = getCareerById(careerId);
@@ -59,15 +59,29 @@ export function checkCareerEligibility(
     };
   }
 
-  // Education stage check
-  const charEduRank  = getEducationRank(character.educationLevel);
+  // Education stage check — use stage rank when available
+  const charStage = character.educationStage ?? character.educationLevel;
+  const charEduRank  = getEducationRank(charStage);
   const reqEduRank   = getEducationRank(req.minEducationStage);
   if (charEduRank < reqEduRank) {
     return {
       eligible: false,
-      reason: `Required education: ${req.minEducationStage.replace('_', ' ')}. Yours: ${character.educationLevel}.`,
+      reason: `Required education: ${req.minEducationStage.replace(/_/g, ' ')}. Yours: ${charStage.replace(/_/g, ' ')}.`,
       hireProbability: 0,
     };
+  }
+
+  // Degree requirements — any ONE of requiredDegreeIds
+  if (req.requiredDegreeIds?.length) {
+    const owned = new Set(character.degreeIds ?? []);
+    const hasDegree = req.requiredDegreeIds.some(id => owned.has(id));
+    if (!hasDegree) {
+      return {
+        eligible: false,
+        reason: 'Required degree not earned. Complete the relevant program in Study.',
+        hireProbability: 0,
+      };
+    }
   }
 
   // Criminal record check
@@ -118,9 +132,7 @@ export function checkCareerEligibility(
     warnings.push(`Social skills are below ideal.`);
   }
 
-  // Degree requirements — any ONE of requiredDegreeIds
-  // Note: Character currently stores educationLevel (legacy). In future, will store degreeIds[].
-  // For now we use the education level rank as a proxy.
+  // Degree requirements enforced above.
 
   // Compute hire probability based on character stats vs requirements
   const hireProbability = computeHireProbability(character, career);
@@ -277,6 +289,23 @@ export function applyForPromotion(career: Career, success: boolean): { career: C
 
 export function incrementCareerYear(career: Career): Career {
   return { ...career, yearsEmployed: career.yearsEmployed + 1 };
+}
+
+/**
+ * Sync display job label with career/age state when no explicit job change occurred.
+ */
+export function syncJobLabel(
+  age: number,
+  career: Career | null,
+  currentJob: string,
+): string {
+  if (career) return career.title;
+  if (currentJob === 'Retired') return 'Retired';
+  if (age < 16) return 'Student';
+  if (currentJob === 'Student' || currentJob === 'Unemployed') {
+    return age < 16 ? 'Student' : 'Unemployed';
+  }
+  return currentJob;
 }
 
 /**

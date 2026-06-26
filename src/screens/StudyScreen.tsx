@@ -78,6 +78,7 @@ export default function StudyScreen() {
   const startStudySession = useGameStore(s => s.startStudySession);
   const completeStudySession = useGameStore(s => s.completeStudySession);
   const grantDegree = useGameStore(s => s.grantDegree);
+  const enrollInDegree = useGameStore(s => s.enrollInDegree);
 
   const [step, setStep] = useState<'degrees' | 'quiz'>('degrees');
   const [selectedDegreeId, setSelectedDegreeId] = useState<string | null>(null);
@@ -101,6 +102,11 @@ export default function StudyScreen() {
         <DegreeSelector
           character={character}
           onSelect={(degreeId) => {
+            const enrollResult = enrollInDegree(degreeId);
+            if (!enrollResult.ok) {
+              Alert.alert('Cannot Enroll', enrollResult.message);
+              return;
+            }
             setSelectedDegreeId(degreeId);
             setStep('quiz');
           }}

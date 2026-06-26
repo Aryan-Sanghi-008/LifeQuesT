@@ -82,20 +82,119 @@ export function canStudy(age: number, educationLevel: EducationLevel): boolean {
 }
 
 // ─── Education Stage → Legacy EducationLevel mapping ─────────────────────────
-const STAGE_TO_LEGACY: Record<EducationStage, EducationLevel> = {
-  none:          'none',
-  preschool:     'elementary',
-  primary:       'elementary',
-  middle_school: 'secondary',
-  high_school:   'secondary',
-  diploma:       'university',
-  undergraduate: 'university',
-  masters:       'graduate',
-  phd:           'graduate',
-};
+import { stageToLegacyEducationLevel } from '../data/educationDegrees';
 
 export function stagesToLegacyEducation(stage: EducationStage): EducationLevel {
-  return STAGE_TO_LEGACY[stage] ?? 'none';
+  return stageToLegacyEducationLevel(stage);
+}
+
+const STAGE_RANK: Record<EducationStage, number> = {
+  none: 0, preschool: 1, primary: 2, middle_school: 3, high_school: 4,
+  diploma: 5, undergraduate: 6, masters: 7, phd: 8,
+};
+
+export interface EducationAdvanceResult {
+  educationStage: EducationStage;
+  educationLevel: EducationLevel;
+  milestone?: { title: string; description: string };
+}
+
+const AGE_EDUCATION_GATES: Array<{
+  minAge: number;
+  stage: EducationStage;
+  title: string;
+  description: string;
+}> = [
+  {
+    minAge: 5,
+    stage: 'primary',
+    title: 'Started Primary School',
+    description: 'You began primary school — a new chapter of learning and friends.',
+  },
+  {
+    minAge: 12,
+    stage: 'middle_school',
+    title: 'Started Secondary School',
+    description: 'You moved up to secondary school. The coursework got tougher.',
+  },
+  {
+    minAge: 18,
+    stage: 'high_school',
+    title: 'Graduated High School',
+    description: 'You completed high school and earned your diploma.',
+  },
+];
+
+/**
+ * Promote education stage based on age milestones. Never downgrades.
+ */
+export function advanceEducationByAge(
+  age: number,
+  currentStage: EducationStage,
+  currentLevel: EducationLevel,
+): EducationAdvanceResult | null {
+  const currentRank = STAGE_RANK[currentStage] ?? 0;
+  let best: typeof AGE_EDUCATION_GATES[number] | null = null;
+
+  for (const gate of AGE_EDUCATION_GATES) {
+    if (age >= gate.minAge && STAGE_RANK[gate.stage] > currentRank) {
+      if (!best || STAGE_RANK[gate.stage] > STAGE_RANK[best.stage]) {
+        best = gate;
+      }
+    }
+  }
+
+  if (!best) return null;
+
+  const educationStage = best.stage;
+  const educationLevel = stagesToLegacyEducation(educationStage);
+  // Never downgrade legacy level
+  const levelRank = ['none', 'elementary', 'secondary', 'university', 'graduate'] as const;
+  const finalLevel = levelRank.indexOf(educationLevel) >= levelRank.indexOf(currentLevel)
+    ? educationLevel
+    : currentLevel;
+
+  return {
+    educationStage,
+    educationLevel: finalLevel,
+    milestone: { title: best.title, description: best.description },
+  };
+}
+
+const EDUCATION_LABELS: Record<string, string> = {
+  none: 'No Education',
+  preschool: 'Preschool',
+  primary: 'Primary',
+  middle_school: 'Secondary',
+  high_school: 'High School',
+  diploma: 'Diploma',
+  undergraduate: 'University',
+  masters: 'Masters',
+  phd: 'PhD',
+  elementary: 'Elementary',
+  secondary: 'Secondary',
+  university: 'University',
+  graduate: 'Graduate',
+};
+
+export function getEducationLabel(stage?: string, level?: EducationLevel): string {
+  if (stage && stage !== 'none' && EDUCATION_LABELS[stage]) {
+    return EDUCATION_LABELS[stage];
+  }
+  return EDUCATION_LABELS[level ?? 'none'] ?? 'No Education';
+}
+
+/** Legacy level that best reflects stage vs stored level for UI tracks. */
+export function resolveEducationLevelForDisplay(
+  stage?: string,
+  level?: EducationLevel,
+): EducationLevel {
+  if (!stage || stage === 'none') return level ?? 'none';
+  const fromStage = stagesToLegacyEducation(stage as EducationStage);
+  const levelRank = ['none', 'elementary', 'secondary', 'university', 'graduate'] as const;
+  const stageIdx = levelRank.indexOf(fromStage);
+  const levelIdx = levelRank.indexOf(level ?? 'none');
+  return stageIdx >= levelIdx ? fromStage : (level ?? 'none');
 }
 
 /**

@@ -6,8 +6,10 @@ import { getLifeStage } from '../utils/lifeStage';
 import { generatePartner, generatePet } from '../utils/npcGenerator';
 import { applyEffect, tickAnnualEconomy, computeNetWorth, clamp, AnnualEconomyResult } from './economyEngine';
 import { getCountryEconomy } from '../data/countryEconomy';
-import { getEligibleEvents, pickEvents } from './eventEngine';
-import { jobToCareer, incrementCareerYear } from './careerEngine';
+import { getEligibleEvents, pickWeightedEvents, getGuaranteedMilestones } from './eventEngine';
+import { jobToCareer, incrementCareerYear, syncJobLabel } from './careerEngine';
+import { advanceEducationByAge } from './educationEngine';
+import { EducationStage } from '../data/educationDegrees';
 import { ensureClassmates, ensureCoworkers, agePeople } from './peopleEngine';
 import { tickMentalHealth } from './mentalHealthEngine';
 import { recordCrime, tickJail, isInJail } from './crimeEngine';
@@ -249,15 +251,56 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
   }
 
   const cooldowns = character.eventCooldowns ?? {};
-  const rawEligible = getEligibleEvents(newAge, { ...character, age: newAge, stats, bankBalance, career });
+
+  let updatedEducation: EducationLevel = character.educationLevel;
+  let updatedEducationStage = (character.educationStage as EducationStage | undefined) ?? 'none';
+
+  const eduAdvance = advanceEducationByAge(
+    newAge,
+    updatedEducationStage,
+    updatedEducation,
+  );
+  const eduMilestoneRecords: LifeEventRecord[] = [];
+  if (eduAdvance) {
+    updatedEducationStage = eduAdvance.educationStage;
+    updatedEducation = eduAdvance.educationLevel;
+    if (eduAdvance.milestone) {
+      eduMilestoneRecords.push({
+        id: `edu_milestone_${updatedEducationStage}`,
+        age: newAge,
+        title: eduAdvance.milestone.title,
+        description: eduAdvance.milestone.description,
+        statEffect: { intelligence: 2 },
+        category: 'education',
+        color: '#14B8A6',
+        timestamp: Date.now(),
+      });
+    }
+  }
+
+  const charForEvents = {
+    ...character,
+    age: newAge,
+    stats,
+    bankBalance,
+    career,
+    educationLevel: updatedEducation,
+    educationStage: updatedEducationStage,
+  };
+
+  const rawEligible = getEligibleEvents(newAge, charForEvents);
   const eligible = rawEligible.filter(e => !isOnCooldown(e.id, newAge, cooldowns));
-  const chosenEvents = pickEvents(eligible, Math.min(eligible.length, 1 + Math.floor(Math.random() * 2)));
+  const guaranteed = getGuaranteedMilestones(newAge, charForEvents);
+  const guaranteedIds = new Set(guaranteed.map(e => e.id));
+  const pool = eligible.filter(e => !guaranteedIds.has(e.id));
+  const randomCount = Math.min(pool.length, Math.max(0, 1 + Math.floor(Math.random() * 2) - guaranteed.length));
+  const randomPicks = pickWeightedEvents(pool, randomCount);
+  const chosenEvents = [...guaranteed, ...randomPicks];
   const decisionEvent = chosenEvents.find(e => e.choices && e.choices.length > 0);
   const autoEvents = chosenEvents.filter(e => !e.choices?.length);
 
-  const newRecords: LifeEventRecord[] = [...economyRecords, ...stressRecords];
+  const newRecords: LifeEventRecord[] = [...economyRecords, ...stressRecords, ...eduMilestoneRecords];
   let updatedJob = character.job;
-  let updatedEducation: EducationLevel = character.educationLevel;
   let updatedPeople = agePeople([...character.people]).map(p => {
     // Relationship decay: non-family relationships slowly fade without interaction
     if (
@@ -337,6 +380,8 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
     updatedPeople = ensureCoworkers(updatedPeople, character.name, career.title);
   }
 
+  updatedJob = syncJobLabel(newAge, career, updatedJob);
+
   // Update cooldowns for events that fired this tick
   const updatedCooldowns: Record<string, number> = { ...cooldowns };
   for (const record of newRecords) {
@@ -357,6 +402,7 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
     job: updatedJob,
     career,
     educationLevel: updatedEducation,
+    educationStage: updatedEducationStage,
     people: updatedPeople,
     relationships: updatedRelationships,
     children: updatedChildren,
