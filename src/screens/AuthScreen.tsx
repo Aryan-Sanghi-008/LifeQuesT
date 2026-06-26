@@ -8,7 +8,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/types';
 import { COLORS, FONTS, RADII, SPACING } from '@constants/theme';
 import LifeGlyph from '@components/LifeGlyph';
-import { GradientButton, FadeInView } from '@components/index';
+import { GradientButton } from '@components/index';
 import { DiceBearAvatar } from '@components/Avatars';
 import { signInWithGoogle, signInAsGuest, isGoogleSignInAvailable } from '@services/auth';
 import { useGameStore } from '@store/gameStore';

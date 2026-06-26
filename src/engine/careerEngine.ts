@@ -4,7 +4,6 @@
 import { Career, EducationLevel, Character } from '../types';
 import { JOBS } from '../data/gameData';
 import { CAREER_PATHS, CareerPath, getCareerById, careerPathToLegacy } from '../data/careerPaths';
-import { getDegreeById } from '../data/educationDegrees';
 import { getCountryEconomy } from '../data/countryEconomy';
 
 // ─── Eligibility System ───────────────────────────────────────────────────────

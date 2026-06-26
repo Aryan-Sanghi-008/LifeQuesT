@@ -55,15 +55,24 @@ describe('applyEffect', () => {
 });
 
 describe('tickAnnualEconomy', () => {
-  it('adds salary and subtracts expenses for adults', () => {
-    const result = tickAnnualEconomy(25, 5000, 40000, []);
-    expect(result.bankBalance).toBe(5000 + 40000 - 12000);
-    expect(result.netWorth).toBe(result.bankBalance);
+  it('adds net salary and subtracts expenses once for adults', () => {
+    const result = tickAnnualEconomy(25, 5000, 40000, [], 'US');
+    expect(result.salaryGross).toBe(40000);
+    expect(result.salaryNet).toBe(Math.round(40000 * (1 - 0.28)));
+    expect(result.livingExpenses).toBeGreaterThan(0);
+    expect(result.bankBalance).toBe(5000 + result.salaryNet - result.livingExpenses);
   });
 
-  it('has no expenses for children', () => {
-    const result = tickAnnualEconomy(10, 1000, 0, []);
+  it('has no expenses for children under 13', () => {
+    const result = tickAnnualEconomy(10, 1000, 0, [], 'US');
+    expect(result.livingExpenses).toBe(0);
     expect(result.bankBalance).toBe(1000);
+  });
+
+  it('applies partial expenses for teens', () => {
+    const child = tickAnnualEconomy(10, 1000, 0, [], 'US');
+    const teen = tickAnnualEconomy(15, 1000, 0, [], 'US');
+    expect(teen.livingExpenses).toBeGreaterThan(child.livingExpenses);
   });
 });
 

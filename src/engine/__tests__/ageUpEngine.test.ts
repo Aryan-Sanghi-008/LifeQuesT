@@ -1,4 +1,5 @@
 import { runAgeUp } from '@engine/ageUpEngine';
+import { tickAnnualEconomy } from '@engine/economyEngine';
 import type { Character } from '../../types';
 
 function baseCharacter(overrides: Partial<Character> = {}): Character {
@@ -83,5 +84,55 @@ describe('runAgeUp', () => {
     if (outcome.type === 'complete' || outcome.type === 'pending_decision') {
       expect(outcome.patch.age).toBe(31);
     }
+  });
+
+  it('does not double-count salary on age-up', () => {
+    const character = baseCharacter({
+      age: 29,
+      bankBalance: 200_000,
+      countryCode: 'US',
+      career: {
+        title: 'Engineer',
+        company: 'Tech Co',
+        salary: 50_000,
+        yearsInRole: 2,
+        performance: 70,
+      },
+    });
+    const economyOnly = tickAnnualEconomy(
+      30,
+      200_000,
+      50_000,
+      [],
+      'US',
+    );
+    const outcome = runAgeUp(character);
+    expect(['complete', 'pending_decision']).toContain(outcome.type);
+    if (outcome.type !== 'complete' && outcome.type !== 'pending_decision') return;
+
+    const bankAfter = outcome.patch.bankBalance ?? 0;
+    // Double-credit would add another full net salary on top of the economy-only result
+    expect(bankAfter).toBeLessThan(economyOnly.bankBalance + economyOnly.salaryNet);
+    expect(bankAfter).toBeGreaterThanOrEqual(0);
+
+    const salaryRecords = outcome.newEventRecords.filter(r => r.id === 'annual_salary');
+    expect(salaryRecords).toHaveLength(1);
+  });
+
+  it('includes living expense ledger for adults', () => {
+    const character = baseCharacter({ age: 29, bankBalance: 50_000 });
+    const outcome = runAgeUp(character);
+    if (outcome.type !== 'complete' && outcome.type !== 'pending_decision') return;
+    const expenseRecord = outcome.newEventRecords.find(r => r.id === 'annual_expenses');
+    expect(expenseRecord).toBeDefined();
+    expect(expenseRecord?.category).toBe('financial');
+  });
+
+  it('skips living expenses for young children', () => {
+    const character = baseCharacter({ age: 5, bankBalance: 50_000 });
+    const outcome = runAgeUp(character);
+    if (outcome.type !== 'complete' && outcome.type !== 'pending_decision') return;
+    const expenseRecord = outcome.newEventRecords.find(r => r.id === 'annual_expenses');
+    expect(expenseRecord).toBeUndefined();
   });
 });

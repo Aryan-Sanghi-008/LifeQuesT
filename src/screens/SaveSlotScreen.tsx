@@ -27,8 +27,12 @@ export function SaveSlotScreen({ navigation }: Props) {
 
   const handleSelect = async (slotId: string, empty: boolean) => {
     if (empty) {
-      useGameStore.setState({ activeSlotId: slotId });
-      navigation.navigate('CharacterCreate', undefined);
+      useGameStore.setState({
+        activeSlotId: slotId,
+        character: null,
+        pendingDecision: null,
+      });
+      navigation.replace('CharacterCreate');
       return;
     }
     await loadSlot(slotId);

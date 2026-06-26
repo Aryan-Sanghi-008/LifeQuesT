@@ -7,10 +7,9 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, FONTS, RADII, SPACING, SHADOWS } from '../constants/theme';
-import { RootStackParamList } from '../types';
+import { RootStackParamList, AvatarStyleId } from '../types';
 import { useGameStore } from '../store/gameStore';
 import { AvatarByCharacter } from '../components/Avatars';
-import { AvatarStyleId } from '../types';
 import { StatBar, Card, Badge, SectionLabel, Divider } from '../components/index';
 import { ACHIEVEMENTS } from '../data/gameData';
 import { formatCurrency } from '../utils/currency';
@@ -137,11 +136,18 @@ export function ProfileScreen() {
   } = character;
 
   const AVATAR_STYLE_LABELS: Record<AvatarStyleId, string> = {
-    pixel_art: 'Pixel',
     adventurer: 'Adventurer',
+    'adventurer-neutral': 'Adventurer N',
     lorelei: 'Lorelei',
+    'lorelei-neutral': 'Lorelei N',
     bottts: 'Bottts',
+    notionists: 'Notionists',
+    'big-smile': 'Big Smile',
   };
+
+  const AVATAR_STYLE_OPTIONS: AvatarStyleId[] = [
+    'adventurer', 'lorelei', 'bottts', 'notionists', 'big-smile',
+  ];
 
   const cc = countryCode ?? 'IN';
   const bankStr = formatCurrency(bankBalance, cc);
@@ -205,9 +211,9 @@ export function ProfileScreen() {
             </View>
 
             <View style={styles.avatarStyleRow}>
-              {(['pixel_art', 'adventurer', 'lorelei', 'bottts'] as AvatarStyleId[]).map(style => {
-                const unlocked = (unlockedAvatarStyles ?? ['pixel_art']).includes(style);
-                const active = (avatarStyle ?? 'pixel_art') === style;
+              {AVATAR_STYLE_OPTIONS.map(style => {
+                const unlocked = (unlockedAvatarStyles ?? [avatarStyle ?? 'adventurer']).includes(style);
+                const active = (avatarStyle ?? 'adventurer') === style;
                 return (
                   <Pressable
                     key={style}

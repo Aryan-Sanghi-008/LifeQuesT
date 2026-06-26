@@ -9,7 +9,7 @@ import {
 import {
   TRAITS, COUNTRIES, ACTIVITIES, JOBS, ACHIEVEMENT_COIN_REWARDS,
 } from '../data/gameData';
-import { getStartingBalance } from '../data/countryEconomy';
+import { getStartingBalance, getCountryEconomy } from '../data/countryEconomy';
 import { generateParents, generatePet } from '../utils/npcGenerator';
 import { applyEffect, computeNetWorth, clamp, investInMarket } from '../engine/economyEngine';
 import {
@@ -48,6 +48,7 @@ import {
 } from '../engine/businessEngine';
 import {
   pickStudyQuestions, gradeStudySession, canStudy, StudyQuestion, StudySessionResult,
+  advanceEducation,
 } from '../engine/educationEngine';
 import {
   pickDailyQuests, updateQuestProgress, isQuestComplete, claimQuest, stampKarmaBaseline,
@@ -60,6 +61,15 @@ import { playSound } from '../services/audio';
 
 function generateId(): string {
   return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+}
+
+/** Bumps on createCharacter to invalidate in-flight loadGame calls. */
+let loadGeneration = 0;
+
+function defaultUnlockedStyles(gender: Gender): NonNullable<Character['unlockedAvatarStyles']> {
+  if (gender === 'female') return ['lorelei'];
+  if (gender === 'other') return ['notionists'];
+  return ['adventurer'];
 }
 
 export interface CreateCharacterPayload {
@@ -222,6 +232,7 @@ interface GameStore {
   claimSeasonTier: (tier: number) => { ok: boolean; message: string };
   startStudySession: () => StudyQuestion[];
   completeStudySession: (answers: number[]) => StudySessionResult;
+  grantDegree: (degreeId: string) => { ok: boolean; message: string };
   foundBusiness: (name: string) => { ok: boolean; message: string };
   sellBusiness: (businessId: string) => { ok: boolean; message: string };
   getClassmates: () => Person[];
@@ -466,6 +477,48 @@ export const useGameStore = create<GameStore>()(
       return result;
     },
 
+    grantDegree: (degreeId) => {
+      const { character } = get();
+      if (!character) return { ok: false, message: 'No character.' };
+      if ((character.degreeIds ?? []).includes(degreeId)) {
+        return { ok: false, message: 'You already have this degree.' };
+      }
+
+      const advResult = advanceEducation(character, degreeId);
+      if (!advResult.ok || !advResult.degreeEarned) {
+        return { ok: false, message: advResult.message };
+      }
+
+      const degree = advResult.degreeEarned;
+      const eco = getCountryEconomy(character.countryCode);
+      const tuition = Math.round(degree.baseAnnualCost * eco.salaryMultiplier);
+
+      set(s => {
+        if (!s.character) return;
+        if (!s.character.degreeIds) s.character.degreeIds = [];
+        if (!s.character.degreeIds.includes(degreeId)) {
+          s.character.degreeIds.push(degreeId);
+        }
+        if (advResult.newStage) s.character.educationStage = advResult.newStage;
+        s.character.educationBranch = degree.branch;
+        if (advResult.newEducationLevel) {
+          s.character.educationLevel = advResult.newEducationLevel;
+        }
+        if (advResult.intelligenceGain) {
+          s.character.stats.intelligence = clamp(
+            s.character.stats.intelligence + advResult.intelligenceGain,
+          );
+        }
+        s.character.bankBalance = Math.max(0, s.character.bankBalance - tuition);
+      });
+
+      void get()._persist();
+      return {
+        ok: true,
+        message: `${advResult.message} Tuition paid: ${eco.currencySymbol}${tuition.toLocaleString(eco.currencyLocale)}.`,
+      };
+    },
+
     foundBusiness: (name) => {
       const { character } = get();
       if (!character) return { ok: false, message: 'No character.' };
@@ -518,7 +571,7 @@ export const useGameStore = create<GameStore>()(
       if (!style) return;
       set(s => {
         if (!s.character) return;
-        const unlocked = s.character.unlockedAvatarStyles ?? ['pixel_art'];
+        const unlocked = s.character.unlockedAvatarStyles ?? defaultUnlockedStyles(s.character.gender);
         if (!unlocked.includes(style)) return;
         s.character.avatarStyle = style;
       });
@@ -528,7 +581,7 @@ export const useGameStore = create<GameStore>()(
     unlockAvatarStyle: (style) => {
       set(s => {
         if (!s.character) return;
-        const unlocked = s.character.unlockedAvatarStyles ?? ['pixel_art'];
+        const unlocked = s.character.unlockedAvatarStyles ?? defaultUnlockedStyles(s.character.gender);
         if (!unlocked.includes(style)) unlocked.push(style);
         s.character.unlockedAvatarStyles = unlocked;
         s.character.avatarStyle = style;
@@ -563,8 +616,11 @@ export const useGameStore = create<GameStore>()(
     },
 
     createCharacter: (payload) => {
+      loadGeneration += 1;
       const carried = get().carriedStatsForCreate;
       const char = buildCharacter({ ...payload, carriedStats: carried ?? payload.carriedStats });
+      const slotId = get().activeSlotId;
+      saveCharacterLocal(char, slotId);
       set(s => {
         s.character = char;
         s.pendingDecision = null;
@@ -959,6 +1015,7 @@ export const useGameStore = create<GameStore>()(
     saveGame: async () => { await get()._persist(); },
 
     loadGame: async (slotId?: string) => {
+      const gen = ++loadGeneration;
       try {
         await migrateLegacySaves();
         const id = slotId ?? getActiveSlotId();
@@ -981,13 +1038,25 @@ export const useGameStore = create<GameStore>()(
           }
         }
 
+        if (gen !== loadGeneration) return;
+
+        const current = get().character;
+        if (current) {
+          if (!char || current.updatedAt > (char.updatedAt ?? 0)) {
+            set(s => { s.isHydrated = true; });
+            return;
+          }
+        }
+
         set(s => {
           s.character = char;
           s.activeSlotId = id;
           s.isHydrated = true;
         });
       } catch {
-        set(s => { s.isHydrated = true; });
+        if (gen === loadGeneration) {
+          set(s => { s.isHydrated = true; });
+        }
       }
     },
 

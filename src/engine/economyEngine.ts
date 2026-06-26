@@ -1,5 +1,5 @@
 import { Character, CharacterStats, StatEffect } from '../types';
-import { getAnnualCostOfLiving } from '../data/countryEconomy';
+import { getAnnualCostOfLiving, getCountryEconomy, applyTax } from '../data/countryEconomy';
 
 export const clamp = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
 
@@ -35,19 +35,47 @@ export function applyEffect(
   return { stats: next, karma: nextKarma, bankBalance: nextBank, netWorth };
 }
 
+export interface AnnualEconomyResult {
+  bankBalance: number;
+  netWorth: number;
+  salaryGross: number;
+  salaryNet: number;
+  taxPaid: number;
+  livingExpenses: number;
+}
+
+function livingExpenseAgeFactor(age: number): number {
+  if (age >= 20) return 1.0;
+  if (age >= 13) return 0.4;
+  return 0;
+}
+
 export function tickAnnualEconomy(
   age: number,
   bankBalance: number,
-  salary: number,
+  salaryGross: number,
   assets: Character['assets'],
   countryCode = 'US',
-): { bankBalance: number; netWorth: number } {
-  // Country-scaled cost of living, adjusted by age (adults pay full cost)
+): AnnualEconomyResult {
+  const eco = getCountryEconomy(countryCode);
   const baseCoL = getAnnualCostOfLiving(countryCode);
-  const ageFactor = age >= 20 ? 1.0 : age >= 13 ? 0.4 : 0.1;
-  const annualExpenses = Math.round(baseCoL * ageFactor);
-  const nextBank = Math.max(0, bankBalance + salary - annualExpenses);
-  return { bankBalance: nextBank, netWorth: computeNetWorth({ bankBalance: nextBank, assets }) };
+  const inflationAdjusted = Math.round(baseCoL * eco.costOfLivingIndex * (1 + eco.inflationRate * 0.5));
+  const livingExpenses = Math.round(inflationAdjusted * livingExpenseAgeFactor(age));
+
+  const salaryNet = salaryGross > 0 ? applyTax(salaryGross, countryCode) : 0;
+  const taxPaid = salaryGross - salaryNet;
+
+  const nextBank = Math.max(-500_000, bankBalance + salaryNet - livingExpenses);
+  const netWorth = computeNetWorth({ bankBalance: nextBank, assets });
+
+  return {
+    bankBalance: nextBank,
+    netWorth,
+    salaryGross,
+    salaryNet,
+    taxPaid,
+    livingExpenses,
+  };
 }
 
 const MIN_INVESTMENT = 10000;

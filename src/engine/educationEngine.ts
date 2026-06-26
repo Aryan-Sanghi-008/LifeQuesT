@@ -1,6 +1,6 @@
 import { EducationLevel, Character } from '../types';
 import { clamp } from './economyEngine';
-import { DEGREES, Degree, EducationStage, EducationBranch } from '../data/educationDegrees';
+import { DEGREES, Degree, EducationStage } from '../data/educationDegrees';
 
 export interface StudyQuestion {
   id: string;

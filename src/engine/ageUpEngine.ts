@@ -4,7 +4,8 @@ import {
 import { DEATH_CAUSES } from '../data/gameData';
 import { getLifeStage } from '../utils/lifeStage';
 import { generatePartner, generatePet } from '../utils/npcGenerator';
-import { applyEffect, tickAnnualEconomy, computeNetWorth, clamp } from './economyEngine';
+import { applyEffect, tickAnnualEconomy, computeNetWorth, clamp, AnnualEconomyResult } from './economyEngine';
+import { getCountryEconomy } from '../data/countryEconomy';
 import { getEligibleEvents, pickEvents } from './eventEngine';
 import { jobToCareer, incrementCareerYear } from './careerEngine';
 import { ensureClassmates, ensureCoworkers, agePeople } from './peopleEngine';
@@ -27,6 +28,70 @@ function applyJobUpdate(
 }
 
 const VIRAL_EVENT_IDS = ['viral_moment', 'follower_1k', 'follower_10k'];
+const FINANCIAL_EVENT_COLOR = '#10B981';
+
+function formatMoney(amount: number, countryCode: string): string {
+  const eco = getCountryEconomy(countryCode);
+  return `${eco.currencySymbol}${Math.abs(amount).toLocaleString(eco.currencyLocale)}`;
+}
+
+function buildEconomyLedgerRecords(
+  newAge: number,
+  economy: AnnualEconomyResult,
+  countryCode: string,
+): LifeEventRecord[] {
+  const records: LifeEventRecord[] = [];
+  const ts = Date.now();
+
+  if (economy.livingExpenses > 0) {
+    records.push({
+      id: 'annual_expenses',
+      age: newAge,
+      title: 'Living Expenses',
+      description: `Annual cost of living: ${formatMoney(economy.livingExpenses, countryCode)} deducted from your account.`,
+      statEffect: {},
+      category: 'financial',
+      color: FINANCIAL_EVENT_COLOR,
+      timestamp: ts,
+    });
+  }
+
+  if (economy.salaryNet > 0) {
+    const taxNote = economy.taxPaid > 0
+      ? ` (${formatMoney(economy.taxPaid, countryCode)} tax withheld)`
+      : '';
+    records.push({
+      id: 'annual_salary',
+      age: newAge,
+      title: 'Salary Deposited',
+      description: `Net salary: ${formatMoney(economy.salaryNet, countryCode)} deposited${taxNote}.`,
+      statEffect: {},
+      category: 'financial',
+      color: FINANCIAL_EVENT_COLOR,
+      timestamp: ts + 1,
+    });
+  }
+
+  return records;
+}
+
+function buildStressRecords(
+  newAge: number,
+  narrativeEffects: ReturnType<typeof runAnnualSimulation>['narrativeEffects'],
+): LifeEventRecord[] {
+  return narrativeEffects
+    .filter(e => e.type === 'financial_stress')
+    .map((e, i) => ({
+      id: `financial_stress_${e.severity}`,
+      age: newAge,
+      title: e.severity === 'major' ? 'Financial Crisis' : 'Money Trouble',
+      description: e.description,
+      statEffect: {},
+      category: 'financial' as const,
+      color: e.severity === 'major' ? '#EF4444' : '#F97316',
+      timestamp: Date.now() + 2 + i,
+    }));
+}
 
 // Event cooldowns: eventId → minimum years between occurrences
 const EVENT_COOLDOWNS: Record<string, number> = {
@@ -121,18 +186,16 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
 
   let career = character.career ? incrementCareerYear(character.career) : null;
   const salary = career?.salary ?? 0;
-  const ticked = tickAnnualEconomy(newAge, bankBalance, salary, character.assets, character.countryCode ?? 'US');
-  bankBalance = ticked.bankBalance;
-  stats = { ...stats, wealth: clamp(ticked.netWorth / 10000) };
+  const countryCode = character.countryCode ?? 'US';
+  const economy = tickAnnualEconomy(newAge, bankBalance, salary, character.assets, countryCode);
+  bankBalance = economy.bankBalance;
 
-  // ── TASK 11: Run unified simulation (interconnected system effects) ──────────
   const simResult = runAnnualSimulation({ ...character, age: newAge, stats, bankBalance, career });
-  // Apply stat patches from simulation
   stats = { ...stats, ...simResult.statsPatches } as typeof stats;
-  // Apply bank delta (cost of living already deducted, salary added)
-  // Note: salary was already added by tickAnnualEconomy above, so only add the delta
-  // that differs (cost of living is the primary delta from simulation)
-  bankBalance = Math.max(-500000, bankBalance + simResult.bankBalanceDelta);
+  stats = { ...stats, wealth: clamp(computeNetWorth({ bankBalance, assets: character.assets }) / 10000) };
+
+  const economyRecords = buildEconomyLedgerRecords(newAge, economy, countryCode);
+  const stressRecords = buildStressRecords(newAge, simResult.narrativeEffects);
 
   const newLifeStage: LifeStage = getLifeStage(newAge);
 
@@ -192,7 +255,7 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
   const decisionEvent = chosenEvents.find(e => e.choices && e.choices.length > 0);
   const autoEvents = chosenEvents.filter(e => !e.choices?.length);
 
-  const newRecords: LifeEventRecord[] = [];
+  const newRecords: LifeEventRecord[] = [...economyRecords, ...stressRecords];
   let updatedJob = character.job;
   let updatedEducation: EducationLevel = character.educationLevel;
   let updatedPeople = agePeople([...character.people]).map(p => {

@@ -7,7 +7,7 @@ import { RootStackParamList } from '../types';
 import { useGameStore } from '../store/gameStore';
 import { GradientButton, Card, SectionLabel } from '../components/index';
 import { COLORS, FONTS, RADII, SPACING } from '../constants/theme';
-import { getEnrollableDegrees, advanceEducation, getEarnedDegrees } from '../engine/educationEngine';
+import { getEnrollableDegrees, getEarnedDegrees } from '../engine/educationEngine';
 import { formatCurrency } from '../utils/currency';
 
 // ─── Degree Selection Step ─────────────────────────────────────────────────────
@@ -77,6 +77,7 @@ export default function StudyScreen() {
   const character = useGameStore(s => s.character);
   const startStudySession = useGameStore(s => s.startStudySession);
   const completeStudySession = useGameStore(s => s.completeStudySession);
+  const grantDegree = useGameStore(s => s.grantDegree);
 
   const [step, setStep] = useState<'degrees' | 'quiz'>('degrees');
   const [selectedDegreeId, setSelectedDegreeId] = useState<string | null>(null);
@@ -132,11 +133,11 @@ export default function StudyScreen() {
 
     // If a degree was selected, grant it on pass
     if (result.passed && selectedDegreeId) {
-      const advResult = advanceEducation(character, selectedDegreeId);
-      if (advResult.ok && advResult.degreeEarned) {
+      const grantResult = grantDegree(selectedDegreeId);
+      if (grantResult.ok) {
         Alert.alert(
-          `${advResult.degreeEarned.shortLabel} Earned!`,
-          `${advResult.message}\nScore: ${result.score}/${result.totalQuestions}. Intelligence +${result.intelligenceGain}`,
+          'Degree Earned!',
+          `${grantResult.message}\nScore: ${result.score}/${result.totalQuestions}. Intelligence +${result.intelligenceGain}`,
           [{ text: 'OK', onPress: () => navigation.goBack() }],
         );
         return;

@@ -68,12 +68,12 @@ describe('applyEntitlementsToCharacter', () => {
     expect(updated.isPremium).toBe(false);
   });
 
-  it('merges unlocked avatar styles with pixel_art', () => {
+  it('merges unlocked avatar styles with character default', () => {
     const updated = applyEntitlementsToCharacter(baseCharacter, {
       unlockedAvatarStyles: ['adventurer', 'lorelei'],
     });
     expect(updated.unlockedAvatarStyles).toEqual(
-      expect.arrayContaining(['pixel_art', 'adventurer', 'lorelei']),
+      expect.arrayContaining(['adventurer', 'lorelei']),
     );
   });
 });

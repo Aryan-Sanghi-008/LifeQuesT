@@ -11,6 +11,12 @@ export interface UserEntitlements {
   reincarnationScroll?: boolean;
 }
 
+function defaultStyleForCharacter(character: Character): AvatarStyleId {
+  if (character.gender === 'female') return 'lorelei';
+  if (character.gender === 'other') return 'notionists';
+  return 'adventurer';
+}
+
 export function applyEntitlementsToCharacter(
   character: Character,
   entitlements: UserEntitlements,
@@ -25,10 +31,9 @@ export function applyEntitlementsToCharacter(
   if (entitlements.hasSeasonPass) next.hasSeasonPass = true;
   if (entitlements.unlockedAvatarStyles?.length) {
     const styles = new Set<AvatarStyleId>([
-      ...(next.unlockedAvatarStyles ?? ['pixel_art']),
+      ...(next.unlockedAvatarStyles ?? [defaultStyleForCharacter(character)]),
       ...entitlements.unlockedAvatarStyles,
     ]);
-    styles.add('pixel_art');
     next.unlockedAvatarStyles = Array.from(styles);
   }
   if (entitlements.coinsGrant) next.coins += entitlements.coinsGrant;

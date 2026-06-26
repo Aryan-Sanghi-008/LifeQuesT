@@ -21,7 +21,7 @@ export const CAREER_EVENTS: LifeEvent[] = [
 
   { id: 'ce_team_conflict', minAge: 24, maxAge: 55, title: 'Team Conflict', description: 'A disagreement within your team required careful mediation.', statEffect: { social: 4, mentalHealth: -4, happiness: -3 }, category: 'career', color: COLORS.orchid },
 
-  { id: 'ce_whistleblower', minAge: 25, maxAge: 55, title: 'Ethical Dilemma at Work', description: 'You discovered something questionable happening in the company.', choices: [{ id: 'report_it', text: 'Report it', subtext: 'Speak up', statEffect: { happiness: 5, mentalHealth: -6, social: -3 } }, { id: 'stay_quiet', text: 'Stay quiet', subtext: 'Keep your head down', statEffect: { happiness: -8, mentalHealth: -5 } }], category: 'career', color: COLORS.orchid },
+  { id: 'ce_whistleblower', minAge: 25, maxAge: 55, title: 'Ethical Dilemma at Work', description: 'You discovered something questionable happening in the company.', statEffect: {}, choices: [{ id: 'report_it', text: 'Report it', subtext: 'Speak up', statEffect: { happiness: 5, mentalHealth: -6, social: -3 } }, { id: 'stay_quiet', text: 'Stay quiet', subtext: 'Keep your head down', statEffect: { happiness: -8, mentalHealth: -5 } }], category: 'career', color: COLORS.orchid },
 
   { id: 'ce_company_restructure', minAge: 28, maxAge: 55, title: 'Company Restructure', description: 'Management announced a major reorganization. Your role was affected.', statEffect: { mentalHealth: -6, happiness: -5, ambition: 2 }, category: 'career', color: COLORS.orchid },
 
