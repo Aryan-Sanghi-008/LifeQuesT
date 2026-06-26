@@ -375,8 +375,15 @@ export function CharacterCreateScreen({ navigation, route }: Props) {
   };
 
   const prevStep = () => {
-    if (step > 0) setStep(s => s - 1);
-    else navigation.goBack();
+    if (step > 0) {
+      setStep(s => s - 1);
+      return;
+    }
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.replace('SaveSlots');
+    }
   };
 
   const canProceed = step === 0 ? name.trim().length > 0 : true;
