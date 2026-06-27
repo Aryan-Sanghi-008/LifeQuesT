@@ -1,6 +1,11 @@
 import { Character, LifeEvent } from '../types';
 import { LIFE_EVENTS } from '../data/gameData';
 import { isEventBlockedByCrime, isInJail } from './crimeEngine';
+import { filterByMemoryEligibility } from './memoryEngine';
+import {
+  applyFocusEventWeights,
+  resolveFocusAllocationForAgeUp,
+} from './focusEngine';
 import type { EducationStage } from '../data/educationDegrees';
 
 export function hasJob(character: Character): boolean {
@@ -43,6 +48,13 @@ export function isEligible(
 export function getEligibleEvents(age: number, character: Character): LifeEvent[] {
   const usedIds = character.eventHistory.map(e => e.id);
   return LIFE_EVENTS.filter(e => isEligible(e, age, usedIds, character));
+}
+
+export function getWeightedEligibleEvents(age: number, character: Character): LifeEvent[] {
+  const eligible = getEligibleEvents(age, character);
+  const memoryFiltered = filterByMemoryEligibility(eligible, character);
+  const allocation = resolveFocusAllocationForAgeUp(character);
+  return applyFocusEventWeights(memoryFiltered, allocation, character.aspirations);
 }
 
 /**

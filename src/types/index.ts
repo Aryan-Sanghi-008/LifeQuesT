@@ -17,6 +17,86 @@ export type EducationLevel =
   | 'university'
   | 'graduate';
 
+// ─── Genetics & Psychology ───────────────────────────────────────────────────
+
+export interface BigFivePersonality {
+  openness: number;          // 0-100
+  conscientiousness: number;  // 0-100
+  extraversion: number;       // 0-100
+  agreeableness: number;      // 0-100
+  neuroticism: number;        // 0-100
+}
+
+export interface CharacterDNA {
+  markers: Record<string, string>; // A through L -> string representation (e.g. 'A1A2')
+  statPotentials: Partial<Record<StatKey, number>>; // Max limit of stats e.g. health cap
+  predispositions: string[]; // List of predispositions, e.g., 'depression'
+}
+
+export interface TraumaMemory {
+  id: string;
+  age: number;
+  title: string;
+  description: string;
+  impactScore: number; // 0-100
+}
+
+// ─── Phase A: Focus, Memory, Aspirations ─────────────────────────────────────
+
+export type FocusDomain =
+  | 'career'
+  | 'education'
+  | 'health'
+  | 'social'
+  | 'finance'
+  | 'hobby'
+  | 'crime'
+  | 'family';
+
+export type FocusAllocation = Partial<Record<FocusDomain, number>>;
+
+export type AspirationId =
+  | 'career_peak'
+  | 'family_dynasty'
+  | 'fortune'
+  | 'fame'
+  | 'redemption'
+  | 'knowledge'
+  | 'adventure'
+  | 'criminal_empire'
+  | 'creative_legacy'
+  | 'spiritual'
+  | 'political_power'
+  | 'quiet_life';
+
+export interface CharacterAspirations {
+  primary: AspirationId;
+  secondary: AspirationId;
+}
+
+export type LifePhase = 'planning' | 'acting' | 'review';
+
+export interface MemoryTag {
+  id: string;
+  category: string;
+  age: number;
+  intensity: 1 | 2 | 3;
+  expiresAtAge?: number;
+  npcId?: string;
+}
+
+export interface PlayerMemoryNote {
+  age: number;
+  text: string;
+}
+
+export interface YearReviewSnapshot {
+  age: number;
+  newMemoryTagIds: string[];
+  focusAllocation?: FocusAllocation;
+  statDeltas?: Partial<CharacterStats>;
+}
+
 // ─── NPC / People ─────────────────────────────────────────────────────────────
 
 export type RelationType =
@@ -47,6 +127,13 @@ export interface Person {
   interactionCooldowns?: Record<string, number>;
   /** Last character age any interaction was performed (one action per person per year) */
   lastInteractionAge?: number;
+  dna?: CharacterDNA;
+  personality?: BigFivePersonality;
+  goals?: string[];
+  mood?: string;
+  memoriesOfPlayer?: PlayerMemoryNote[];
+  secrets?: string[];
+  discoveredSecrets?: string[];
 }
 
 export type RelationshipStage =
@@ -209,6 +296,19 @@ export interface Character {
   totalCareerYears: number;
   enrolledDegreeId?: string;
   eventCooldowns?: Record<string, number>; // eventId → last triggered age
+  dna: CharacterDNA;
+  personality: BigFivePersonality;
+  latentTalents: string[];
+  memories: TraumaMemory[];
+  familyReputation: number; // 0-100
+  focusAllocation?: FocusAllocation;
+  focusConfirmedForAge?: number;
+  aspirations?: CharacterAspirations;
+  memoryTags?: MemoryTag[];
+  lifePhase?: LifePhase;
+  lastYearReview?: YearReviewSnapshot;
+  focusDomainsUsed?: FocusDomain[];
+  completedMemoryChains?: string[];
   createdAt: number;
   updatedAt: number;
 }
@@ -242,6 +342,7 @@ export interface EventChoice {
   addsPerson?: Partial<Person>;
   incrementsRelationships?: boolean;
   incrementsChildren?: boolean;
+  grantsMemoryTags?: string[];
 }
 
 export interface LifeEvent {
@@ -269,6 +370,13 @@ export interface LifeEvent {
   addsPerson?: Partial<Person>;
   incrementsRelationships?: boolean;
   incrementsChildren?: boolean;
+  requiredMemoryTags?: string[];
+  excludedMemoryTags?: string[];
+  chainId?: string;
+  chainStep?: number;
+  focusDomain?: FocusDomain;
+  grantsMemoryTags?: string[];
+  choiceMemoryTags?: Record<string, string[]>;
 }
 
 export interface LifeEventRecord {
@@ -313,6 +421,7 @@ export type RootStackParamList = {
   Activities: undefined;
   Study: undefined;
   Leaderboard: undefined;
+  AspirationPicker: undefined;
 };
 
 export type MainTabParamList = {

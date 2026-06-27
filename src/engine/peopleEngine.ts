@@ -1,15 +1,59 @@
 import { Person } from '../types';
 import { generateClassmate, generateCoworker } from '../utils/npcGenerator';
 
+const MOOD_OPTIONS = ['Happy', 'Neutral', 'Stressed', 'Excited', 'Reserved', 'Angry'] as const;
+const GOAL_POOL = ['Career success', 'Family stability', 'Wealth', 'Fame', 'Peace', 'Revenge', 'Adventure'];
+const SECRET_POOL = ['Hidden debt', 'Secret affair', 'Old grudge', 'Unspoken dream', 'Past mistake'];
+
+export function enrichPersonProfile(person: Person): Person {
+  if (person.goals?.length && person.mood && person.secrets?.length) return person;
+  const seed = person.avatarSeed || person.name;
+  const hash = seed.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  return {
+    ...person,
+    personality: person.personality ?? {
+      openness: 40 + (hash % 30),
+      conscientiousness: 40 + ((hash >> 2) % 30),
+      extraversion: 40 + ((hash >> 4) % 30),
+      agreeableness: 40 + ((hash >> 6) % 30),
+      neuroticism: 30 + ((hash >> 8) % 40),
+    },
+    goals: person.goals ?? [GOAL_POOL[hash % GOAL_POOL.length], GOAL_POOL[(hash >> 3) % GOAL_POOL.length]],
+    mood: person.mood ?? MOOD_OPTIONS[hash % MOOD_OPTIONS.length],
+    memoriesOfPlayer: person.memoriesOfPlayer ?? [],
+    secrets: person.secrets ?? [SECRET_POOL[hash % SECRET_POOL.length]],
+    discoveredSecrets: person.discoveredSecrets ?? [],
+  };
+}
+
+export function appendPlayerMemory(
+  person: Person,
+  text: string,
+  age: number,
+): Person {
+  const enriched = enrichPersonProfile(person);
+  const memories = [...(enriched.memoriesOfPlayer ?? []), { age, text }].slice(-8);
+  return { ...enriched, memoriesOfPlayer: memories };
+}
+
+export function discoverSecret(person: Person, secret: string): Person {
+  const enriched = enrichPersonProfile(person);
+  const discovered = new Set(enriched.discoveredSecrets ?? []);
+  discovered.add(secret);
+  return { ...enriched, discoveredSecrets: [...discovered] };
+}
+
 export function spawnClassmates(characterName: string, count = 6): Person[] {
   return Array.from({ length: count }, (_, i) => {
     const c = generateClassmate(characterName, i);
-    return { ...c, age: 5 };
+    return enrichPersonProfile({ ...c, age: 5 });
   });
 }
 
 export function spawnCoworkers(characterName: string, occupation: string, count = 4): Person[] {
-  return Array.from({ length: count }, (_, i) => generateCoworker(characterName, i, occupation));
+  return Array.from({ length: count }, (_, i) =>
+    enrichPersonProfile(generateCoworker(characterName, i, occupation)),
+  );
 }
 
 export function ensureClassmates(people: Person[], characterName: string): Person[] {

@@ -12,6 +12,11 @@ import { RELATIONSHIP_EVENTS } from './events/relationshipEvents';
 import { EDUCATION_EVENTS_2 } from './events/educationEvents2';
 import { FINANCIAL_EVENTS } from './events/financialEvents';
 import { MILESTONE_EVENTS } from './events/milestoneEvents';
+import { MEMORY_CHAIN_EVENTS } from './events/memoryChainEvents';
+import { PHASE_A_DECISION_EVENTS } from './events/phaseADecisions';
+import { ACHIEVEMENTS, ACHIEVEMENT_COIN_REWARDS } from './achievements';
+
+export { ACHIEVEMENTS, ACHIEVEMENT_COIN_REWARDS };
 
 // ─── Avatars (legacy) ─────────────────────────────────────────────────────────
 export const AVATARS: Array<{ id: AvatarId; label: string }> = [
@@ -79,35 +84,7 @@ export const FAMILY_BACKGROUNDS = [
 ] as const;
 
 // ─── Achievements ────────────────────────────────────────────────────────────
-export const ACHIEVEMENTS = [
-  { id: 'millionaire',   label: 'Millionaire',    description: 'Reach 90 Wealth',                color: COLORS.gold     },
-  { id: 'genius',        label: 'Genius',          description: 'Reach 90 Intelligence',          color: COLORS.sapphire },
-  { id: 'centenarian',   label: 'Centenarian',     description: 'Live to 100',                    color: COLORS.teal     },
-  { id: 'saint',         label: 'Saint',            description: 'Reach 200 karma',               color: COLORS.gold2    },
-  { id: 'heartbreaker',  label: 'Heartbreaker',    description: '5+ relationships',               color: COLORS.crimson  },
-  { id: 'entrepreneur',  label: 'Entrepreneur',    description: 'Start your own company',         color: COLORS.orchid   },
-  { id: 'top_grad',      label: 'Top Graduate',    description: 'Graduate with honors',           color: COLORS.sapphire },
-  { id: 'iron_will',     label: 'Iron Will',        description: 'Survive health below 10',       color: COLORS.crimson  },
-  { id: 'social_king',   label: 'Social Butterfly', description: 'Reach 90 Social',              color: COLORS.teal     },
-  { id: 'globetrotter',  label: 'Globetrotter',    description: 'Travel abroad 3 times',         color: COLORS.gold3    },
-  { id: 'rich_kid',      label: 'Well-Off',         description: 'Accumulate $500,000 in savings', color: COLORS.gold   },
-  { id: 'fitness_buff',  label: 'Iron Body',        description: 'Reach 90 Fitness',             color: COLORS.emerald  },
-] as const;
-
-export const ACHIEVEMENT_COIN_REWARDS: Record<string, number> = {
-  millionaire: 500,
-  genius: 300,
-  centenarian: 500,
-  saint: 400,
-  heartbreaker: 150,
-  entrepreneur: 250,
-  top_grad: 200,
-  iron_will: 150,
-  social_king: 200,
-  globetrotter: 175,
-  rich_kid: 350,
-  fitness_buff: 200,
-};
+// ─── Achievements (see achievements.ts) ───────────────────────────────────────
 
 // ─── Life Events (core) ──────────────────────────────────────────────────────
 export const CORE_LIFE_EVENTS: LifeEvent[] = [
@@ -1162,6 +1139,8 @@ export const LIFE_EVENTS: LifeEvent[] = [
   ...EDUCATION_EVENTS_2,     // +20 education events
   ...FINANCIAL_EVENTS,       // +25 financial events
   ...MILESTONE_EVENTS,       // +20 milestone events
+  ...MEMORY_CHAIN_EVENTS,
+  ...PHASE_A_DECISION_EVENTS,
 ];
 
 export const SEASON_PASS_TIERS = [

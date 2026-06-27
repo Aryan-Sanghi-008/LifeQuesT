@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Character, MAX_SAVE_SLOTS, EducationLevel } from '../types';
+import { generateRandomDNA, generateRandomPersonality } from '../utils/genetics';
 import { getLifeStage } from '../utils/lifeStage';
 import { isMmkvAvailable } from '../utils/nativeAvailability';
 import { stageToLegacyEducationLevel } from '../data/educationDegrees';
@@ -194,10 +195,28 @@ export function normalizeCharacter(char: Character): Character {
   if (char.luckBoostsRemaining === undefined) char.luckBoostsRemaining = 0;
   if (char.hasReincarnationScroll === undefined) char.hasReincarnationScroll = false;
   if (!char.updatedAt) char.updatedAt = char.createdAt ?? Date.now();
+  if (!char.dna) char.dna = generateRandomDNA();
+  if (!char.personality) char.personality = generateRandomPersonality();
+  if (!char.memories) char.memories = [];
+  if (char.familyReputation === undefined) char.familyReputation = 50;
+  if (!char.latentTalents) char.latentTalents = [];
+  if (!char.memoryTags) char.memoryTags = [];
+  if (!char.completedMemoryChains) char.completedMemoryChains = [];
+  if (!char.focusDomainsUsed) char.focusDomainsUsed = [];
+  if (char.focusConfirmedForAge === undefined) char.focusConfirmedForAge = -1;
+  if (!char.lifePhase) char.lifePhase = 'planning';
+
   // Ensure all people have the interactionCooldowns record (added in v4+ fix)
   char.people = char.people.map(p => ({
     ...p,
     interactionCooldowns: p.interactionCooldowns ?? {},
+    dna: p.dna ?? generateRandomDNA(),
+    personality: p.personality ?? generateRandomPersonality(),
+    goals: p.goals ?? ['Career success'],
+    mood: p.mood ?? 'Neutral',
+    memoriesOfPlayer: p.memoriesOfPlayer ?? [],
+    secrets: p.secrets ?? ['Unspoken dream'],
+    discoveredSecrets: p.discoveredSecrets ?? [],
   }));
   return char;
 }

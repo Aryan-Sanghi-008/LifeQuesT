@@ -12,6 +12,7 @@ import { useGameStore } from '../store/gameStore';
 import { AvatarByCharacter } from '../components/Avatars';
 import { StatBar, Card, Badge, SectionLabel, Divider } from '../components/index';
 import { ACHIEVEMENTS } from '../data/gameData';
+import { ASPIRATION_MAP } from '@data/aspirations';
 import { formatCurrency } from '../utils/currency';
 import { getFinanceSummary } from '../utils/financeSummary';
 import { formatCount } from '../utils/formatCount';
@@ -138,7 +139,7 @@ export function ProfileScreen() {
     zodiac, traits, karma, achievements, eventHistory,
     relationships, children, isPremium,
     coins, gems, bankBalance, countryCode,
-    avatarStyle, unlockedAvatarStyles, socialFollowers,
+    avatarStyle, unlockedAvatarStyles, socialFollowers, aspirations,
   } = character;
 
   const AVATAR_STYLE_LABELS: Record<AvatarStyleId, string> = {
@@ -325,6 +326,17 @@ export function ProfileScreen() {
               <LifeStatRow icon={<Svg width={16} height={16} viewBox="0 0 24 24" fill="none"><Circle stroke={COLORS.social} strokeWidth={2} cx="9" cy="7" r="4"/><Path stroke={COLORS.social} strokeWidth={2} strokeLinecap="round" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M23 21v-2a4 4 0 00-3-3.87"/></Svg>} label="Followers" value={formatCount(socialFollowers ?? 0)} color={COLORS.social} />
               <Divider />
               <LifeStatRow icon={<Svg width={16} height={16} viewBox="0 0 24 24" fill="none"><Path stroke={COLORS.orchid} strokeWidth={2} d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></Svg>} label="Achievements" value={`${unlockedAch} / ${ACHIEVEMENTS.length}`} color={COLORS.orchid} />
+              {aspirations && (
+                <>
+                  <Divider />
+                  <LifeStatRow
+                    icon={<Svg width={16} height={16} viewBox="0 0 24 24" fill="none"><Path stroke={COLORS.gold} strokeWidth={2} strokeLinecap="round" d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></Svg>}
+                    label="Aspirations"
+                    value={`${ASPIRATION_MAP[aspirations.primary].label} · ${ASPIRATION_MAP[aspirations.secondary].label}`}
+                    color={COLORS.gold}
+                  />
+                </>
+              )}
               <Divider />
               <LifeStatRow icon={<Svg width={16} height={16} viewBox="0 0 24 24" fill="none"><Path stroke={COLORS.catActivity} strokeWidth={2} strokeLinecap="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></Svg>} label="Life Events" value={eventHistory.length} color={COLORS.catActivity} />
             </Card>

@@ -5,6 +5,8 @@ export interface MentalHealthContext {
   hadCrimeEvent?: boolean;
   hadDivorce?: boolean;
   lowHappiness?: boolean;
+  neuroticism?: number;
+  conscientiousness?: number;
 }
 
 export function tickMentalHealth(
@@ -16,6 +18,10 @@ export function tickMentalHealth(
   if (context.hadCrimeEvent) delta -= 5;
   if (context.hadDivorce) delta -= 8;
   if (stats.fitness > 60) delta += 1;
+  
+  if (context.neuroticism && context.neuroticism > 70) delta -= 2;
+  if (context.conscientiousness && context.conscientiousness > 70) delta += 1;
+
   return { ...stats, mentalHealth: clamp(stats.mentalHealth + delta) };
 }
 

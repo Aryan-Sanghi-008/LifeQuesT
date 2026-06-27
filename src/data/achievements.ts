@@ -1,0 +1,82 @@
+import { COLORS } from '../constants/theme';
+
+export interface AchievementDef {
+  id: string;
+  label: string;
+  description: string;
+  color: string;
+}
+
+export const ACHIEVEMENTS: AchievementDef[] = [
+  { id: 'millionaire', label: 'Millionaire', description: 'Reach 90 Wealth', color: COLORS.gold },
+  { id: 'genius', label: 'Genius', description: 'Reach 90 Intelligence', color: COLORS.sapphire },
+  { id: 'centenarian', label: 'Centenarian', description: 'Live to 100', color: COLORS.teal },
+  { id: 'saint', label: 'Saint', description: 'Reach 200 karma', color: COLORS.gold2 },
+  { id: 'heartbreaker', label: 'Heartbreaker', description: '5+ relationships', color: COLORS.crimson },
+  { id: 'entrepreneur', label: 'Entrepreneur', description: 'Start your own company', color: COLORS.orchid },
+  { id: 'top_grad', label: 'Top Graduate', description: 'Graduate with honors', color: COLORS.sapphire },
+  { id: 'iron_will', label: 'Iron Will', description: 'Survive health below 10', color: COLORS.crimson },
+  { id: 'social_king', label: 'Social Butterfly', description: 'Reach 90 Social', color: COLORS.teal },
+  { id: 'globetrotter', label: 'Globetrotter', description: 'Travel abroad 3 times', color: COLORS.gold3 },
+  { id: 'rich_kid', label: 'Well-Off', description: 'Accumulate $500,000 in savings', color: COLORS.gold },
+  { id: 'fitness_buff', label: 'Iron Body', description: 'Reach 90 Fitness', color: COLORS.emerald },
+  { id: 'focused_life', label: 'Focused Life', description: 'Use all 8 focus domains in one life', color: COLORS.sapphire },
+  { id: 'career_focus_master', label: 'Career Driven', description: 'Spend 10 focus points on Career', color: COLORS.catCareer },
+  { id: 'education_focus_master', label: 'Scholar Focus', description: 'Spend 10 focus points on Education', color: COLORS.catEducation },
+  { id: 'health_focus_master', label: 'Wellness Focus', description: 'Spend 10 focus points on Health', color: COLORS.catHealth },
+  { id: 'social_focus_master', label: 'Social Focus', description: 'Spend 10 focus points on Social', color: COLORS.catRelationship },
+  { id: 'finance_focus_master', label: 'Money Minded', description: 'Spend 10 focus points on Finance', color: COLORS.catFinancial },
+  { id: 'hobby_focus_master', label: 'Passion Pursuer', description: 'Spend 10 focus points on Hobby', color: COLORS.catActivity },
+  { id: 'family_focus_master', label: 'Family First', description: 'Spend 10 focus points on Family', color: COLORS.catFamily },
+  { id: 'chain_complete_1', label: 'Story Begun', description: 'Complete any memory chain', color: COLORS.orchid },
+  { id: 'chain_complete_3', label: 'Arc Weaver', description: 'Complete 3 memory chains', color: COLORS.orchid },
+  { id: 'chain_complete_5', label: 'Saga Teller', description: 'Complete 5 memory chains', color: COLORS.gold },
+  { id: 'chain_complete_10', label: 'Chronicle Keeper', description: 'Complete 10 memory chains', color: COLORS.gold2 },
+  { id: 'chain_betrayal', label: 'Betrayal Survivor', description: 'Complete the Betrayal Arc', color: COLORS.crimson },
+  { id: 'chain_redemption', label: 'Redeemed', description: 'Complete the Redemption Path', color: COLORS.teal },
+  { id: 'chain_startup', label: 'Startup Founder', description: 'Complete Startup Dream chain', color: COLORS.emerald },
+  { id: 'chain_fame', label: 'Rise and Fall', description: 'Complete Fame and Fall chain', color: COLORS.gold3 },
+  { id: 'chain_pandemic', label: 'Pandemic Survivor', description: 'Complete Pandemic Survival chain', color: COLORS.sapphire },
+  { id: 'chain_immigrant', label: 'New Roots', description: 'Complete the Immigrant Story', color: COLORS.teal },
+  { id: 'aspiration_set', label: 'Dream Defined', description: 'Choose life aspirations at 16', color: COLORS.orchid },
+  { id: 'aspiration_career', label: 'Career Peak Path', description: 'Primary aspiration: Career Peak', color: COLORS.catCareer },
+  { id: 'aspiration_fortune', label: 'Fortune Hunter', description: 'Primary aspiration: Fortune', color: COLORS.catFinancial },
+  { id: 'aspiration_fame', label: 'Star Chaser', description: 'Primary aspiration: Fame', color: COLORS.gold },
+  { id: 'aspiration_knowledge', label: 'Seeker of Truth', description: 'Primary aspiration: Knowledge', color: COLORS.catEducation },
+  { id: 'aspiration_quiet', label: 'Simple Life', description: 'Primary aspiration: Quiet Life', color: COLORS.catFamily },
+  { id: 'mental_steady', label: 'Steady Mind', description: 'Maintain mental health above 70 for 10 years', color: COLORS.orchid },
+  { id: 'mental_recovery', label: 'Bounce Back', description: 'Recover mental health from below 30 to above 60', color: COLORS.teal },
+  { id: 'therapy_seeker', label: 'Self Care', description: 'Improve mental health by 20 in one year', color: COLORS.sapphire },
+  { id: 'burnout_survivor', label: 'Burnout Survivor', description: 'Survive a major stress event with mental health above 40', color: COLORS.emerald },
+  { id: 'best_friend', label: 'Best Friend', description: 'Reach 95 relationship with a friend', color: COLORS.catRelationship },
+  { id: 'married_life', label: 'Tied the Knot', description: 'Get married', color: COLORS.gold },
+  { id: 'parent_hood', label: 'Parent', description: 'Have a child', color: COLORS.catFamily },
+  { id: 'npc_secret', label: 'Secret Keeper', description: 'Discover an NPC secret', color: COLORS.crimson },
+  { id: 'npc_memories_5', label: 'Unforgettable', description: 'Accumulate 5 NPC memories of you', color: COLORS.orchid },
+  { id: 'reconciled', label: 'Reconciled', description: 'Repair a drifting relationship', color: COLORS.teal },
+  { id: 'loner', label: 'Lone Wolf', description: 'Reach age 40 with zero relationships counter', color: COLORS.t3 },
+  { id: 'people_person', label: 'People Person', description: 'Have 10+ people in your life', color: COLORS.catRelationship },
+  { id: 'memory_collector', label: 'Memory Collector', description: 'Collect 10 memory tags', color: COLORS.sapphire },
+  { id: 'memory_hoarder', label: 'Living History', description: 'Collect 25 memory tags', color: COLORS.gold },
+  { id: 'decade_life', label: 'Decade Survivor', description: 'Live to age 10', color: COLORS.teal },
+  { id: 'half_century', label: 'Half Century', description: 'Live to age 50', color: COLORS.emerald },
+];
+
+const ACHIEVEMENT_LEGACY_REWARDS: Record<string, number> = {
+  millionaire: 500,
+  genius: 300,
+  centenarian: 500,
+  saint: 400,
+  heartbreaker: 150,
+  entrepreneur: 250,
+  top_grad: 200,
+  iron_will: 150,
+  social_king: 200,
+  globetrotter: 175,
+  rich_kid: 350,
+  fitness_buff: 200,
+};
+
+export const ACHIEVEMENT_COIN_REWARDS: Record<string, number> = Object.fromEntries(
+  ACHIEVEMENTS.map((a, i) => [a.id, i < 12 ? (ACHIEVEMENT_LEGACY_REWARDS[a.id] ?? 200) : 150 + (i % 5) * 25]),
+);

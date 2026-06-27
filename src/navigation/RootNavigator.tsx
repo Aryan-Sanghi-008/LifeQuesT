@@ -11,6 +11,7 @@ import { StatsScreen } from '../screens/StatsScreen';
 import { ActivitiesScreen } from '../screens/ActivitiesScreen';
 import StudyScreen from '../screens/StudyScreen';
 import LeaderboardScreen from '../screens/LeaderboardScreen';
+import { AspirationPickerScreen } from '../screens/AspirationPickerScreen';
 import { useGameStore } from '../store/gameStore';
 import { resolveRootRoute } from './gamePhase';
 
@@ -46,6 +47,7 @@ export default function RootNavigator() {
       <Stack.Screen name="Activities" component={ActivitiesScreen} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="Study" component={StudyScreen} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="Leaderboard" component={LeaderboardScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="AspirationPicker" component={AspirationPickerScreen} options={{ animation: 'slide_from_bottom', presentation: 'modal', gestureEnabled: false }} />
     </Stack.Navigator>
   );
 }

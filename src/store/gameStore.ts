@@ -4,11 +4,17 @@ import {
   Character, CharacterStats,
   PendingDecision, AppUser, AvatarId, FamilyBackground,
   Gender, Asset, SaveSlot,
-  DailyQuest, Person,
+  DailyQuest, Person, CharacterDNA, BigFivePersonality,
+  FocusAllocation, AspirationId,
 } from '../types';
 import {
-  TRAITS, COUNTRIES, ACTIVITIES, ACHIEVEMENT_COIN_REWARDS,
+  generateRandomDNA, generateRandomPersonality, determineTraitsFromPersonality,
+  crossoverDNA, crossoverPersonality,
+} from '../utils/genetics';
+import {
+  TRAITS, COUNTRIES, ACTIVITIES,
 } from '../data/gameData';
+import { ACHIEVEMENT_COIN_REWARDS } from '../data/achievements';
 import { getStartingBalance, getCountryEconomy } from '../data/countryEconomy';
 import { generateParents, generatePet } from '../utils/npcGenerator';
 import { applyEffect, computeNetWorth, clamp, investInMarket } from '../engine/economyEngine';
@@ -26,6 +32,7 @@ import {
 import { getCareerById, careerPathToLegacy } from '../data/careerPaths';
 import {
   ensureCoworkers, getInteraction, rollInteraction, getClassmates,
+  appendPlayerMemory, enrichPersonProfile, discoverSecret,
 } from '../engine/peopleEngine';
 import {
   getActiveSlotId, setActiveSlotId, saveCharacterLocal,
@@ -58,6 +65,9 @@ import {
 } from '../engine/questEngine';
 import { runAgeUp } from '../engine/ageUpEngine';
 import { runResolveDecision } from '../engine/resolveDecisionEngine';
+import { evaluateAchievements, getNewAchievementIds } from '../engine/achievementEngine';
+import { validateFocusAllocation, isFocusConfirmedForAge } from '../engine/focusEngine';
+import { validateAspirations } from '../engine/aspirationEngine';
 import { SEASON_PASS_TIERS } from '../data/gameData';
 import { hapticAgeUp, hapticAchievement, hapticDeath } from '../services/haptics';
 import { playSound } from '../services/audio';
@@ -86,6 +96,10 @@ export interface CreateCharacterPayload {
   familyBackground: FamilyBackground;
   traits: string[];
   carriedStats?: Partial<CharacterStats>;
+  parentDNA?: CharacterDNA | null;
+  partnerDNA?: CharacterDNA | null;
+  parentPersonality?: BigFivePersonality | null;
+  partnerPersonality?: BigFivePersonality | null;
 }
 
 function buildCharacter(data: CreateCharacterPayload): Character {
@@ -94,8 +108,19 @@ function buildCharacter(data: CreateCharacterPayload): Character {
   const countryData = COUNTRIES.find(c => c.code === data.countryCode);
   const wealthMod = countryData?.wealthMod ?? 0;
 
+  const dna = (data.parentDNA && data.partnerDNA)
+    ? crossoverDNA(data.parentDNA, data.partnerDNA)
+    : generateRandomDNA();
+
+  const personality = (data.parentPersonality && data.partnerPersonality)
+    ? crossoverPersonality(data.parentPersonality, data.partnerPersonality)
+    : generateRandomPersonality();
+
+  const geneticTraits = determineTraitsFromPersonality(personality, dna);
+  const traits = Array.from(new Set([...data.traits, ...geneticTraits]));
+
   const traitEffect: Partial<CharacterStats> = {};
-  data.traits.forEach(traitId => {
+  traits.forEach(traitId => {
     const trait = TRAITS.find(t => t.id === traitId);
     if (!trait) return;
     const te = traitEffect as unknown as Record<string, number>;
@@ -110,8 +135,10 @@ function buildCharacter(data: CreateCharacterPayload): Character {
 
   const applyCarry = (base: number, key: keyof CharacterStats) => {
     const carried = data.carriedStats?.[key];
-    if (carried !== undefined) return clamp(Math.round(base * 0.5 + carried * 0.5));
-    return base;
+    const statCap = dna.statPotentials[key] ?? 100;
+    const baseCapped = Math.min(statCap, base);
+    if (carried !== undefined) return clamp(Math.round(baseCapped * 0.5 + carried * 0.5));
+    return clamp(baseCapped);
   };
 
   const stats: CharacterStats = {
@@ -143,7 +170,7 @@ function buildCharacter(data: CreateCharacterPayload): Character {
     countryCode: data.countryCode ?? 'IN',
     zodiac: data.zodiac,
     familyBackground: data.familyBackground,
-    traits: data.traits,
+    traits,
     job: 'Student',
     age: 0,
     birthYear: new Date().getFullYear(),
@@ -186,6 +213,16 @@ function buildCharacter(data: CreateCharacterPayload): Character {
     hasSeasonPass: false,
     claimedSeasonTiers: [],
     criminalRecord: { crimes: [], jailYearsRemaining: 0, onProbation: false },
+    dna,
+    personality,
+    latentTalents: [],
+    memories: [],
+    memoryTags: [],
+    completedMemoryChains: [],
+    focusDomainsUsed: [],
+    focusConfirmedForAge: -1,
+    lifePhase: 'planning',
+    familyReputation: 50,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   });
@@ -222,12 +259,17 @@ interface GameStore {
   isHydrated: boolean;
   activeSlotId: string;
   carriedStatsForCreate: Partial<CharacterStats> | null;
+  carriedParentDNA: CharacterDNA | null;
+  carriedPartnerDNA: CharacterDNA | null;
+  carriedParentPersonality: BigFivePersonality | null;
+  carriedPartnerPersonality: BigFivePersonality | null;
   slotList: SaveSlot[];
   slotsSynced: boolean;
   dailyQuests: DailyQuest[];
   studyQuestions: StudyQuestion[] | null;
   lastAgeUpNotice: string | null;
   pendingReincarnation: boolean;
+  pendingAspirationPicker: boolean;
 
   setUser: (user: AppUser | null) => void;
   onUserChanged: (user: AppUser | null) => Promise<void>;
@@ -250,6 +292,11 @@ interface GameStore {
     unlockAvatarStyle: (style: NonNullable<Character['avatarStyle']>) => void;
     setSeasonPass: (v: boolean) => void;
   createCharacter: (payload: CreateCharacterPayload) => void;
+  setFocusAllocation: (allocation: FocusAllocation) => { ok: boolean; message?: string };
+  confirmFocusAndAct: () => { ok: boolean; message?: string };
+  dismissYearReview: () => void;
+  setAspirations: (primary: AspirationId, secondary: AspirationId) => { ok: boolean; message?: string };
+  clearPendingAspirationPicker: () => void;
   ageUp: () => void;
   clearAgeUpNotice: () => void;
   clearPendingReincarnation: () => void;
@@ -294,12 +341,17 @@ export const useGameStore = create<GameStore>()(
     isHydrated: false,
     activeSlotId: '0',
     carriedStatsForCreate: null,
+    carriedParentDNA: null,
+    carriedPartnerDNA: null,
+    carriedParentPersonality: null,
+    carriedPartnerPersonality: null,
     slotList: buildLocalSlotList(),
     slotsSynced: false,
     dailyQuests: [],
     studyQuestions: null,
     lastAgeUpNotice: null,
     pendingReincarnation: false,
+    pendingAspirationPicker: false,
 
     setUser: (user) => set(s => { s.user = user; }),
 
@@ -699,7 +751,20 @@ export const useGameStore = create<GameStore>()(
     createCharacter: (payload) => {
       loadGeneration += 1;
       const carried = get().carriedStatsForCreate;
-      const char = buildCharacter({ ...payload, carriedStats: carried ?? payload.carriedStats });
+      const parentDNA = get().carriedParentDNA;
+      const partnerDNA = get().carriedPartnerDNA;
+      const parentPers = get().carriedParentPersonality;
+      const partnerPers = get().carriedPartnerPersonality;
+
+      const char = buildCharacter({
+        ...payload,
+        carriedStats: carried ?? payload.carriedStats,
+        parentDNA: parentDNA ?? payload.parentDNA,
+        partnerDNA: partnerDNA ?? payload.partnerDNA,
+        parentPersonality: parentPers ?? payload.parentPersonality,
+        partnerPersonality: partnerPers ?? payload.partnerPersonality,
+      });
+
       const slotId = get().activeSlotId;
       saveCharacterLocal(char, slotId);
       set(s => {
@@ -708,6 +773,10 @@ export const useGameStore = create<GameStore>()(
         s.sessionAges = 0;
         s.isProcessing = false;
         s.carriedStatsForCreate = null;
+        s.carriedParentDNA = null;
+        s.carriedPartnerDNA = null;
+        s.carriedParentPersonality = null;
+        s.carriedPartnerPersonality = null;
         s.pendingReincarnation = false;
         s.slotList = buildLocalSlotList();
       });
@@ -715,9 +784,82 @@ export const useGameStore = create<GameStore>()(
       void logEvent('create_character', { name: char.name });
     },
 
+    setFocusAllocation: (allocation) => {
+      const { character } = get();
+      if (!character?.isAlive) return { ok: false, message: 'No active character.' };
+      if (character.lifePhase !== 'planning') return { ok: false, message: 'Not in planning phase.' };
+      const result = validateFocusAllocation(character.age, allocation);
+      if (!result.valid) return { ok: false, message: result.message };
+      set(s => {
+        if (!s.character) return;
+        s.character.focusAllocation = result.normalized ?? allocation;
+      });
+      void get()._persist();
+      return { ok: true };
+    },
+
+    confirmFocusAndAct: () => {
+      const { character } = get();
+      if (!character?.isAlive) return { ok: false, message: 'No active character.' };
+      if (character.age <= 12) {
+        set(s => {
+          if (!s.character) return;
+          s.character.focusConfirmedForAge = s.character.age;
+          s.character.lifePhase = 'acting';
+        });
+        void get()._persist();
+        return { ok: true };
+      }
+      const allocation = character.focusAllocation ?? {};
+      const result = validateFocusAllocation(character.age, allocation);
+      if (!result.valid) return { ok: false, message: result.message };
+      set(s => {
+        if (!s.character) return;
+        s.character.focusAllocation = result.normalized ?? allocation;
+        s.character.focusConfirmedForAge = s.character.age;
+        s.character.lifePhase = 'acting';
+      });
+      void get()._persist();
+      return { ok: true };
+    },
+
+    dismissYearReview: () => {
+      set(s => {
+        if (!s.character || s.character.lifePhase !== 'review') return;
+        s.character.lifePhase = 'planning';
+        s.character.focusAllocation = undefined;
+        s.character.lastYearReview = undefined;
+      });
+      void get()._persist();
+    },
+
+    setAspirations: (primary, secondary) => {
+      const { character } = get();
+      if (!character) return { ok: false, message: 'No character.' };
+      if (character.age < 16) return { ok: false, message: 'Too young to set aspirations.' };
+      if (character.aspirations) return { ok: false, message: 'Aspirations already set.' };
+      const result = validateAspirations(primary, secondary);
+      if (!result.valid) return { ok: false, message: result.message };
+      set(s => {
+        if (!s.character) return;
+        s.character.aspirations = { primary, secondary };
+        s.pendingAspirationPicker = false;
+      });
+      get()._checkAchievements();
+      void get()._persist();
+      return { ok: true };
+    },
+
+    clearPendingAspirationPicker: () => set(s => { s.pendingAspirationPicker = false; }),
+
     ageUp: () => {
       const { character, pendingDecision, isProcessing } = get();
       if (!character || pendingDecision || isProcessing || !character.isAlive) return;
+      if (character.lifePhase === 'review') return;
+      if (character.age >= 13) {
+        if (character.lifePhase === 'planning') return;
+        if (!isFocusConfirmedForAge(character)) return;
+      }
 
       const outcome = runAgeUp(character);
 
@@ -752,6 +894,7 @@ export const useGameStore = create<GameStore>()(
           s.isProcessing = false;
           s.sessionAges += 1;
           s.ageUpsSinceAd += 1;
+          if (outcome.needsAspirationPick) s.pendingAspirationPicker = true;
           if (withDecision && outcome.type === 'pending_decision') {
             s.pendingDecision = { event: outcome.decisionEvent };
           }
@@ -901,6 +1044,11 @@ export const useGameStore = create<GameStore>()(
           p.lastInteractionAge = s.character.age;
           if (!p.interactionCooldowns) p.interactionCooldowns = {};
           p.interactionCooldowns[interactionId] = s.character.age;
+          const enriched = enrichPersonProfile(p);
+          Object.assign(p, appendPlayerMemory(enriched, rolled.message, s.character.age));
+          if (interactionId === 'gift' && rolled.success && enriched.secrets?.[0]) {
+            Object.assign(p, discoverSecret(enriched, enriched.secrets[0]));
+          }
         }
         s.character.stats = stats;
         s.character.karma = karma;
@@ -1017,8 +1165,18 @@ export const useGameStore = create<GameStore>()(
         carried = Object.fromEntries(top3.map(([k, v]) => [k, Math.round(v * 0.5)])) as Partial<CharacterStats>;
       }
 
+      const parentDNA = character.dna;
+      const parentPers = character.personality;
+      const partner = character.people.find(p => p.relationType === 'partner' || p.relationType === 'spouse');
+      const partnerDNA = partner?.dna || generateRandomDNA();
+      const partnerPers = partner?.personality || generateRandomPersonality();
+
       set(s => {
         s.carriedStatsForCreate = carried;
+        s.carriedParentDNA = parentDNA;
+        s.carriedPartnerDNA = partnerDNA;
+        s.carriedParentPersonality = parentPers;
+        s.carriedPartnerPersonality = partnerPers;
         s.character = null;
         s.pendingDecision = null;
         s.sessionAges = 0;
@@ -1208,33 +1366,14 @@ export const useGameStore = create<GameStore>()(
     _checkAchievements: () => {
       const { character } = get();
       if (!character) return;
-      const previous = new Set(character.achievements);
-      const earned = new Set(character.achievements);
-      const { stats, karma, age, relationships, career, educationLevel } = character;
-      const netWorth = computeNetWorth(character);
-
-      if (stats.wealth >= 90) earned.add('millionaire');
-      if (stats.intelligence >= 90) earned.add('genius');
-      if (age >= 100) earned.add('centenarian');
-      if (karma >= 200) earned.add('saint');
-      if (relationships >= 5) earned.add('heartbreaker');
-      if (stats.social >= 90) earned.add('social_king');
-      if (netWorth >= 500000) earned.add('rich_kid');
-      if (stats.fitness >= 90) earned.add('fitness_buff');
-      if (career?.title?.toLowerCase().includes('entrepreneur')) earned.add('entrepreneur');
-      if (educationLevel === 'graduate' && stats.intelligence >= 80) earned.add('top_grad');
-      if (character.eventHistory.filter(e => e.category === 'travel').length >= 3) earned.add('globetrotter');
-      const hasLowHealthRecord = character.eventHistory.some(e =>
-        (e.statEffect.health ?? 0) <= -20,
-      );
-      if (hasLowHealthRecord && character.isAlive && stats.health > 10) earned.add('iron_will');
-
+      const previous = [...character.achievements];
+      const earned = evaluateAchievements(character);
       let coinReward = 0;
-      earned.forEach(id => {
-        if (!previous.has(id)) coinReward += ACHIEVEMENT_COIN_REWARDS[id] ?? 50;
+      getNewAchievementIds(previous, earned).forEach(id => {
+        coinReward += ACHIEVEMENT_COIN_REWARDS[id] ?? 50;
       });
 
-      const newCount = earned.size - previous.size;
+      const newCount = earned.size - previous.length;
       if (earned.size !== character.achievements.length || coinReward > 0) {
         set(s => {
           if (!s.character) return;

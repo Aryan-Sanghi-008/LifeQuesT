@@ -18,6 +18,9 @@ import { playSound } from "@services/audio";
 export { BottomSheet } from "./BottomSheet";
 export { ScreenHeader } from "./ScreenHeader";
 export { AvatarById } from "./Avatars";
+export { FocusPhaseSheet } from "./FocusPhaseSheet";
+export { YearReviewCard } from "./YearReviewCard";
+export { NPCProfileSheet } from "./NPCProfileSheet";
 
 // ─── GradientButton ──────────────────────────────────────────────────────────
 

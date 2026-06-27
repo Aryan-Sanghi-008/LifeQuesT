@@ -15,6 +15,10 @@ export function resolveRootRoute(state: GameNavState): keyof RootStackParamList 
   return 'MainTabs';
 }
 
+export function needsAspirationRoute(state: GameNavState & { pendingAspirationPicker?: boolean }): boolean {
+  return Boolean(state.character?.isAlive && state.pendingAspirationPicker);
+}
+
 export type GamePhase = 'auth' | 'slots' | 'alive' | 'dead';
 
 export function getGamePhase(state: GameNavState): GamePhase {

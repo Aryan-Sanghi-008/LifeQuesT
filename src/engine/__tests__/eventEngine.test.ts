@@ -1,57 +1,15 @@
 import {
   hasJob, isEligible, applySuccessChance, consumeLuckBoost, getEligibleEvents,
+  getWeightedEligibleEvents,
   pickWeightedEvents, getGuaranteedMilestones,
 } from '@engine/eventEngine';
 import type { Character } from '../../types';
+import { createTestCharacter } from '../../test/fixtures/character';
 
-const baseCharacter: Character = {
-  id: '1',
-  name: 'Test',
-  gender: 'male',
-  avatarSeed: 'seed',
-  avatarId: 'male_1',
-  lifeStage: 'adult',
-  country: 'India',
-  countryFlag: '🇮🇳',
-  countryCode: 'IN',
-  zodiac: 'aries',
-  familyBackground: 'middle',
+const baseCharacter: Character = createTestCharacter({
   traits: ['lucky'],
-  job: 'Student',
-  age: 20,
-  birthYear: 2000,
-  stats: {
-    health: 70, happiness: 70, intelligence: 80, wealth: 50,
-    fitness: 60, looks: 60, social: 50, ambition: 50, mentalHealth: 70,
-  },
-  karma: 50,
-  bankBalance: 1000,
-  debt: 0,
-  netWorthPeak: 1000,
-  relationships: 0,
-  children: 0,
-  educationLevel: 'secondary',
-  educationStage: 'middle_school',
-  degreeIds: [],
-  certificationIds: [],
-  totalCareerYears: 0,
-  people: [],
-  career: null,
-  assets: [],
-  achievements: [],
-  eventHistory: [],
-  isAlive: true,
-  coins: 0,
-  gems: 0,
-  isPremium: false,
-  hasNoAds: false,
   luckBoostsRemaining: 2,
-  hasReincarnationScroll: false,
-  businesses: [],
-  socialFollowers: 0,
-  createdAt: 1,
-  updatedAt: 1,
-};
+});
 
 describe('hasJob', () => {
   it('returns false for student', () => {
@@ -116,6 +74,38 @@ describe('getEligibleEvents', () => {
     const events = getEligibleEvents(20, baseCharacter);
     expect(events.length).toBeGreaterThan(0);
     expect(events.every(e => 20 >= e.minAge && 20 <= e.maxAge)).toBe(true);
+  });
+});
+
+describe('getWeightedEligibleEvents', () => {
+  it('applies focus weight boosts to eligible pool', () => {
+    const character = {
+      ...baseCharacter,
+      age: 25,
+      focusAllocation: { career: 2, education: 1 },
+      lifePhase: 'acting' as const,
+    };
+    const weighted = getWeightedEligibleEvents(25, character);
+    const careerEvents = weighted.filter(e => e.category === 'career');
+    const randomEvents = weighted.filter(e => e.category === 'random');
+    if (careerEvents.length > 0 && randomEvents.length > 0) {
+      const avgCareer = careerEvents.reduce((s, e) => s + (e.weight ?? 1), 0) / careerEvents.length;
+      const avgRandom = randomEvents.reduce((s, e) => s + (e.weight ?? 1), 0) / randomEvents.length;
+      expect(avgCareer).toBeGreaterThan(avgRandom);
+    }
+    expect(weighted.length).toBeGreaterThan(0);
+  });
+
+  it('excludes memory-gated events without required tags', () => {
+    const chainEvent = getWeightedEligibleEvents(20, baseCharacter).find(
+      e => e.requiredMemoryTags?.length,
+    );
+    if (!chainEvent?.requiredMemoryTags?.length) return;
+    const withoutTags = getWeightedEligibleEvents(20, {
+      ...baseCharacter,
+      memoryTags: [],
+    });
+    expect(withoutTags.some(e => e.id === chainEvent.id)).toBe(false);
   });
 });
 

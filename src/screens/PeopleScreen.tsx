@@ -10,7 +10,8 @@ import { NpcAvatar } from '../components/Avatars';
 import { Card, SectionLabel } from '../components/index';
 import { Person, RelationType } from '../types';
 import { getRelationshipStageLabel } from '@utils/relationshipLabels';
-import { getInteraction } from '@engine/peopleEngine';
+import { getInteraction, enrichPersonProfile } from '@engine/peopleEngine';
+import { NPCProfileSheet } from '@components/NPCProfileSheet';
 import { isRelationshipDrifting } from '@engine/relationshipEngine';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 
@@ -138,6 +139,8 @@ function InteractionSheet({
             <RelBar score={person.relationshipScore} />
           </View>
         </View>
+
+        <NPCProfileSheet person={enrichPersonProfile(person)} />
 
         {/* Actions grid */}
         <View style={is.grid}>

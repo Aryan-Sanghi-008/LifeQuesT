@@ -39,13 +39,17 @@ import { saveCharacterLocal } from '@services/persistence';
 import { createTestCharacter } from '../../test/fixtures/character';
 
 function makeCharacter(overrides: Parameters<typeof createTestCharacter>[0] = {}) {
+  const age = overrides.age ?? 25;
   return createTestCharacter({
     job: 'Engineer',
-    age: 25,
+    age,
     birthYear: 2000,
     educationLevel: 'graduate',
     coins: 100,
     criminalRecord: { crimes: ['theft'], jailYearsRemaining: 2, onProbation: false },
+    lifePhase: 'acting',
+    focusConfirmedForAge: age,
+    focusAllocation: { career: 1, education: 1, health: 1 },
     ...overrides,
   });
 }
@@ -74,6 +78,8 @@ describe('gameStore.ageUp', () => {
   it('advances age for free character', () => {
     useGameStore.setState({
       character: makeCharacter({
+        age: 25,
+        focusConfirmedForAge: 25,
         criminalRecord: { crimes: [], jailYearsRemaining: 0, onProbation: false },
       }),
     });

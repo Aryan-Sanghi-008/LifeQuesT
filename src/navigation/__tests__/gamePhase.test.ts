@@ -1,4 +1,4 @@
-import { resolveRootRoute } from '@navigation/gamePhase';
+import { resolveRootRoute, needsAspirationRoute } from '@navigation/gamePhase';
 import type { AppUser, Character } from '../../types';
 
 function navState(overrides: {
@@ -57,5 +57,25 @@ describe('resolveRootRoute', () => {
       user: guestUser,
       character: deadCharacter,
     }))).toBe('Death');
+  });
+});
+
+describe('needsAspirationRoute', () => {
+  it('returns true when alive character needs aspiration pick', () => {
+    expect(needsAspirationRoute({
+      user: guestUser,
+      character: aliveCharacter,
+      pendingReincarnation: false,
+      pendingAspirationPicker: true,
+    })).toBe(true);
+  });
+
+  it('returns false when picker is not pending', () => {
+    expect(needsAspirationRoute({
+      user: guestUser,
+      character: aliveCharacter,
+      pendingReincarnation: false,
+      pendingAspirationPicker: false,
+    })).toBe(false);
   });
 });

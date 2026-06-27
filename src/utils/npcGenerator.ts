@@ -1,4 +1,5 @@
 import { Person, FamilyBackground } from '../types';
+import { generateRandomDNA, generateRandomPersonality } from './genetics';
 
 // ─── Name Banks ──────────────────────────────────────────────────────────────
 
@@ -100,6 +101,8 @@ export function generateParents(
     avatarSeed: fatherName,
     isAlive: true,
     occupation: pick(occupations, seed, 5),
+    dna: generateRandomDNA(),
+    personality: generateRandomPersonality(),
   };
 
   const mother: Person = {
@@ -112,6 +115,8 @@ export function generateParents(
     avatarSeed: motherName,
     isAlive: true,
     occupation: pick(occupations, seed, 8),
+    dna: generateRandomDNA(),
+    personality: generateRandomPersonality(),
   };
 
   return [father, mother];
@@ -189,5 +194,7 @@ export function generatePartner(characterName: string, characterAge: number): Pe
     relationshipScore: 60 + Math.floor(Math.random() * 30),
     avatarSeed: name,
     isAlive: true,
+    dna: generateRandomDNA(),
+    personality: generateRandomPersonality(),
   };
 }

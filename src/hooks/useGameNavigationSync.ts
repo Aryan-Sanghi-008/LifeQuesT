@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useGameStore } from '@store/gameStore';
-import { resolveRootRoute } from '@navigation/gamePhase';
+import { resolveRootRoute, needsAspirationRoute } from '@navigation/gamePhase';
 import { getCurrentRouteName, resetToRoute } from '@navigation/navigationRef';
 
 /**
@@ -13,10 +13,18 @@ export function useGameNavigationSync(): void {
   const characterId = useGameStore(s => s.character?.id);
   const isAlive = useGameStore(s => s.character?.isAlive);
   const pendingReincarnation = useGameStore(s => s.pendingReincarnation);
+  const pendingAspirationPicker = useGameStore(s => s.pendingAspirationPicker);
   const isHydrated = useGameStore(s => s.isHydrated);
 
   useEffect(() => {
     if (!isHydrated) return;
+
+    if (needsAspirationRoute({ user, character, pendingReincarnation, pendingAspirationPicker })) {
+      if (getCurrentRouteName() !== 'AspirationPicker') {
+        resetToRoute('AspirationPicker');
+      }
+      return;
+    }
 
     const target = resolveRootRoute({ user, character, pendingReincarnation });
 
@@ -26,5 +34,5 @@ export function useGameNavigationSync(): void {
     if (getCurrentRouteName() === target) return;
 
     resetToRoute(target);
-  }, [user, character, characterId, isAlive, pendingReincarnation, isHydrated]);
+  }, [user, character, characterId, isAlive, pendingReincarnation, pendingAspirationPicker, isHydrated]);
 }

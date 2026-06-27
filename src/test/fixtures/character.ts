@@ -1,4 +1,5 @@
 import type { Character } from '../../types';
+import { generateRandomDNA, generateRandomPersonality } from '../../utils/genetics';
 
 /** Shared test character with all required fields defaulted. */
 export function createTestCharacter(overrides: Partial<Character> = {}): Character {
@@ -54,6 +55,16 @@ export function createTestCharacter(overrides: Partial<Character> = {}): Charact
     hasReincarnationScroll: false,
     businesses: [],
     socialFollowers: 0,
+    dna: generateRandomDNA(),
+    personality: generateRandomPersonality(),
+    latentTalents: [],
+    memories: [],
+    familyReputation: 50,
+    lifePhase: 'planning',
+    focusConfirmedForAge: -1,
+    memoryTags: [],
+    completedMemoryChains: [],
+    focusDomainsUsed: [],
     createdAt: 1,
     updatedAt: 1,
     ...overrides,

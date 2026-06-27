@@ -4,6 +4,11 @@ import { applySuccessChance, consumeLuckBoost } from './eventEngine';
 import { jobToCareer } from './careerEngine';
 import { advanceRelationship, processDivorce } from './relationshipEngine';
 import { generatePartner } from '../utils/npcGenerator';
+import {
+  addMemoryTags,
+  markChainComplete,
+  resolveChoiceMemoryTags,
+} from './memoryEngine';
 
 function generateId(): string {
   return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -121,6 +126,27 @@ export function runResolveDecision(
       computeNetWorth({ bankBalance, assets: character.assets, debt }),
     ),
   };
+
+  if (success) {
+    const tagIds = resolveChoiceMemoryTags(choice, event);
+    if (tagIds.length > 0) {
+      patched.memoryTags = addMemoryTags(
+        character.memoryTags,
+        tagIds,
+        character.age,
+        event.category,
+      );
+      const withTags = { ...character, ...patched } as Character;
+      if (event.chainId) {
+        patched.completedMemoryChains = markChainComplete(
+          character.completedMemoryChains,
+          event.chainId,
+          event,
+          withTags,
+        );
+      }
+    }
+  }
 
   return { patch: patched, eventRecord };
 }

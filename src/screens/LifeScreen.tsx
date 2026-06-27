@@ -13,7 +13,10 @@ import { useGameStore } from '@store/gameStore';
 import { AvatarByCharacter } from '@components/Avatars';
 import EventCard from '@components/EventCard';
 import DecisionSheet from '@components/DecisionSheet';
+import { FocusPhaseSheet } from '@components/FocusPhaseSheet';
+import { YearReviewCard } from '@components/YearReviewCard';
 import { StatBar } from '@components/StatBar';
+import { isFocusConfirmedForAge } from '@engine/focusEngine';
 import { LifeEventRecord, CharacterStats } from '@/types';
 import { maybeShowInterstitial } from '@services/ads';
 import { INTERSTITIAL_EVERY_N_AGEUPS } from '@config/ads';
@@ -32,11 +35,12 @@ const MINI_STATS = [
   { key: 'happiness'     as const, label: 'Joy',    color: COLORS.gold,          icon: (c: string) => <Svg width={12} height={12} viewBox="0 0 24 24" fill="none"><Circle stroke={c} strokeWidth={2} cx="12" cy="12" r="10"/><Path stroke={c} strokeWidth={2} strokeLinecap="round" d="M8 14s1.5 2 4 2 4-2 4-2"/><Circle cx="9" cy="9" r="1" fill={c}/><Circle cx="15" cy="9" r="1" fill={c}/></Svg> },
   { key: 'intelligence'  as const, label: 'Mind',   color: COLORS.intelligence,  icon: (c: string) => <Svg width={12} height={12} viewBox="0 0 24 24" fill="none"><Path stroke={c} strokeWidth={2} strokeLinecap="round" d="M12 14l9-5-9-5-9 5 9 5z"/></Svg> },
   { key: 'fitness'       as const, label: 'Fit',    color: COLORS.fitness,       icon: (c: string) => <Svg width={12} height={12} viewBox="0 0 24 24" fill="none"><Path stroke={c} strokeWidth={2.5} strokeLinecap="round" d="M6 4v16M18 4v16M2 9h4M18 9h4M2 15h4M18 15h4"/></Svg> },
+  { key: 'mentalHealth'  as const, label: 'Calm',   color: COLORS.orchid,        icon: (c: string) => <Svg width={12} height={12} viewBox="0 0 24 24" fill="none"><Circle stroke={c} strokeWidth={2} cx="12" cy="12" r="10"/><Path stroke={c} strokeWidth={2} strokeLinecap="round" d="M12 8v4"/></Svg> },
 ];
 
 // ─── Stats Strip ──────────────────────────────────────────────────────────────
 
-function StatsStrip({ stats }: { stats: Pick<CharacterStats, 'health' | 'happiness' | 'intelligence' | 'fitness'> }) {
+function StatsStrip({ stats }: { stats: Pick<CharacterStats, 'health' | 'happiness' | 'intelligence' | 'fitness' | 'mentalHealth'> }) {
   return (
     <View style={ls.strip}>
       {MINI_STATS.map((s, i) => (
@@ -90,7 +94,7 @@ const ls = StyleSheet.create({
 
 // ─── Age Up Button ────────────────────────────────────────────────────────────
 
-function AgeUpButton({ onPress, loading }: { onPress: () => void; loading: boolean }) {
+function AgeUpButton({ onPress, loading, disabled }: { onPress: () => void; loading: boolean; disabled?: boolean }) {
   const shimmer    = useRef(new Animated.Value(-1)).current;
   const scale      = useRef(new Animated.Value(1)).current;
   const pulseScale = useRef(new Animated.Value(1)).current;
@@ -132,9 +136,9 @@ function AgeUpButton({ onPress, loading }: { onPress: () => void; loading: boole
       <Animated.View style={{ transform: [{ scale }], width: '100%' }}>
         <Pressable
           onPress={onPress}
-          disabled={loading}
+          disabled={loading || disabled}
           accessibilityRole="button"
-          accessibilityLabel={loading ? 'Age up, loading' : 'Age up one year'}
+          accessibilityLabel={loading ? 'Age up, loading' : disabled ? 'Confirm focus first' : 'Age up one year'}
           onPressIn={() =>
             Animated.spring(scale, { toValue: 0.94, useNativeDriver: true, ...ANIM.spring }).start()
           }
@@ -267,6 +271,15 @@ export function LifeScreen() {
   const ageUp         = useGameStore(s => s.ageUp);
   const resolveDecision = useGameStore(s => s.resolveDecision);
   const dismissDecision = useGameStore(s => s.dismissDecision);
+  const dismissYearReview = useGameStore(s => s.dismissYearReview);
+  const pendingAspirationPicker = useGameStore(s => s.pendingAspirationPicker);
+  const lifePhase = character?.lifePhase ?? 'planning';
+
+  useEffect(() => {
+    if (pendingAspirationPicker) {
+      navigation.navigate('AspirationPicker');
+    }
+  }, [pendingAspirationPicker, navigation]);
 
   useEffect(() => {
     if (!lastAgeUpNotice) return;
@@ -304,6 +317,12 @@ export function LifeScreen() {
   const probationBannerText = !lastAgeUpNotice && onProbation
     ? 'On probation — career opportunities limited'
     : null;
+  const canAgeUp = (character.age <= 12 || lifePhase === 'acting')
+    && lifePhase !== 'review'
+    && !pendingDecision
+    && !isProcessing;
+  const showFocusSheet = lifePhase === 'planning' && character.age >= 13 && !isFocusConfirmedForAge(character);
+  const showYearReview = lifePhase === 'review' && character.lastYearReview;
 
   return (
     <View style={styles.root}>
@@ -414,9 +433,13 @@ export function LifeScreen() {
         {/* ── Stats Strip ── */}
         <StatsStrip stats={character.stats} />
 
+        {showYearReview && (
+          <YearReviewCard review={character.lastYearReview!} onDismiss={dismissYearReview} />
+        )}
+
         {/* ── Age Up area ── */}
         <View style={[styles.footer, { paddingBottom: insets.bottom > 0 ? 0 : SPACING.sm }]}>
-          <AgeUpButton onPress={handleAgeUp} loading={isProcessing} />
+          <AgeUpButton onPress={handleAgeUp} loading={isProcessing} disabled={!canAgeUp} />
           <Text style={styles.footerMeta}>
             {lifeStage}{' · '}Born {character.birthYear}
           </Text>
@@ -427,6 +450,12 @@ export function LifeScreen() {
         event={pendingDecision?.event ?? null}
         onChoice={resolveDecision}
         onClose={dismissDecision}
+      />
+
+      <FocusPhaseSheet
+        visible={showFocusSheet}
+        age={character.age}
+        familyBackground={character.familyBackground}
       />
     </View>
   );

@@ -32,6 +32,8 @@ const ALL_STATS: Array<{ key: keyof CharacterStats; label: string; color: string
     icon: (c) => <Svg width={18} height={18} viewBox="0 0 24 24" fill="none"><Circle stroke={c} strokeWidth={2} cx="9" cy="7" r="4"/><Path stroke={c} strokeWidth={2} strokeLinecap="round" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></Svg> },
   { key: 'ambition',     label: 'Ambition',     color: COLORS.ambition,
     icon: (c) => <Svg width={18} height={18} viewBox="0 0 24 24" fill="none"><Path stroke={c} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></Svg> },
+  { key: 'mentalHealth', label: 'Mindset',      color: COLORS.orchid,
+    icon: (c) => <Svg width={18} height={18} viewBox="0 0 24 24" fill="none"><Circle stroke={c} strokeWidth={2} cx="12" cy="12" r="10"/><Path stroke={c} strokeWidth={2} strokeLinecap="round" d="M12 8v4"/></Svg> },
 ];
 
 // ─── Karma Meter ──────────────────────────────────────────────────────────────

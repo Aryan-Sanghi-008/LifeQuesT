@@ -1,12 +1,19 @@
 import {
-  Character, LifeEvent, LifeEventRecord, StatEffect, EducationLevel, LifeStage,
+  Character, LifeEvent, LifeEventRecord, StatEffect, EducationLevel, LifeStage, TraumaMemory,
 } from '../types';
 import { DEATH_CAUSES } from '../data/gameData';
 import { getLifeStage } from '../utils/lifeStage';
 import { generatePartner, generatePet } from '../utils/npcGenerator';
 import { applyEffect, applyCashDelta, tickAnnualEconomy, computeNetWorth, clamp, checkDebtCrisis, AnnualEconomyResult } from './economyEngine';
 import { getCountryEconomy } from '../data/countryEconomy';
-import { getEligibleEvents, pickWeightedEvents, getGuaranteedMilestones } from './eventEngine';
+import { pickWeightedEvents, getGuaranteedMilestones, getWeightedEligibleEvents } from './eventEngine';
+import {
+  applyFocusStatModifiers,
+  resolveFocusAllocationForAgeUp,
+  trackFocusDomainsUsed,
+} from './focusEngine';
+import { needsAspirationPick } from './aspirationEngine';
+import { addMemoryTags } from './memoryEngine';
 import { incrementCareerYear, syncJobLabel, applyJobTitleUpdate } from './careerEngine';
 import { advanceEducationByAge } from './educationEngine';
 import { EducationStage } from '../data/educationDegrees';
@@ -127,6 +134,7 @@ export type AgeUpOutcome =
     newEventRecords: LifeEventRecord[];
     decisionEvent: LifeEvent;
     netWorthPeak: number;
+    needsAspirationPick?: boolean;
   }
   | {
     type: 'complete';
@@ -134,6 +142,7 @@ export type AgeUpOutcome =
     newEventRecords: LifeEventRecord[];
     netWorthPeak: number;
     karma: number;
+    needsAspirationPick?: boolean;
   };
 
 export interface AgeUpOptions {
@@ -158,12 +167,26 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
 
   const newAge = character.age + 1;
   const luckBoosts = character.luckBoostsRemaining;
+  let memories = [...(character.memories ?? [])];
+  let memoryTags = [...(character.memoryTags ?? [])];
+  const memoryTagsBefore = new Set(memoryTags.map(t => t.id));
+  const addMemory = (id: string, title: string, description: string, impact: number) => {
+    const newMemory: TraumaMemory = { id: `${id}_${Date.now()}`, age: newAge, title, description, impactScore: impact };
+    memories = [newMemory, ...memories].slice(0, 20);
+  };
+
+  const getDecline = (key: 'health' | 'fitness' | 'looks', startAge: number, baseRate: number) => {
+    if (newAge <= startAge) return 0;
+    const potential = character.dna?.statPotentials?.[key] ?? 100;
+    const factor = Math.max(0.2, 2 - (potential / 100));
+    return -Math.round(baseRate * factor);
+  };
 
   const agingEffect: StatEffect = {
-    health: newAge > 40 ? -1 : 0,
+    health: getDecline('health', 40, 1),
     happiness: -1,
-    fitness: newAge > 30 ? -1 : 0,
-    looks: newAge > 35 ? -1 : 0,
+    fitness: getDecline('fitness', 30, 1),
+    looks: getDecline('looks', 35, 1),
   };
 
   let debt = character.debt ?? 0;
@@ -174,7 +197,13 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
   );
   debt = nextDebt;
 
-  stats = tickMentalHealth(stats, { lowHappiness: stats.happiness < 30 });
+  const neuroticism = character.personality?.neuroticism ?? 50;
+  const conscientiousness = character.personality?.conscientiousness ?? 50;
+  stats = tickMentalHealth(stats, {
+    lowHappiness: stats.happiness < 30,
+    neuroticism,
+    conscientiousness,
+  });
 
   let businesses = character.businesses ?? [];
   if (businesses.length > 0) {
@@ -196,10 +225,20 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
 
   const simResult = runAnnualSimulation({ ...character, age: newAge, stats, bankBalance, career });
   stats = { ...stats, ...simResult.statsPatches } as typeof stats;
+
+  const focusAllocation = resolveFocusAllocationForAgeUp({ ...character, age: character.age });
+  const statsBeforeFocus = { ...stats };
+  stats = applyFocusStatModifiers(stats, focusAllocation);
   stats = { ...stats, wealth: clamp(computeNetWorth({ bankBalance, assets: character.assets, debt }) / 10000) };
 
   const economyRecords = buildEconomyLedgerRecords(newAge, economy, countryCode);
   const stressRecords = buildStressRecords(newAge, simResult.narrativeEffects);
+
+  simResult.narrativeEffects.forEach(effect => {
+    if (effect.severity === 'major') {
+      addMemory(effect.type, 'Severe Stress', effect.description, 60);
+    }
+  });
 
   const debtCrisis = checkDebtCrisis({
     bankBalance,
@@ -207,6 +246,10 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
     debt,
     countryCode,
   });
+
+  if (debtCrisis.crisis) {
+    addMemory('debt_crisis', 'Debt Crisis', 'Faced an overwhelming debt crisis that threatened financial stability.', 80);
+  }
 
   const newLifeStage: LifeStage = getLifeStage(newAge);
 
@@ -232,6 +275,7 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
         isAlive: false,
         deathAge: newAge,
         deathCause: cause,
+        memories,
       },
     };
   }
@@ -274,7 +318,7 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
     educationStage: updatedEducationStage,
   };
 
-  const rawEligible = getEligibleEvents(newAge, charForEvents);
+  const rawEligible = getWeightedEligibleEvents(newAge, charForEvents);
   const eligible = rawEligible.filter(e => !isOnCooldown(e.id, newAge, cooldowns));
   const guaranteed = getGuaranteedMilestones(newAge, charForEvents);
   const guaranteedIds = new Set(guaranteed.map(e => e.id));
@@ -304,6 +348,15 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
     karma = res.karma;
     bankBalance = res.bankBalance;
     debt = res.debt;
+
+    const hapEffect = event.statEffect?.happiness ?? 0;
+    if (hapEffect <= -15) {
+      addMemory(event.id, event.title, event.description, Math.abs(hapEffect) * 3);
+    }
+
+    if (event.grantsMemoryTags?.length) {
+      memoryTags = addMemoryTags(memoryTags, event.grantsMemoryTags, newAge, event.category);
+    }
 
     if (event.category === 'crime') {
       const updated = recordCrime({ ...character, stats, karma, bankBalance }, event.id);
@@ -382,6 +435,16 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
 
   const probationPatch = tickProbation({ ...character, age: newAge, career, criminalRecord: character.criminalRecord });
 
+  const statDeltas: Partial<Character['stats']> = {};
+  (Object.keys(statsBeforeFocus) as (keyof Character['stats'])[]).forEach(key => {
+    const delta = stats[key] - statsBeforeFocus[key];
+    if (delta !== 0) statDeltas[key] = delta;
+  });
+
+  const newMemoryTagIds = memoryTags
+    .filter(t => !memoryTagsBefore.has(t.id))
+    .map(t => t.id);
+
   const patch: Partial<Character> = {
     age: newAge,
     stats,
@@ -403,8 +466,25 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
     socialFollowers,
     netWorthPeak,
     eventCooldowns: updatedCooldowns,
+    memories,
+    memoryTags,
+    focusConfirmedForAge: -1,
+    focusAllocation: undefined,
+    lifePhase: 'review',
+    focusDomainsUsed: trackFocusDomainsUsed(character.focusDomainsUsed, focusAllocation),
+    lastYearReview: {
+      age: newAge,
+      newMemoryTagIds,
+      focusAllocation,
+      statDeltas,
+    },
     ...probationPatch,
   };
+
+  const aspirationPickNeeded = needsAspirationPick({
+    age: newAge,
+    aspirations: character.aspirations,
+  });
 
   if (decisionEvent) {
     return {
@@ -413,6 +493,7 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
       newEventRecords: newRecords,
       decisionEvent,
       netWorthPeak,
+      needsAspirationPick: aspirationPickNeeded,
     };
   }
 
@@ -422,5 +503,6 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
     newEventRecords: newRecords,
     netWorthPeak,
     karma,
+    needsAspirationPick: aspirationPickNeeded,
   };
 }
