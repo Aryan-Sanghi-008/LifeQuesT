@@ -13,7 +13,7 @@ import { DiceBearAvatar } from '@components/Avatars';
 import { signInWithGoogle, signInAsGuest, isGoogleSignInAvailable } from '@services/auth';
 import { useGameStore } from '@store/gameStore';
 import { logEvent } from '@services/analytics';
-import { getPrivacyPolicyUrl, getTermsUrl, openLegalUrl } from '@config/legal';
+import { getPrivacyPolicyUrl, getTermsUrl, openLegalUrlSafe } from '@config/legal';
 import Svg, { Path, G } from 'react-native-svg';
 import type { LifeStage, Gender } from '@/types';
 
@@ -203,7 +203,7 @@ function useStaggeredEntrance(count: number, delay = 100) {
 }
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
-export default function AuthScreen({ navigation }: Props) {
+export default function AuthScreen({ navigation: _navigation }: Props) {
   const onUserChanged = useGameStore(s => s.onUserChanged);
   const [loading, setLoading] = useState<'google' | 'guest' | null>(null);
   const googleSignInAvailable = isGoogleSignInAvailable();
@@ -235,7 +235,10 @@ export default function AuthScreen({ navigation }: Props) {
     float(orb3Y, 3800, 22);
   }, []);
 
-  const goToSlots = () => navigation.replace('SaveSlots');
+  // Navigation is handled entirely by RootNavigator via game-phase state.
+  // Do NOT call navigation.replace here — it causes SaveSlots to appear twice
+  // because RootNavigator already remounts with initialRouteName='SaveSlots'
+  // when user state changes (key prop change).
 
   const handleGoogle = async () => {
     setLoading('google');
@@ -243,7 +246,7 @@ export default function AuthScreen({ navigation }: Props) {
       const user = await signInWithGoogle();
       await onUserChanged(user);
       void logEvent('sign_in', { method: 'google' });
-      goToSlots();
+      // RootNavigator automatically navigates when user state updates.
     } catch (e) {
       Alert.alert('Sign In Failed', (e as Error).message);
     } finally {
@@ -257,7 +260,7 @@ export default function AuthScreen({ navigation }: Props) {
       const user = await signInAsGuest();
       await onUserChanged(user);
       void logEvent('sign_in', { method: 'guest' });
-      goToSlots();
+      // RootNavigator automatically navigates when user state updates.
     } catch (e) {
       Alert.alert('Error', (e as Error).message);
     } finally {
@@ -267,7 +270,7 @@ export default function AuthScreen({ navigation }: Props) {
 
   const handleOpenLegal = async (url: string, label: string) => {
     try {
-      await openLegalUrl(url);
+      await openLegalUrlSafe(url, label);
     } catch {
       Alert.alert('Unable to open link', `Could not open ${label}. Check your network connection.`);
     }
@@ -328,7 +331,7 @@ export default function AuthScreen({ navigation }: Props) {
               </Pressable>
             ) : (
               <Text style={styles.unavailableHint}>
-                Google Sign-In available in a development build. Use guest mode in Expo Go.
+                Google Sign-In requires a development build.{`\n`}Use Guest mode to play now.
               </Text>
             )}
 
@@ -428,7 +431,7 @@ const styles = StyleSheet.create({
   carouselAvatarRing: {
     width: 96,
     height: 96,
-    borderRadius: 28,
+    borderRadius: 48,
     overflow: 'hidden',
     borderWidth: 2.5,
     borderColor: `${COLORS.gold}50`,

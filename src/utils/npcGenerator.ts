@@ -166,7 +166,7 @@ export function generatePet(type: 'dog' | 'cat' | 'bird'): Person {
     id: generateId(),
     name: `${name} (${type})`,
     age: 0,
-    gender: 'other',
+    gender: 'animal',   // Required for NpcAvatar to use bottts style
     relationType: 'pet',
     relationshipScore: 70,
     avatarSeed: name + type,

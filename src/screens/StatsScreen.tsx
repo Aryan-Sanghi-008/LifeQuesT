@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, FONTS, RADII, SPACING, SHADOWS } from '../constants/theme';
 import { useGameStore } from '../store/gameStore';
-import { AvatarById } from '../components/Avatars';
+import { AvatarByCharacter } from '../components/Avatars';
 import { StatBar, SectionLabel, Card, ScaleInView, ScreenHeader } from '../components/index';
 import { CharacterStats, LifeEventRecord } from '../types';
 import { ACHIEVEMENTS } from '../data/gameData';
@@ -185,8 +185,9 @@ const tl = StyleSheet.create({
 export function StatsScreen() {
   const character = useGameStore(s => s.character);
   if (!character) return null;
-  const { stats, karma, achievements, eventHistory, name, age, birthYear, bankBalance, assets, career, countryCode } = character;
-  const netWorthLabel = formatCurrency(getFinanceSummary({ bankBalance, assets, career }).netWorth, countryCode ?? 'IN');
+  const { stats, karma, achievements, eventHistory, name, age, birthYear, countryCode } = character;
+  const finance = getFinanceSummary(character);
+  const netWorthLabel = formatCurrency(finance.netWorth, countryCode ?? 'IN');
   const lifeExpectancy = estimateLifeExpectancy(character);
   const yearsLeft = Math.max(0, lifeExpectancy - age);
   const lePercent = Math.min(100, (age / lifeExpectancy) * 100);
@@ -200,7 +201,7 @@ export function StatsScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View style={[styles.avatarFrame, { borderColor: `${COLORS.gold}50` }]}>
-            <AvatarById id={character.avatarId} size={48} />
+            <AvatarByCharacter character={character} size={48} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.headerName}>{name}</Text>

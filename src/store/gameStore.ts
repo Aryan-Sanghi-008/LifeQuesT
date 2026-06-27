@@ -25,7 +25,7 @@ import {
 } from '../engine/certificationEngine';
 import { getCareerById, careerPathToLegacy } from '../data/careerPaths';
 import {
-  ensureCoworkers, getInteraction, getClassmates,
+  ensureCoworkers, getInteraction, rollInteraction, getClassmates,
 } from '../engine/peopleEngine';
 import {
   getActiveSlotId, setActiveSlotId, saveCharacterLocal,
@@ -35,7 +35,7 @@ import {
   getDailyQuestsProgress, setDailyQuestsProgress,
 } from '../services/persistence';
 import {
-  syncSaveToCloud, pullCloudSaveIfNewer, listCloudSlots,
+  syncSaveToCloud, pullCloudSaveIfNewer, listCloudSlots, deleteCloudSave,
 } from '../services/cloudSave';
 import { mergeSlotLists } from '../utils/saveSync';
 import {
@@ -79,6 +79,7 @@ export interface CreateCharacterPayload {
   name: string;
   gender: Gender;
   avatarId?: AvatarId;
+  avatarSeed?: string;
   countryCode: string;
   zodiac: string;
   zodiacBonusStat?: string;
@@ -134,7 +135,7 @@ function buildCharacter(data: CreateCharacterPayload): Character {
     id,
     name: data.name,
     gender: data.gender,
-    avatarSeed: data.name + id,
+    avatarSeed: data.avatarSeed ?? `${data.name}-${id}`,
     avatarId: (data.gender === 'female' ? 'female_1' : 'male_1') as AvatarId,
     lifeStage: 'infant',
     country: countryData?.name ?? 'India',
@@ -149,6 +150,7 @@ function buildCharacter(data: CreateCharacterPayload): Character {
     stats,
     karma: 50,
     bankBalance,
+    debt: 0,
     netWorthPeak: bankBalance,
     relationships: 0,
     children: 0,
@@ -462,14 +464,12 @@ export const useGameStore = create<GameStore>()(
 
       const result = gradeStudySession(
         answers, studyQuestions, character.stats.intelligence,
-        character.educationLevel,
       );
 
       set(s => {
         if (!s.character) return;
         s.character.stats.intelligence = clamp(s.character.stats.intelligence + result.intelligenceGain);
         s.character.stats.mentalHealth = clamp(s.character.stats.mentalHealth + result.mentalHealthGain);
-        if (result.educationUnlock) s.character.educationLevel = result.educationUnlock;
         s.studyQuestions = null;
       });
 
@@ -708,6 +708,8 @@ export const useGameStore = create<GameStore>()(
         s.sessionAges = 0;
         s.isProcessing = false;
         s.carriedStatsForCreate = null;
+        s.pendingReincarnation = false;
+        s.slotList = buildLocalSlotList();
       });
       void get()._persist();
       void logEvent('create_character', { name: char.name });
@@ -825,8 +827,8 @@ export const useGameStore = create<GameStore>()(
 
       const effect = success ? activity.statEffect : (activity.failStatEffect ?? activity.statEffect);
       const bankDelta = success ? (activity.bankEffect ?? 0) : 0;
-      const { stats, karma, bankBalance } = applyEffect(
-        character.stats, character.karma, character.bankBalance, effect, bankDelta, character.assets,
+      const { stats, karma, bankBalance, debt } = applyEffect(
+        character.stats, character.karma, character.bankBalance, effect, bankDelta, character.assets, character.debt ?? 0,
       );
 
       set(s => {
@@ -834,6 +836,7 @@ export const useGameStore = create<GameStore>()(
         s.character.stats = stats;
         s.character.karma = karma;
         s.character.bankBalance = bankBalance;
+        s.character.debt = debt;
         s.character.luckBoostsRemaining = luckBoosts;
         if (activity.cost) s.character.coins -= activity.cost;
         if (activity.addsPerson === 'pet') s.character.people.push(generatePet('dog'));
@@ -872,29 +875,41 @@ export const useGameStore = create<GameStore>()(
       const person = character.people.find(p => p.id === personId);
       if (!person) return { delta: 0, message: 'Person not found.' };
 
-      if (interaction.bankDelta < 0 && character.bankBalance < Math.abs(interaction.bankDelta)) {
+      if (person.lastInteractionAge === character.age) {
+        return {
+          delta: 0,
+          message: `You already interacted with ${person.name} this year. Try again after aging up.`,
+        };
+      }
+
+      const rolled = rollInteraction(interaction);
+      if (rolled.bankDelta < 0 && character.bankBalance < Math.abs(rolled.bankDelta)) {
         return { delta: 0, message: 'Not enough money for that.' };
       }
 
-      const { stats, karma, bankBalance } = applyEffect(
+      const { stats, karma, bankBalance, debt } = applyEffect(
         character.stats, character.karma, character.bankBalance,
-        {}, interaction.bankDelta, character.assets,
+        {}, rolled.bankDelta, character.assets, character.debt ?? 0,
       );
 
       set(s => {
         if (!s.character) return;
         const p = s.character.people.find(x => x.id === personId);
         if (p) {
-          const engagementBonus = 5;
-          p.relationshipScore = Math.max(0, Math.min(100, p.relationshipScore + interaction.delta + engagementBonus));
+          const engagementBonus = rolled.success ? 5 : 0;
+          p.relationshipScore = Math.max(0, Math.min(100, p.relationshipScore + rolled.delta + engagementBonus));
+          p.lastInteractionAge = s.character.age;
+          if (!p.interactionCooldowns) p.interactionCooldowns = {};
+          p.interactionCooldowns[interactionId] = s.character.age;
         }
         s.character.stats = stats;
         s.character.karma = karma;
         s.character.bankBalance = bankBalance;
+        s.character.debt = debt;
       });
 
       void get()._persist();
-      return { delta: interaction.delta, message: interaction.message };
+      return { delta: rolled.delta, message: rolled.message };
     },
 
     applyForJob: (jobId) => {
@@ -1008,7 +1023,10 @@ export const useGameStore = create<GameStore>()(
         s.pendingDecision = null;
         s.sessionAges = 0;
         s.pendingReincarnation = true;
+        s.slotList = buildLocalSlotList();
       });
+
+      loadGeneration += 1;
 
       const slotId = get().activeSlotId;
       deleteCharacterLocal(slotId);
@@ -1149,13 +1167,31 @@ export const useGameStore = create<GameStore>()(
     },
 
     deleteSlot: async (slotId: string) => {
+      loadGeneration += 1;
       deleteCharacterLocal(slotId);
-      if (get().activeSlotId === slotId) {
-        set(s => { s.character = null; });
+      const { user, activeSlotId } = get();
+      if (user && !user.uid.startsWith('local_guest_')) {
+        try {
+          await deleteCloudSave(user.uid, slotId);
+        } catch {
+          /* cloud delete is best-effort */
+        }
+      }
+      set(s => {
+        if (activeSlotId === slotId) {
+          s.character = null;
+          s.pendingDecision = null;
+          s.pendingReincarnation = false;
+        }
+        s.slotList = buildLocalSlotList();
+      });
+      if (user && !user.uid.startsWith('local_guest_')) {
+        await get().refreshSlotList();
       }
     },
 
     resetGame: async () => {
+      loadGeneration += 1;
       const slotId = get().activeSlotId;
       deleteCharacterLocal(slotId);
       set(s => {
@@ -1164,6 +1200,8 @@ export const useGameStore = create<GameStore>()(
         s.isProcessing = false;
         s.sessionAges = 0;
         s.carriedStatsForCreate = null;
+        s.pendingReincarnation = false;
+        s.slotList = buildLocalSlotList();
       });
     },
 

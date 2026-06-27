@@ -42,50 +42,62 @@ const SOUND_FILES: Record<SoundEffect, number> = {
 
 const soundPool: Partial<Record<SoundEffect, AudioPlayer>> = {};
 let isInitialized = false;
+let initPromise: Promise<void> | null = null;
 
 export async function initAudio(): Promise<void> {
   if (isInitialized) return;
+  if (initPromise) return initPromise;
 
-  try {
-    await setAudioModeAsync({
-      allowsRecording: false,
-      playsInSilentMode: false,
-      shouldPlayInBackground: false,
-      interruptionMode: 'duckOthers',
-    });
+  initPromise = (async () => {
+    try {
+      await setAudioModeAsync({
+        allowsRecording: false,
+        playsInSilentMode: true,
+        shouldPlayInBackground: false,
+        interruptionMode: 'duckOthers',
+      });
 
-    const priority: SoundEffect[] = [
-      'button_tap',
-      'success',
-      'error',
-      'age_up',
-      'achievement_unlock',
-      'coins_earned',
-    ];
+      const priority: SoundEffect[] = [
+        'button_tap',
+        'success',
+        'error',
+        'age_up',
+        'achievement_unlock',
+        'coins_earned',
+      ];
 
-    for (const key of priority) {
-      try {
-        soundPool[key] = createAudioPlayer(SOUND_FILES[key]);
-      } catch {
-        // Silently fail if a sound file is missing during development
+      for (const key of priority) {
+        try {
+          soundPool[key] = createAudioPlayer(SOUND_FILES[key]);
+        } catch {
+          /* missing asset during dev */
+        }
       }
-    }
 
-    isInitialized = true;
-  } catch (e) {
-    console.warn('[Audio] init failed:', e);
-  }
+      isInitialized = true;
+    } catch (e) {
+      console.warn('[Audio] init failed:', e);
+    }
+  })();
+
+  return initPromise;
+}
+
+export async function ensureAudioReady(): Promise<void> {
+  await initAudio();
 }
 
 export async function playSound(effect: SoundEffect): Promise<void> {
   const { soundEnabled, masterVolume } = useSettingsStore.getState();
   if (!soundEnabled) return;
 
+  await ensureAudioReady();
+
   try {
     const cached = soundPool[effect];
     if (cached) {
       cached.volume = masterVolume;
-      cached.seekTo(0);
+      await cached.seekTo(0);
       cached.play();
       return;
     }

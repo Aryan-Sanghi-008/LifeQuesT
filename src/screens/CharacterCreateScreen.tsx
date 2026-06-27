@@ -3,9 +3,8 @@ import {
   View, Text, Pressable, StyleSheet, Animated,
   TextInput, ScrollView, Dimensions, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { RouteProp } from '@react-navigation/native';
-import { StackActions } from '@react-navigation/native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { RouteProp, StackActions } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList, FamilyBackground, Gender } from '../types';
 import { COLORS, FONTS, RADII, SPACING, SHADOWS } from '../constants/theme';
@@ -100,9 +99,11 @@ const GENDER_OPTIONS: Array<{ id: Gender; label: string; icon: React.ReactNode; 
 
 // ─── Step 1: Identity ─────────────────────────────────────────────────────────
 
-function Step1({ name, setName, gender, setGender }: {
+function Step1({ name, setName, gender, setGender, avatarSeed, onNameFocus }: {
   name: string; setName: (v: string) => void;
   gender: Gender; setGender: (v: Gender) => void;
+  avatarSeed: string;
+  onNameFocus: () => void;
 }) {
   return (
     <FadeInView style={styles.stepContainer}>
@@ -128,7 +129,13 @@ function Step1({ name, setName, gender, setGender }: {
 
       <View style={styles.babyPreviewWrap}>
         <View style={[styles.babyFrame, { borderColor: `${COLORS.gold}50` }]}>
-          <DiceBearAvatar seed={name || 'NewBorn'} lifeStage="infant" gender={gender} size={88} />
+          <DiceBearAvatar
+            seed={avatarSeed}
+            lifeStage="infant"
+            gender={gender}
+            size={94}
+            clipCircular
+          />
         </View>
         <Text style={styles.babyLabel}>Your baby avatar</Text>
       </View>
@@ -142,6 +149,7 @@ function Step1({ name, setName, gender, setGender }: {
         <TextInput
           value={name}
           onChangeText={setName}
+          onFocus={onNameFocus}
           placeholder="Enter your name..."
           placeholderTextColor={COLORS.t4}
           maxLength={24}
@@ -318,9 +326,11 @@ function Step3({ zodiac, setZodiac, traits, toggleTrait, isPremium }: {
 
 export function CharacterCreateScreen({ navigation, route }: Props) {
   const createCharacter   = useGameStore(s => s.createCharacter);
-  const character = useGameStore(s => s.character);
+  const character         = useGameStore(s => s.character);
+  const isPremium         = useGameStore(s => s.character?.isPremium ?? false);
   const carriedFromStore  = useGameStore(s => s.carriedStatsForCreate);
   const carriedStats      = carriedFromStore ?? route.params?.carriedStats;
+  const insets = useSafeAreaInsets();
 
   const [step, setStep]             = useState(0);
   const [name, setName]             = useState('');
@@ -332,14 +342,16 @@ export function CharacterCreateScreen({ navigation, route }: Props) {
   const [isCreating, setIsCreating] = useState(false);
 
   const slideAnim = useRef(new Animated.Value(0)).current;
-  const clearPendingReincarnation = useGameStore(s => s.clearPendingReincarnation);
+  const scrollRef = useRef<ScrollView>(null);
+  const avatarSeedRef = useRef<string | null>(null);
 
-  // Clear reincarnation flag when this screen mounts so future saves navigate correctly
-  useEffect(() => {
-    clearPendingReincarnation();
-  }, [clearPendingReincarnation]);
+  const ensureAvatarSeed = () => {
+    if (!avatarSeedRef.current && name.trim()) {
+      avatarSeedRef.current = `${name.trim()}-${Date.now()}`;
+    }
+    return avatarSeedRef.current ?? 'NewBorn';
+  };
 
-  // Navigate to MainTabs once character is created
   useEffect(() => {
     if (character && isCreating) {
       navigation.dispatch(StackActions.replace('MainTabs'));
@@ -352,6 +364,7 @@ export function CharacterCreateScreen({ navigation, route }: Props) {
 
   const nextStep = () => {
     if (step === 0 && !name.trim()) return;
+    if (step === 0) ensureAvatarSeed();
     if (step < STEP_COUNT - 1) {
       Animated.sequence([
         Animated.timing(slideAnim, { toValue: -16, duration: 130, useNativeDriver: true }),
@@ -364,6 +377,7 @@ export function CharacterCreateScreen({ navigation, route }: Props) {
       createCharacter({
         name: name.trim(),
         gender,
+        avatarSeed: ensureAvatarSeed(),
         countryCode: country,
         zodiac,
         zodiacBonusStat: selectedZodiac?.bonusStat,
@@ -394,7 +408,11 @@ export function CharacterCreateScreen({ navigation, route }: Props) {
   return (
     <View style={styles.root}>
       <SafeAreaView style={styles.safe}>
-        <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? insets.top + 100 : 20}
+        >
 
           {/* Header */}
           <View style={styles.header}>
@@ -414,12 +432,23 @@ export function CharacterCreateScreen({ navigation, route }: Props) {
           <StepProgressBar current={step} />
 
           <ScrollView
+            ref={scrollRef}
+            style={{ flex: 1 }}
             contentContainerStyle={styles.scroll}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
             <Animated.View style={{ transform: [{ translateX: slideAnim }] }}>
-              {step === 0 && <Step1 name={name} setName={setName} gender={gender} setGender={setGender} />}
+              {step === 0 && (
+                <Step1
+                  name={name}
+                  setName={setName}
+                  gender={gender}
+                  setGender={setGender}
+                  avatarSeed={ensureAvatarSeed()}
+                  onNameFocus={() => scrollRef.current?.scrollToEnd({ animated: true })}
+                />
+              )}
               {step === 1 && <Step2 country={country} setCountry={setCountry} background={background} setBackground={setBackground} />}
               {step === 2 && (
                 <Step3
@@ -427,7 +456,7 @@ export function CharacterCreateScreen({ navigation, route }: Props) {
                   setZodiac={setZodiac}
                   traits={traits}
                   toggleTrait={toggleTrait}
-                  isPremium={character?.isPremium ?? false}
+                  isPremium={isPremium}
                 />
               )}
             </Animated.View>
@@ -466,7 +495,7 @@ const styles = StyleSheet.create({
   },
   stepChapterLabel: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4 },
   stepChapterName:  { fontFamily: FONTS.bodyBold, fontSize: 15, marginTop: 2 },
-  scroll: { flexGrow: 1, paddingHorizontal: SPACING.xl, paddingBottom: SPACING.xxl },
+  scroll: { flexGrow: 1, paddingHorizontal: SPACING.xl, paddingBottom: SPACING.md },
   stepContainer: { gap: SPACING.md },
   stepTitle: { fontFamily: FONTS.displayBold, fontSize: 28, color: COLORS.t1, marginTop: SPACING.sm },
   stepSub:   { fontFamily: FONTS.body, fontSize: 14, color: COLORS.t3, lineHeight: 21, marginBottom: SPACING.sm },
@@ -484,7 +513,13 @@ const styles = StyleSheet.create({
 
   // Baby preview
   babyPreviewWrap: { alignItems: 'center', marginVertical: SPACING.lg },
-  babyFrame: { borderRadius: RADII.xl, borderWidth: 3, overflow: 'hidden', padding: 4, backgroundColor: COLORS.bgCard, ...SHADOWS.card },
+  babyFrame: {
+    width: 100, height: 100, borderRadius: 50,
+    borderWidth: 3, overflow: 'hidden',
+    backgroundColor: COLORS.bgCard,
+    alignItems: 'center', justifyContent: 'center',
+    ...SHADOWS.card,
+  },
   babyLabel: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.t4, marginTop: SPACING.sm },
 
   // Input

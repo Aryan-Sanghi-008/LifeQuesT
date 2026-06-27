@@ -21,7 +21,7 @@ import { logEvent } from '@services/analytics';
 import { formatCurrency } from '@utils/currency';
 import { getFinanceSummary } from '@utils/financeSummary';
 import { getEducationLabel } from '@engine/educationEngine';
-import { triggerLightImpact } from '@utils/haptics';
+import { triggerLightImpact } from '@services/haptics';
 import { isInJail } from '@engine/crimeEngine';
 import Svg, { Path, Circle } from 'react-native-svg';
 
@@ -175,8 +175,8 @@ function AgeUpButton({ onPress, loading }: { onPress: () => void; loading: boole
 
 const ageBtn = StyleSheet.create({
   wrap:  { position: 'relative', alignItems: 'center', paddingVertical: SPACING.sm },
-  ring:  { position: 'absolute', width: '110%', height: 60, borderRadius: RADII.xl, borderWidth: 2.5, borderColor: '#22C55E', shadowColor: '#22C55E', shadowOpacity: 0.30, shadowRadius: 12, elevation: 0 },
-  btn:   { paddingVertical: 17, borderRadius: RADII.lg, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', shadowColor: '#22C55E', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.30, shadowRadius: 14, elevation: 8 },
+  ring:  { position: 'absolute', left: -10, right: -10, top: 0, bottom: 0, borderRadius: RADII.xl, borderWidth: 2.5, borderColor: '#22C55E', shadowColor: '#22C55E', shadowOpacity: 0.40, shadowRadius: 16, elevation: 0 },
+  btn:   { paddingVertical: 17, borderRadius: RADII.lg, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', shadowColor: '#22C55E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.40, shadowRadius: 18, elevation: 10 },
   inner: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
   label: { fontFamily: FONTS.bodyBold, fontSize: 18, color: '#FFFFFF', letterSpacing: 2 },
 });
@@ -293,6 +293,7 @@ export function LifeScreen() {
   const countryCode = character.countryCode ?? 'IN';
   const bankStr = formatCurrency(character.bankBalance, countryCode);
   const finance = getFinanceSummary(character);
+  const debtStr = finance.totalDebt > 0 ? formatCurrency(finance.totalDebt, countryCode) : null;
   const netWorthStr = formatCurrency(finance.netWorth, countryCode);
   const educationLabel = getEducationLabel(character.educationStage, character.educationLevel);
   const lifeStage = character.age < 13 ? 'Childhood' : character.age < 18 ? 'Teenager' : character.age < 30 ? 'Young Adult' : character.age < 60 ? 'Adult' : 'Golden Years';
@@ -346,6 +347,14 @@ export function LifeScreen() {
             color={COLORS.catFinancial}
             bgColor={`${COLORS.catFinancial}10`}
           />
+          {debtStr && (
+            <CurrencyPill
+              icon={<Svg width={12} height={12} viewBox="0 0 24 24" fill="none"><Path stroke={COLORS.crimson} strokeWidth={2} strokeLinecap="round" d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></Svg>}
+              value={`-${debtStr}`}
+              color={COLORS.crimson}
+              bgColor={`${COLORS.crimson}10`}
+            />
+          )}
           <Pressable onPress={() => tabNavigation.navigate('Assets')}>
             <CurrencyPill
               icon={<Svg width={12} height={12} viewBox="0 0 24 24" fill="none"><Path stroke={COLORS.teal} strokeWidth={2} strokeLinecap="round" d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></Svg>}

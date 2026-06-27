@@ -31,6 +31,7 @@ export function createTestCharacter(overrides: Partial<Character> = {}): Charact
     },
     karma: 50,
     bankBalance: 1000,
+    debt: 0,
     netWorthPeak: 1000,
     relationships: 0,
     children: 0,

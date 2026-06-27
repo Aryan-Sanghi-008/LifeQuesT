@@ -43,9 +43,9 @@ export function runResolveDecision(
     : event.statEffect;
   const bankDelta = success ? (choice.bankEffect ?? event.bankEffect ?? 0) : (event.bankEffect ?? 0);
 
-  let { stats, karma, bankBalance } = applyEffect(
+  let { stats, karma, bankBalance, debt } = applyEffect(
     character.stats, character.karma, character.bankBalance,
-    effectToApply, bankDelta, character.assets,
+    effectToApply, bankDelta, character.assets, character.debt ?? 0,
   );
 
   let updatedJob = character.job;
@@ -108,6 +108,7 @@ export function runResolveDecision(
     stats,
     karma,
     bankBalance,
+    debt,
     job: updatedJob,
     career,
     educationLevel: updatedEducation,
@@ -117,7 +118,7 @@ export function runResolveDecision(
     luckBoostsRemaining: luckBoosts,
     netWorthPeak: Math.max(
       character.netWorthPeak,
-      computeNetWorth({ bankBalance, assets: character.assets }),
+      computeNetWorth({ bankBalance, assets: character.assets, debt }),
     ),
   };
 

@@ -43,6 +43,10 @@ export interface Person {
   avatarSeed: string;
   isAlive: boolean;
   occupation?: string;
+  /** interactionId → last character age this interaction was performed (cooldown gate) */
+  interactionCooldowns?: Record<string, number>;
+  /** Last character age any interaction was performed (one action per person per year) */
+  lastInteractionAge?: number;
 }
 
 export type RelationshipStage =
@@ -170,6 +174,8 @@ export interface Character {
   stats: CharacterStats;
   karma: number;
   bankBalance: number;
+  /** Unsecured cash debt when expenses exceed bank balance */
+  debt: number;
   netWorthPeak: number;
   relationships: number;
   children: number;

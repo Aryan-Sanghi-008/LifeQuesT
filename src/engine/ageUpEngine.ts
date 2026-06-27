@@ -4,7 +4,7 @@ import {
 import { DEATH_CAUSES } from '../data/gameData';
 import { getLifeStage } from '../utils/lifeStage';
 import { generatePartner, generatePet } from '../utils/npcGenerator';
-import { applyEffect, tickAnnualEconomy, computeNetWorth, clamp, AnnualEconomyResult } from './economyEngine';
+import { applyEffect, applyCashDelta, tickAnnualEconomy, computeNetWorth, clamp, checkDebtCrisis, AnnualEconomyResult } from './economyEngine';
 import { getCountryEconomy } from '../data/countryEconomy';
 import { getEligibleEvents, pickWeightedEvents, getGuaranteedMilestones } from './eventEngine';
 import { incrementCareerYear, syncJobLabel, applyJobTitleUpdate } from './careerEngine';
@@ -166,10 +166,13 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
     looks: newAge > 35 ? -1 : 0,
   };
 
-  let { stats, karma, bankBalance } = applyEffect(
+  let debt = character.debt ?? 0;
+
+  let { stats, karma, bankBalance, debt: nextDebt } = applyEffect(
     character.stats, character.karma, character.bankBalance,
-    agingEffect, 0, character.assets,
+    agingEffect, 0, character.assets, debt,
   );
+  debt = nextDebt;
 
   stats = tickMentalHealth(stats, { lowHappiness: stats.happiness < 30 });
 
@@ -177,7 +180,9 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
   if (businesses.length > 0) {
     const bizTick = tickAllBusinesses(businesses);
     businesses = bizTick.businesses;
-    bankBalance = Math.max(0, bankBalance + bizTick.totalProfit);
+    const bizCash = applyCashDelta(bankBalance, debt, bizTick.totalProfit);
+    bankBalance = bizCash.bankBalance;
+    debt = bizCash.debt;
   }
 
   let career = character.career ? incrementCareerYear(character.career) : null;
@@ -185,31 +190,43 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
   if (character.career) totalCareerYears += 1;
   const salary = career?.salary ?? 0;
   const countryCode = character.countryCode ?? 'US';
-  const economy = tickAnnualEconomy(newAge, bankBalance, salary, character.assets, countryCode);
+  const economy = tickAnnualEconomy(newAge, bankBalance, debt, salary, character.assets, countryCode);
   bankBalance = economy.bankBalance;
+  debt = economy.debt;
 
   const simResult = runAnnualSimulation({ ...character, age: newAge, stats, bankBalance, career });
   stats = { ...stats, ...simResult.statsPatches } as typeof stats;
-  stats = { ...stats, wealth: clamp(computeNetWorth({ bankBalance, assets: character.assets }) / 10000) };
+  stats = { ...stats, wealth: clamp(computeNetWorth({ bankBalance, assets: character.assets, debt }) / 10000) };
 
   const economyRecords = buildEconomyLedgerRecords(newAge, economy, countryCode);
   const stressRecords = buildStressRecords(newAge, simResult.narrativeEffects);
+
+  const debtCrisis = checkDebtCrisis({
+    bankBalance,
+    assets: character.assets,
+    debt,
+    countryCode,
+  });
 
   const newLifeStage: LifeStage = getLifeStage(newAge);
 
   const deathChance = computeDeathChance(newAge, stats);
   const isDead = options?.forceDeath
     || stats.health <= 0
+    || debtCrisis.crisis
     || Math.random() * 100 < deathChance;
 
   if (isDead) {
-    const cause = DEATH_CAUSES.find(d => newAge >= d.minAge && newAge <= d.maxAge)?.cause ?? 'natural causes';
+    const cause = debtCrisis.crisis
+      ? 'debt crisis'
+      : (DEATH_CAUSES.find(d => newAge >= d.minAge && newAge <= d.maxAge)?.cause ?? 'natural causes');
     return {
       type: 'death',
       patch: {
         age: newAge,
         stats,
         bankBalance,
+        debt,
         lifeStage: newLifeStage,
         career,
         isAlive: false,
@@ -282,10 +299,11 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
   let socialFollowers = character.socialFollowers;
 
   for (const event of autoEvents) {
-    const res = applyEffect(stats, karma, bankBalance, event.statEffect, event.bankEffect ?? 0, character.assets);
+    const res = applyEffect(stats, karma, bankBalance, event.statEffect, event.bankEffect ?? 0, character.assets, debt);
     stats = res.stats;
     karma = res.karma;
     bankBalance = res.bankBalance;
+    debt = res.debt;
 
     if (event.category === 'crime') {
       const updated = recordCrime({ ...character, stats, karma, bankBalance }, event.id);
@@ -359,7 +377,7 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
     }
   }
 
-  const netWorth = computeNetWorth({ bankBalance, assets: character.assets });
+  const netWorth = computeNetWorth({ bankBalance, assets: character.assets, debt });
   const netWorthPeak = Math.max(character.netWorthPeak, netWorth);
 
   const probationPatch = tickProbation({ ...character, age: newAge, career, criminalRecord: character.criminalRecord });
@@ -369,6 +387,7 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
     stats,
     karma,
     bankBalance,
+    debt,
     lifeStage: newLifeStage,
     job: updatedJob,
     career,

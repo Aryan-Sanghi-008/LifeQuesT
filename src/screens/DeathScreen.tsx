@@ -3,9 +3,6 @@ import {
   View, Text, StyleSheet, Animated, Pressable, ScrollView, Dimensions, Share, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../types';
 import { logEvent } from '../services/analytics';
 import { submitLeaderboardScore, computeLeaderboardScore } from '../services/leaderboard';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -115,7 +112,6 @@ const fsr = StyleSheet.create({
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function DeathScreen() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const character  = useGameStore(s => s.character);
   const reincarnate = useGameStore(s => s.reincarnate);
   const user = useGameStore(s => s.user);
@@ -185,10 +181,9 @@ export default function DeathScreen() {
   const handleReincarnate = () => {
     const carried = reincarnate();
     if (carried) {
-      Alert.alert('Reincarnation', 'Your top stats carry over at 50% strength.');
+      Alert.alert('Reincarnation', 'Your top stats carry over at 50% strength. Continue to create your next life.');
       void logEvent('reincarnate', { stats: Object.keys(carried).length });
     }
-    navigation.replace('CharacterCreate', { carriedStats: carried ?? undefined });
   };
 
   const handleShare = async () => {
@@ -229,6 +224,21 @@ export default function DeathScreen() {
             </View>
           </Animated.View>
 
+          {/* Life rating — visible above the fold */}
+          <Animated.View style={[styles.ratingRow, {
+            opacity: headerAnim,
+            transform: [{ translateY: headerAnim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }],
+          }]}>
+            <View style={styles.ratingBadge}>
+              <Text style={styles.ratingAge}>{finalAge}</Text>
+              <Text style={styles.ratingYrs}>years</Text>
+            </View>
+            <View>
+              <Text style={styles.ratingLabel}>{lifeRating}</Text>
+              <Text style={styles.ratingCountry}>{countryFlag} {country}</Text>
+            </View>
+          </Animated.View>
+
           {/* ── Tombstone ──────────────────────────────────────── */}
           <Animated.View style={[styles.tombWrap, {
             opacity: tombAnim,
@@ -252,18 +262,6 @@ export default function DeathScreen() {
 
           {/* ── Summary Card ────────────────────────────────────── */}
           <Animated.View style={[{ opacity: cardAnim, transform: [{ translateY: cardAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }]}>
-
-            {/* Life rating */}
-            <View style={styles.ratingRow}>
-              <View style={styles.ratingBadge}>
-                <Text style={styles.ratingAge}>{finalAge}</Text>
-                <Text style={styles.ratingYrs}>years</Text>
-              </View>
-              <View>
-                <Text style={styles.ratingLabel}>{lifeRating}</Text>
-                <Text style={styles.ratingCountry}>{countryFlag} {country}</Text>
-              </View>
-            </View>
 
             {/* Final stats */}
             <Card style={styles.statsCard}>
@@ -322,6 +320,7 @@ export default function DeathScreen() {
 
           {/* ── CTA ────────────────────────────────────────────── */}
           <Animated.View style={[styles.cta, { opacity: ctaAnim }]}>
+            <Text style={styles.ctaHint}>Continue your journey with a new life</Text>
             <GradientButton
               label="Reincarnate"
               onPress={handleReincarnate}
@@ -329,6 +328,7 @@ export default function DeathScreen() {
               textColor="#160D00"
               style={{ width: '100%' }}
             />
+            <Text style={styles.ctaSub}>Top stats carry over at 50% when eligible</Text>
             <Pressable style={styles.shareBtn} onPress={handleShare}>
               <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
                 <Circle stroke={COLORS.t3} strokeWidth={2} cx="18" cy="5" r="3"/>
@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
   ribbonText: { fontFamily: FONTS.bodySemiBold, fontSize: 10, color: COLORS.t4, letterSpacing: 4 },
 
   // Tombstone
-  tombWrap: { alignItems: 'center', marginBottom: SPACING.sm, position: 'relative' },
+  tombWrap: { alignItems: 'center', marginBottom: SPACING.md, position: 'relative' },
   tombText: { position: 'absolute', top: 95, alignItems: 'center', width: 120 },
   tombRIP:  { fontFamily: FONTS.bodySemiBold, fontSize: 10, color: COLORS.gold3, letterSpacing: 3 },
   tombName: { fontFamily: FONTS.displayBold, fontSize: 14, color: COLORS.t1, textAlign: 'center', marginTop: 2 },
@@ -399,7 +399,9 @@ const styles = StyleSheet.create({
   achChipText:{ fontFamily: FONTS.bodySemiBold, fontSize: 11 },
 
   // CTA
-  cta:          { width: '100%', gap: SPACING.md, marginTop: SPACING.lg },
-  shareBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, paddingVertical: SPACING.md },
+  cta:          { width: '100%', gap: SPACING.sm, marginTop: SPACING.lg },
+  ctaHint:      { fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.t2, textAlign: 'center' },
+  ctaSub:       { fontFamily: FONTS.body, fontSize: 12, color: COLORS.t4, textAlign: 'center' },
+  shareBtn:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, paddingVertical: SPACING.md, marginTop: SPACING.sm },
   shareBtnText: { fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.t3 },
 });

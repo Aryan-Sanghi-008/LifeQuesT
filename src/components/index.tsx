@@ -12,6 +12,8 @@ import {
 } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, FONTS, RADII, SPACING, SHADOWS, ANIM } from "../theme/colors";
+import { hapticButtonPress } from "@services/haptics";
+import { playSound } from "@services/audio";
 
 export { BottomSheet } from "./BottomSheet";
 export { ScreenHeader } from "./ScreenHeader";
@@ -58,10 +60,17 @@ export function GradientButton({
   const onPressOut = () =>
     Animated.spring(scale, { toValue: 1, useNativeDriver: true, ...ANIM.spring }).start();
 
+  const handlePress = () => {
+    if (disabled || loading) return;
+    hapticButtonPress();
+    void playSound('button_tap');
+    onPress();
+  };
+
   return (
     <Animated.View style={[{ transform: [{ scale }] }, style]}>
       <Pressable
-        onPress={onPress}
+        onPress={handlePress}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
         disabled={disabled || loading}

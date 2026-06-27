@@ -112,14 +112,39 @@ function save(key: string, value: unknown) {
   getSettingsStorage().set(key, String(value));
 }
 
+function migrateLegacyPreferences(): Partial<SettingsState> {
+  const MIGRATED_KEY = 'legacyPrefsMigrated';
+  if (getSettingsStorage().getString(MIGRATED_KEY) === 'true') return {};
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const persistence = require('@services/persistence') as typeof import('@services/persistence');
+    const patch: Partial<SettingsState> = {};
+    if (persistence.hasExplicitSoundSetting()) {
+      patch.soundEnabled = persistence.getSoundEnabled();
+    }
+    if (persistence.hasExplicitHapticsSetting()) {
+      patch.hapticsEnabled = persistence.getHapticsEnabled();
+    }
+    save(MIGRATED_KEY, 'true');
+    Object.entries(patch).forEach(([k, v]) => save(k, v));
+    return patch;
+  } catch {
+    save(MIGRATED_KEY, 'true');
+    return {};
+  }
+}
+
+const legacyPatch = migrateLegacyPreferences();
+
 void hydrateAsyncSettings();
 
 export const useSettingsStore = create<SettingsState>()((set) => ({
   masterVolume: load('masterVolume', DEFAULTS.masterVolume),
-  soundEnabled: load('soundEnabled', DEFAULTS.soundEnabled),
+  soundEnabled: legacyPatch.soundEnabled ?? load('soundEnabled', DEFAULTS.soundEnabled),
   musicEnabled: load('musicEnabled', DEFAULTS.musicEnabled),
   musicVolume: load('musicVolume', DEFAULTS.musicVolume),
-  hapticsEnabled: load('hapticsEnabled', DEFAULTS.hapticsEnabled),
+  hapticsEnabled: legacyPatch.hapticsEnabled ?? load('hapticsEnabled', DEFAULTS.hapticsEnabled),
   notificationsEnabled: load('notificationsEnabled', DEFAULTS.notificationsEnabled),
   reducedMotion: load('reducedMotion', DEFAULTS.reducedMotion),
 

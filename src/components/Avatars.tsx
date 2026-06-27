@@ -48,6 +48,7 @@ interface DiceBearAvatarProps {
   size?: number;
   showFrame?: boolean;
   frameColor?: string;
+  clipCircular?: boolean;
 }
 
 export function DiceBearAvatar({
@@ -58,6 +59,7 @@ export function DiceBearAvatar({
   size = 80,
   showFrame = false,
   frameColor,
+  clipCircular = false,
 }: DiceBearAvatarProps) {
 
   const xml = useMemo(() => {
@@ -95,7 +97,13 @@ export function DiceBearAvatar({
 
   const inner = <SvgXml xml={xml} width={size} height={size} />;
 
-  if (!showFrame) return inner;
+  const clipped = clipCircular ? (
+    <View style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden' }}>
+      {inner}
+    </View>
+  ) : inner;
+
+  if (!showFrame) return clipped;
 
   const borderCol = frameColor ?? COLORS.goldBorder;
 
@@ -103,11 +111,11 @@ export function DiceBearAvatar({
     <View style={[s.frame, {
       width: size + 6,
       height: size + 6,
-      borderRadius: size / 4 + 3,
+      borderRadius: size / 2 + 3,
       backgroundColor: COLORS.bgCard,
       borderColor: borderCol,
     }]}>
-      {inner}
+      {clipped}
     </View>
   );
 }

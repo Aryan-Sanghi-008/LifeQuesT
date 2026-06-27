@@ -26,6 +26,8 @@ import {
   JetBrainsMono_600SemiBold,
 } from "@expo-google-fonts/jetbrains-mono";
 import RootNavigator from "@navigation/RootNavigator";
+import { NavigationSync } from "@navigation/NavigationSync";
+import { navigationRef } from "@navigation/navigationRef";
 import { useGameStore } from "@store/gameStore";
 import { initAuth, subscribeAuth } from "@services/auth";
 import { initAds } from "@services/ads";
@@ -124,6 +126,8 @@ export default function App() {
     return null;
   }
 
+  void initAudio();
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutRootView}>
       <SafeAreaProvider>
@@ -133,7 +137,8 @@ export default function App() {
           backgroundColor="#F4F6F9"
           translucent={false}
         />
-        <NavigationContainer>
+        <NavigationContainer ref={navigationRef}>
+          <NavigationSync />
           <RootNavigator />
         </NavigationContainer>
       </SafeAreaProvider>

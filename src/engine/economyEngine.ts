@@ -1,12 +1,29 @@
 import { Character, CharacterStats, StatEffect } from '../types';
-import { getAnnualCostOfLiving, getCountryEconomy, applyTax } from '../data/countryEconomy';
+import { getAnnualCostOfLiving, getCountryEconomy, applyTax, getMaxPersonalDebt } from '../data/countryEconomy';
 
 export const clamp = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
 
-export function computeNetWorth(character: Pick<Character, 'bankBalance' | 'assets'>): number {
+export function applyCashDelta(
+  bankBalance: number,
+  debt: number,
+  delta: number,
+): { bankBalance: number; debt: number } {
+  let bank = bankBalance + delta;
+  let nextDebt = debt;
+  if (bank < 0) {
+    nextDebt += -bank;
+    bank = 0;
+  }
+  return { bankBalance: bank, debt: nextDebt };
+}
+
+export function computeNetWorth(
+  character: Pick<Character, 'bankBalance' | 'assets' | 'debt'>,
+): number {
   const assetValue = character.assets.reduce((s, a) => s + a.value, 0);
-  const totalDebt = character.assets.reduce((s, a) => s + (a.debt ?? 0), 0);
-  return character.bankBalance + assetValue - totalDebt;
+  const assetDebt = character.assets.reduce((s, a) => s + (a.debt ?? 0), 0);
+  const cashDebt = character.debt ?? 0;
+  return character.bankBalance + assetValue - assetDebt - cashDebt;
 }
 
 export function wealthStatFromNetWorth(netWorth: number): number {
@@ -20,6 +37,7 @@ export function applyEffect(
   effect: StatEffect,
   bankDelta = 0,
   assets: Character['assets'] = [],
+  debt = 0,
 ) {
   const next = { ...stats };
   (Object.keys(effect) as Array<keyof StatEffect>).forEach(k => {
@@ -29,14 +47,21 @@ export function applyEffect(
     if (val !== undefined && k in rec) rec[k] = clamp(rec[k] + val);
   });
   const nextKarma = Math.max(-100, Math.min(300, karma + (effect.karma ?? 0)));
-  const nextBank = Math.max(0, bankBalance + bankDelta);
-  const netWorth = computeNetWorth({ bankBalance: nextBank, assets });
+  const cash = applyCashDelta(bankBalance, debt, bankDelta);
+  const netWorth = computeNetWorth({ bankBalance: cash.bankBalance, assets, debt: cash.debt });
   next.wealth = wealthStatFromNetWorth(netWorth);
-  return { stats: next, karma: nextKarma, bankBalance: nextBank, netWorth };
+  return {
+    stats: next,
+    karma: nextKarma,
+    bankBalance: cash.bankBalance,
+    debt: cash.debt,
+    netWorth,
+  };
 }
 
 export interface AnnualEconomyResult {
   bankBalance: number;
+  debt: number;
   netWorth: number;
   salaryGross: number;
   salaryNet: number;
@@ -53,6 +78,7 @@ function livingExpenseAgeFactor(age: number): number {
 export function tickAnnualEconomy(
   age: number,
   bankBalance: number,
+  debt: number,
   salaryGross: number,
   assets: Character['assets'],
   countryCode = 'US',
@@ -65,17 +91,41 @@ export function tickAnnualEconomy(
   const salaryNet = salaryGross > 0 ? applyTax(salaryGross, countryCode) : 0;
   const taxPaid = salaryGross - salaryNet;
 
-  const nextBank = Math.max(-500_000, bankBalance + salaryNet - livingExpenses);
-  const netWorth = computeNetWorth({ bankBalance: nextBank, assets });
+  const netCashFlow = salaryNet - livingExpenses;
+  const cash = applyCashDelta(bankBalance, debt, netCashFlow);
+  const netWorth = computeNetWorth({ bankBalance: cash.bankBalance, assets, debt: cash.debt });
 
   return {
-    bankBalance: nextBank,
+    bankBalance: cash.bankBalance,
+    debt: cash.debt,
     netWorth,
     salaryGross,
     salaryNet,
     taxPaid,
     livingExpenses,
   };
+}
+
+export interface DebtCrisisResult {
+  crisis: boolean;
+  limit: number;
+  totalDebt: number;
+}
+
+export function getTotalDebt(
+  character: Pick<Character, 'bankBalance' | 'assets' | 'debt'>,
+): number {
+  const cashDebt = character.debt ?? 0;
+  const assetDebt = character.assets.reduce((s, a) => s + (a.debt ?? 0), 0);
+  return cashDebt + assetDebt;
+}
+
+export function checkDebtCrisis(
+  character: Pick<Character, 'bankBalance' | 'assets' | 'debt' | 'countryCode'>,
+): DebtCrisisResult {
+  const totalDebt = getTotalDebt(character);
+  const limit = getMaxPersonalDebt(character.countryCode ?? 'IN');
+  return { crisis: totalDebt >= limit, limit, totalDebt };
 }
 
 const MIN_INVESTMENT = 10000;

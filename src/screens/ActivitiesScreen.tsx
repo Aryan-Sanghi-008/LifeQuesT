@@ -165,12 +165,14 @@ export function ActivitiesScreen() {
   return (
     <View style={styles.root}>
       <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={styles.column}>
         <View style={styles.headerWrap}>
           <ScreenHeader title="Activities" subtitle="Things you can do right now" />
         </View>
 
         {/* Filter chips */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterBar} contentContainerStyle={styles.filterContent}>
+        <View style={styles.filterBar}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContent}>
           {ALL_CATS.map(cat => {
             const active = cat === filter;
             const meta = cat !== 'all' ? CAT_META[cat as ActivityCategory] : null;
@@ -182,14 +184,18 @@ export function ActivitiesScreen() {
                 onPress={() => setFilter(cat as FilterCat)}
                 style={[styles.filterChip, active && { borderColor: color, backgroundColor: `${color}12` }]}
               >
-                {cat !== 'all' && <CatIcon cat={cat as ActivityCategory} color={active ? color : COLORS.t4} />}
+                {/* Fixed-width icon slot keeps all chips the same width */}
+                <View style={styles.filterIconSlot}>
+                  {cat !== 'all' && <CatIcon cat={cat as ActivityCategory} color={active ? color : COLORS.t4} />}
+                </View>
                 <Text style={[styles.filterLabel, active && { color, fontFamily: FONTS.bodyBold }]}>{label}</Text>
               </Pressable>
             );
           })}
         </ScrollView>
+        </View>
 
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.contentScroll} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           {eligible.length === 0 ? (
             <View style={styles.empty}>
               <View style={styles.emptyIconWrap}>
@@ -213,6 +219,7 @@ export function ActivitiesScreen() {
           )}
           <View style={{ height: SPACING.xxxl }} />
         </ScrollView>
+        </View>
       </SafeAreaView>
     </View>
   );
@@ -221,13 +228,15 @@ export function ActivitiesScreen() {
 const styles = StyleSheet.create({
   root:         { flex: 1, backgroundColor: COLORS.bg },
   safe:         { flex: 1 },
+  column:       { flex: 1 },
   headerWrap:   { paddingHorizontal: SPACING.lg, paddingTop: SPACING.md },
   filterBar:    { borderBottomWidth: 1, borderBottomColor: COLORS.border, backgroundColor: COLORS.bg2 },
   filterContent:{ flexDirection: 'row', gap: SPACING.sm, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm },
-  filterChip:   { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: SPACING.md, paddingVertical: 6, backgroundColor: COLORS.bgCard, borderRadius: RADII.full, borderWidth: 1, borderColor: COLORS.border },
-  filterChipActive: { borderColor: COLORS.gold, backgroundColor: `${COLORS.gold}10` },
+  contentScroll:{ flex: 1 },
+  filterChip:   { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: SPACING.md, height: 34, backgroundColor: COLORS.bgCard, borderRadius: RADII.full, borderWidth: 1, borderColor: COLORS.border, minWidth: 72, justifyContent: 'center' },
+  filterIconSlot: { width: 18, height: 18, alignItems: 'center', justifyContent: 'center' },
   filterLabel:  { fontFamily: FONTS.bodySemiBold, fontSize: 12, color: COLORS.t3 },
-  scroll:       { padding: SPACING.lg },
+  scroll:       { paddingHorizontal: SPACING.lg, paddingTop: SPACING.md, paddingBottom: SPACING.lg },
   empty:        { alignItems: 'center', paddingTop: SPACING.xxxl, gap: SPACING.md },
   emptyIconWrap:{ width: 72, height: 72, borderRadius: 22, backgroundColor: COLORS.bg2, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
   emptyText:    { fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.t3 },

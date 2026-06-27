@@ -12,9 +12,10 @@ describe('educationEngine', () => {
   it('grades passing session', () => {
     const qs = pickStudyQuestions(3);
     const answers = qs.map(q => q.correctIndex);
-    const result = gradeStudySession(answers, qs, 60, 'secondary');
+    const result = gradeStudySession(answers, qs, 60);
     expect(result.passed).toBe(true);
     expect(result.intelligenceGain).toBeGreaterThan(0);
+    expect('educationUnlock' in result).toBe(false);
   });
 
   it('canStudy for teen', () => {

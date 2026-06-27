@@ -272,6 +272,15 @@ export function getStartingBalance(
   return getCountryEconomy(countryCode).startingBalance[background];
 }
 
+/** Regional personal debt ceiling (cash + asset debt) */
+export function getMaxPersonalDebt(countryCode: string): number {
+  const eco = getCountryEconomy(countryCode);
+  const wageBase = eco.salaries.minimumWage > 0
+    ? eco.salaries.minimumWage
+    : eco.salaries.teacher;
+  return Math.round(wageBase * 3 * Math.max(0.5, eco.costOfLivingIndex));
+}
+
 /** Apply country tax rate to a gross salary */
 export function applyTax(grossSalary: number, countryCode: string): number {
   const eco = getCountryEconomy(countryCode);

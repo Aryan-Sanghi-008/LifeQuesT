@@ -15,9 +15,11 @@ import { ACHIEVEMENTS } from '../data/gameData';
 import { formatCurrency } from '../utils/currency';
 import { getFinanceSummary } from '../utils/financeSummary';
 import { formatCount } from '../utils/formatCount';
-import { getPrivacyPolicyUrl, getTermsUrl, openLegalUrl } from '../config/legal';
-import { getNotificationsEnabled, getHapticsEnabled, setHapticsEnabled, getSoundEnabled, setSoundEnabled } from '../services/persistence';
+import { getPrivacyPolicyUrl, getTermsUrl, openLegalUrlSafe } from '../config/legal';
+import { getNotificationsEnabled } from '../services/persistence';
+import { useSettingsStore } from '@store/settingsStore';
 import { setNotificationsPreference } from '../services/notifications';
+import { FeedbackPressable } from '@components/FeedbackPressable';
 import Svg, { Path, Circle } from 'react-native-svg';
 
 // ─── Stat Chip ────────────────────────────────────────────────────────────────
@@ -102,9 +104,12 @@ export function ProfileScreen() {
   const claimQuestReward = useGameStore(s => s.claimQuestReward);
   const setAvatarStyle = useGameStore(s => s.setAvatarStyle);
 
-  const [sound, setSound]   = useState(getSoundEnabled());
-  const [notif, setNotif]   = useState(getNotificationsEnabled());
-  const [haptic, setHaptic] = useState(getHapticsEnabled());
+  const soundEnabled = useSettingsStore(s => s.soundEnabled);
+  const hapticsEnabled = useSettingsStore(s => s.hapticsEnabled);
+  const setSoundEnabled = useSettingsStore(s => s.setSoundEnabled);
+  const setHapticsEnabled = useSettingsStore(s => s.setHapticsEnabled);
+
+  const [notif, setNotif] = useState(getNotificationsEnabled());
 
   useEffect(() => {
     loadDailyQuests();
@@ -112,17 +117,17 @@ export function ProfileScreen() {
 
   const handleOpenPrivacy = async () => {
     try {
-      await openLegalUrl(getPrivacyPolicyUrl());
+      await openLegalUrlSafe(getPrivacyPolicyUrl(), 'Privacy Policy');
     } catch {
-      Alert.alert('Unable to open privacy policy', 'Set EXPO_PUBLIC_PRIVACY_POLICY_URL or deploy hosting.');
+      Alert.alert('Unable to open link', 'Could not open Privacy Policy. Try again later.');
     }
   };
 
   const handleOpenTerms = async () => {
     try {
-      await openLegalUrl(getTermsUrl());
+      await openLegalUrlSafe(getTermsUrl(), 'Terms of Service');
     } catch {
-      Alert.alert('Unable to open terms', 'Try again later.');
+      Alert.alert('Unable to open link', 'Could not open Terms of Service. Try again later.');
     }
   };
 
@@ -187,9 +192,10 @@ export function ProfileScreen() {
           text: 'End Life',
           style: 'destructive',
           onPress: () => {
-            void resetGame().then(() => {
-              navigation.reset({ index: 0, routes: [{ name: 'SaveSlots' }] });
-            });
+            // resetGame() sets character=null in the store.
+            // RootNavigator detects the phase change and automatically shows SaveSlots.
+            // Do NOT call navigation.reset() here — it fires on an already-unmounted navigator.
+            void resetGame();
           },
         },
       ]
@@ -406,8 +412,8 @@ export function ProfileScreen() {
                 icon={<Svg width={16} height={16} viewBox="0 0 24 24" fill="none"><Path stroke={COLORS.sapphire} strokeWidth={2} strokeLinecap="round" d="M9 18V5l12-2v13"/><Circle stroke={COLORS.sapphire} strokeWidth={2} cx="6" cy="18" r="3"/><Circle stroke={COLORS.sapphire} strokeWidth={2} cx="18" cy="16" r="3"/></Svg>}
                 label="Sound Effects"
                 desc="In-game sounds and music"
-                value={sound}
-                onChange={(v) => { setSound(v); setSoundEnabled(v); }}
+                value={soundEnabled}
+                onChange={setSoundEnabled}
                 iconBg={`${COLORS.sapphire}12`}
               />
               <Divider />
@@ -427,8 +433,8 @@ export function ProfileScreen() {
                 icon={<Svg width={16} height={16} viewBox="0 0 24 24" fill="none"><Path stroke={COLORS.orchid} strokeWidth={2} strokeLinecap="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></Svg>}
                 label="Haptic Feedback"
                 desc="Vibration on button press"
-                value={haptic}
-                onChange={(v) => { setHaptic(v); setHapticsEnabled(v); }}
+                value={hapticsEnabled}
+                onChange={setHapticsEnabled}
                 iconBg={`${COLORS.orchid}12`}
               />
             </Card>
@@ -464,13 +470,13 @@ export function ProfileScreen() {
           <View style={styles.section}>
             <SectionLabel label="Legal" />
             <Card style={{ gap: 0 }}>
-              <Pressable onPress={() => void handleOpenPrivacy()} style={styles.legalRow}>
+              <FeedbackPressable onPress={() => void handleOpenPrivacy()} style={styles.legalRow}>
                 <Text style={styles.legalRowText}>Privacy Policy</Text>
-              </Pressable>
+              </FeedbackPressable>
               <Divider />
-              <Pressable onPress={() => void handleOpenTerms()} style={styles.legalRow}>
+              <FeedbackPressable onPress={() => void handleOpenTerms()} style={styles.legalRow}>
                 <Text style={styles.legalRowText}>Terms of Service</Text>
-              </Pressable>
+              </FeedbackPressable>
             </Card>
           </View>
 

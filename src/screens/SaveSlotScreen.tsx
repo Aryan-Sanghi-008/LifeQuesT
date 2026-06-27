@@ -12,7 +12,7 @@ type Props = {
 };
 
 export function SaveSlotScreen({ navigation }: Props) {
-  const slots = useGameStore(s => s.slotList.length > 0 ? s.slotList : s.listSlots());
+  const slots = useGameStore(s => s.slotList);
   const slotsSynced = useGameStore(s => s.slotsSynced);
   const loadSlot = useGameStore(s => s.loadSlot);
   const deleteSlot = useGameStore(s => s.deleteSlot);
@@ -31,6 +31,7 @@ export function SaveSlotScreen({ navigation }: Props) {
         activeSlotId: slotId,
         character: null,
         pendingDecision: null,
+        pendingReincarnation: false,
       });
       navigation.replace('CharacterCreate');
       return;
@@ -94,7 +95,12 @@ export function SaveSlotScreen({ navigation }: Props) {
           onPress={() => {
             const empty = slots.find(s => s.updatedAt === 0);
             const slotId = empty?.slotId ?? '0';
-            useGameStore.setState({ activeSlotId: slotId });
+            useGameStore.setState({
+              activeSlotId: slotId,
+              character: null,
+              pendingDecision: null,
+              pendingReincarnation: false,
+            });
             navigation.navigate('CharacterCreate', undefined);
           }}
           style={{ marginTop: SPACING.xl }}

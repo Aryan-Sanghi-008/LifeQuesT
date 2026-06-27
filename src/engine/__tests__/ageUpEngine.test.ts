@@ -69,6 +69,7 @@ describe('runAgeUp', () => {
     const economyOnly = tickAnnualEconomy(
       30,
       200_000,
+      0,
       50_000,
       [],
       'US',

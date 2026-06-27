@@ -156,6 +156,7 @@ export function normalizeCharacter(char: Character): Character {
   if (!char.avatarSeed) char.avatarSeed = char.name + char.id;
   if (!char.lifeStage) char.lifeStage = getLifeStage(char.age);
   if (!char.bankBalance) char.bankBalance = char.stats.wealth * 100;
+  if (char.debt === undefined) char.debt = 0;
   if (!char.educationLevel) char.educationLevel = 'none';
   if (!char.people) char.people = [];
   if (!char.career) char.career = null;
@@ -193,6 +194,11 @@ export function normalizeCharacter(char: Character): Character {
   if (char.luckBoostsRemaining === undefined) char.luckBoostsRemaining = 0;
   if (char.hasReincarnationScroll === undefined) char.hasReincarnationScroll = false;
   if (!char.updatedAt) char.updatedAt = char.createdAt ?? Date.now();
+  // Ensure all people have the interactionCooldowns record (added in v4+ fix)
+  char.people = char.people.map(p => ({
+    ...p,
+    interactionCooldowns: p.interactionCooldowns ?? {},
+  }));
   return char;
 }
 
@@ -200,7 +206,10 @@ const NOTIFICATIONS_KEY = 'notifications_enabled';
 const DAILY_QUESTS_PREFIX = 'daily_quests_';
 
 export function getNotificationsEnabled(): boolean {
-  return getString(NOTIFICATIONS_KEY) === 'true';
+  const v = getString(NOTIFICATIONS_KEY);
+  // Default to true on first install so users get daily reminders.
+  // Only returns false when explicitly set to 'false'.
+  return v !== 'false';
 }
 
 export function setNotificationsEnabled(enabled: boolean): void {
@@ -234,6 +243,10 @@ export function getHapticsEnabled(): boolean {
   return v === null || v === 'true';
 }
 
+export function hasExplicitHapticsSetting(): boolean {
+  return getString(HAPTICS_KEY) !== undefined;
+}
+
 export function setHapticsEnabled(enabled: boolean): void {
   setString(HAPTICS_KEY, enabled ? 'true' : 'false');
 }
@@ -241,6 +254,10 @@ export function setHapticsEnabled(enabled: boolean): void {
 export function getSoundEnabled(): boolean {
   const v = getString(SOUND_KEY);
   return v === null || v === 'true';
+}
+
+export function hasExplicitSoundSetting(): boolean {
+  return getString(SOUND_KEY) !== undefined;
 }
 
 export function setSoundEnabled(enabled: boolean): void {

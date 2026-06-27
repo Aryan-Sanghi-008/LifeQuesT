@@ -1,5 +1,5 @@
 import {
-  doc, setDoc, getDoc, collection, getDocs, serverTimestamp, Timestamp,
+  doc, setDoc, getDoc, collection, getDocs, serverTimestamp, Timestamp, deleteDoc,
 } from 'firebase/firestore';
 import { getFirestoreDb } from '@services/firebaseClient';
 import { Character, SaveSlot, MAX_SAVE_SLOTS } from '../types';
@@ -105,4 +105,10 @@ export async function pullCloudSaveIfNewer(
   if (!payload) return null;
   if (payload.updatedAt > localUpdatedAt) return payload.character;
   return null;
+}
+
+export async function deleteCloudSave(uid: string, slotId: string): Promise<void> {
+  const db = getDb();
+  if (!db || uid.startsWith('local_guest_')) return;
+  await deleteDoc(doc(db, 'users', uid, 'saves', slotId));
 }

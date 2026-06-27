@@ -15,7 +15,7 @@ import {
   applyPurchaseToStore,
 } from '../services/iap';
 import { showRewardedAd } from '../services/ads';
-import { getPrivacyPolicyUrl, openLegalUrl } from '../config/legal';
+import { getPrivacyPolicyUrl, openLegalUrlSafe } from '../config/legal';
 import { IAPProductId } from '../types';
 import { SEASON_PASS_TIERS } from '../data/gameData';
 import { IAP_CATALOG, AVATAR_PACK_CATALOG, getCatalogPriceLabel } from '../data/iapCatalog';
@@ -224,7 +224,7 @@ export function ShopScreen() {
 
   const openPrivacy = async () => {
     try {
-      await openLegalUrl(getPrivacyPolicyUrl());
+      await openLegalUrlSafe(getPrivacyPolicyUrl(), 'Privacy Policy');
     } catch {
       Alert.alert('Unable to open privacy policy', 'Set EXPO_PUBLIC_PRIVACY_POLICY_URL or deploy hosting.');
     }

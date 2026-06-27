@@ -15,7 +15,6 @@ export interface StudySessionResult {
   passed: boolean;
   intelligenceGain: number;
   mentalHealthGain: number;
-  educationUnlock?: EducationLevel;
 }
 
 export interface EnrollResult {
@@ -52,7 +51,6 @@ export function gradeStudySession(
   answers: number[],
   questions: StudyQuestion[],
   intelligence: number,
-  currentEducation: EducationLevel,
 ): StudySessionResult {
   const correct = answers.filter((a, i) => a === questions[i]?.correctIndex).length;
   const score = correct;
@@ -60,20 +58,12 @@ export function gradeStudySession(
   const intelligenceGain = passed ? clamp(intelligence + 5) - intelligence : 2;
   const mentalHealthGain = passed ? 3 : -2;
 
-  let educationUnlock: EducationLevel | undefined;
-  if (passed && currentEducation === 'secondary' && intelligence + intelligenceGain >= 60) {
-    educationUnlock = 'university';
-  } else if (passed && currentEducation === 'university' && intelligence + intelligenceGain >= 75) {
-    educationUnlock = 'graduate';
-  }
-
   return {
     score,
     totalQuestions: questions.length,
     passed,
     intelligenceGain,
     mentalHealthGain,
-    educationUnlock,
   };
 }
 

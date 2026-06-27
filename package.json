@@ -40,6 +40,7 @@
     "expo-linear-gradient": "~56.0.4",
     "expo-notifications": "~56.0.18",
     "expo-splash-screen": "~56.0.10",
+    "expo-web-browser": "~56.0.0",
     "firebase": "^12.15.0",
     "immer": "^10.1.1",
     "jest-expo": "~56.0.5",

@@ -10,6 +10,7 @@ import { NpcAvatar } from '../components/Avatars';
 import { Card, SectionLabel } from '../components/index';
 import { Person, RelationType } from '../types';
 import { getRelationshipStageLabel } from '@utils/relationshipLabels';
+import { getInteraction } from '@engine/peopleEngine';
 import { isRelationshipDrifting } from '@engine/relationshipEngine';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 
@@ -43,7 +44,7 @@ function PersonRow({ person, onPress }: { person: Person; onPress: () => void })
   return (
     <Pressable onPress={dead ? undefined : onPress} style={[pr.row, dead && pr.dead]}>
       <View style={pr.avatarWrap}>
-        <NpcAvatar seed={person.avatarSeed} gender={person.gender as 'male' | 'female'} size={44} age={person.age} />
+        <NpcAvatar seed={person.avatarSeed} gender={person.gender as 'male' | 'female'} size={44} age={person.age} relationType={person.relationType} />
         {dead && <View style={pr.deadOverlay}><Text style={pr.deadText}>†</Text></View>}
       </View>
       <View style={pr.info}>
@@ -110,36 +111,55 @@ const INTERACTIONS = [
 
 function InteractionSheet({
   person,
+  characterAge,
   onInteract,
   onClose,
 }: {
   person: Person;
+  characterAge: number;
   onInteract: (id: string) => void;
   onClose: () => void;
 }) {
+  const onCooldown = person.lastInteractionAge === characterAge;
+
   return (
     <View style={is.overlay}>
       <Pressable style={is.backdrop} onPress={onClose} />
       <View style={is.sheet}>
         {/* Header */}
         <View style={is.header}>
-          <NpcAvatar seed={person.avatarSeed} size={52} age={person.age} />
+          <NpcAvatar seed={person.avatarSeed} size={52} age={person.age} relationType={person.relationType} gender={person.gender as 'male' | 'female'} />
           <View style={{ flex: 1, gap: 3 }}>
             <Text style={is.name}>{person.name}</Text>
             <Text style={is.sub}>Relationship: {person.relationshipScore}/100</Text>
+            {onCooldown && (
+              <Text style={is.cooldownHint}>Already interacted this year</Text>
+            )}
             <RelBar score={person.relationshipScore} />
           </View>
         </View>
 
         {/* Actions grid */}
         <View style={is.grid}>
-          {INTERACTIONS.map(i => (
-            <Pressable key={i.id} onPress={() => onInteract(i.id)} style={is.btn}>
+          {INTERACTIONS.map(i => {
+            const meta = getInteraction(i.id);
+            const chancePct = meta ? Math.round(meta.successChance * 100) : 100;
+            return (
+            <Pressable
+              key={i.id}
+              onPress={() => !onCooldown && onInteract(i.id)}
+              disabled={onCooldown}
+              style={[is.btn, onCooldown && is.btnDisabled]}
+            >
               <i.Icon />
               <Text style={is.btnLabel}>{i.label}</Text>
               <Text style={is.btnDesc}>{i.desc}</Text>
+              {!onCooldown && chancePct < 100 && (
+                <Text style={is.chanceHint}>{chancePct}% success</Text>
+              )}
             </Pressable>
-          ))}
+            );
+          })}
         </View>
       </View>
     </View>
@@ -153,10 +173,13 @@ const is = StyleSheet.create({
   header:   { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
   name:     { fontFamily: FONTS.displayBold, fontSize: 18, color: COLORS.t1 },
   sub:      { fontFamily: FONTS.body, fontSize: 12, color: COLORS.t3 },
+  cooldownHint: { fontFamily: FONTS.bodySemiBold, fontSize: 11, color: COLORS.crimson },
   grid:     { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
   btn:      { width: '22%', alignItems: 'center', gap: 4, padding: SPACING.sm, backgroundColor: COLORS.bgCard2, borderRadius: RADII.md, borderWidth: 1, borderColor: COLORS.border },
+  btnDisabled: { opacity: 0.4 },
   btnLabel: { fontFamily: FONTS.bodySemiBold, fontSize: 10, color: COLORS.t2, textAlign: 'center' },
   btnDesc:  { fontFamily: FONTS.body, fontSize: 9, color: COLORS.t4, textAlign: 'center' },
+  chanceHint: { fontFamily: FONTS.monoSemiBold, fontSize: 8, color: COLORS.gold3, textAlign: 'center' },
 });
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
@@ -249,13 +272,17 @@ export function PeopleScreen() {
         </ScrollView>
       </SafeAreaView>
 
-      {selected && (
+      {selected && (() => {
+        const livePerson = people.find(p => p.id === selected.id) ?? selected;
+        return (
         <InteractionSheet
-          person={selected}
+          person={livePerson}
+          characterAge={character.age}
           onInteract={handleInteract}
           onClose={() => setSelected(null)}
         />
-      )}
+        );
+      })()}
     </View>
   );
 }

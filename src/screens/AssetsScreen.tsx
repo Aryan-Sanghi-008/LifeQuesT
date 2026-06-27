@@ -10,42 +10,43 @@ import { Asset } from '../types';
 import { SectionLabel } from '../components/index';
 import Svg, { Path, Circle, Rect, Polyline } from 'react-native-svg';
 import { formatCurrency } from '../utils/currency';
+import { getFinanceSummary } from '../utils/financeSummary';
+import type { Character } from '../types';
 
 // ─── Balance Hero ─────────────────────────────────────────────────────────────
 interface BalanceHeroProps {
-  balance: number;
-  career: { salary: number } | null;
-  assets: Asset[];
-  countryCode: string;
+  character: Pick<Character, 'bankBalance' | 'assets' | 'career' | 'debt' | 'countryCode'>;
 }
 
-function BalanceHero({ balance, career, assets, countryCode }: BalanceHeroProps) {
-  const totalDebt   = assets.reduce((s, a) => s + (a.debt ?? 0), 0);
-  const assetValue  = assets.reduce((s, a) => s + a.value, 0);
-  const netWorth    = balance + assetValue - totalDebt;
+function BalanceHero({ character }: BalanceHeroProps) {
+  const finance = getFinanceSummary(character);
+  const countryCode = character.countryCode ?? 'IN';
   const fmt = (n: number) => formatCurrency(n, countryCode);
 
   return (
     <LinearGradient colors={[COLORS.bg2, COLORS.bg]} style={bh.wrap}>
       <Text style={bh.heroLabel}>Bank Balance</Text>
-      <Text style={bh.heroValue}>{fmt(balance)}</Text>
+      <Text style={bh.heroValue}>{fmt(finance.bank)}</Text>
 
       <View style={bh.row}>
         <View style={bh.metric}>
           <Text style={bh.metricLabel}>Net Worth</Text>
-          <Text style={[bh.metricValue, { color: netWorth >= 0 ? COLORS.teal : COLORS.crimson }]}>{fmt(netWorth)}</Text>
+          <Text style={[bh.metricValue, { color: finance.netWorth >= 0 ? COLORS.teal : COLORS.crimson }]}>{fmt(finance.netWorth)}</Text>
         </View>
         <View style={bh.metricDivider} />
         <View style={bh.metric}>
           <Text style={bh.metricLabel}>Annual Income</Text>
-          <Text style={[bh.metricValue, { color: COLORS.gold }]}>{fmt(career?.salary ?? 0)}</Text>
+          <Text style={[bh.metricValue, { color: COLORS.gold }]}>{fmt(finance.annualIncome)}</Text>
         </View>
         <View style={bh.metricDivider} />
         <View style={bh.metric}>
           <Text style={bh.metricLabel}>Total Debt</Text>
-          <Text style={[bh.metricValue, { color: COLORS.crimson }]}>{fmt(totalDebt)}</Text>
+          <Text style={[bh.metricValue, { color: COLORS.crimson }]}>{fmt(finance.totalDebt)}</Text>
         </View>
       </View>
+      {finance.debt > 0 && (
+        <Text style={bh.cashDebtHint}>Includes {fmt(finance.debt)} unsecured debt</Text>
+      )}
     </LinearGradient>
   );
 }
@@ -59,6 +60,7 @@ const bh = StyleSheet.create({
   metricLabel: { fontFamily: FONTS.body, fontSize: 10, color: COLORS.t4, marginBottom: 2 },
   metricValue: { fontFamily: FONTS.monoSemiBold, fontSize: 13 },
   metricDivider: { width: 1, height: 24, backgroundColor: COLORS.border },
+  cashDebtHint: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4, marginTop: SPACING.xs },
 });
 
 // ─── Asset SVG Icons ──────────────────────────────────────────────────────────
@@ -294,7 +296,7 @@ export function AssetsScreen() {
 
   if (!character) return null;
 
-  const { bankBalance, career, assets, countryCode } = character;
+  const { bankBalance, assets, countryCode } = character;
   const fmt = (n: number) => formatCurrency(n, countryCode);
 
   const handleBuy = (opt: typeof BUY_OPTIONS[number]) => {
@@ -331,9 +333,24 @@ export function AssetsScreen() {
           <Text style={styles.headerTitle}>Assets</Text>
         </View>
 
-        <BalanceHero balance={bankBalance} career={career} assets={assets} countryCode={countryCode} />
+        <BalanceHero character={character} />
 
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          {character.eventHistory.filter(e => e.category === 'financial').slice(-5).reverse().length > 0 && (
+            <View style={styles.ledgerSection}>
+              <SectionLabel label="Recent Transactions" style={{ marginBottom: SPACING.sm }} />
+              {character.eventHistory
+                .filter(e => e.category === 'financial')
+                .slice(-5)
+                .reverse()
+                .map(ev => (
+                  <View key={ev.id} style={styles.ledgerRow}>
+                    <Text style={styles.ledgerTitle}>{ev.title}</Text>
+                    <Text style={styles.ledgerMeta}>Age {ev.age}</Text>
+                  </View>
+                ))}
+            </View>
+          )}
           <View style={styles.actionRow}>
             <Pressable onPress={() => setShowBuy(true)} style={styles.actionBtn}>
               <Text style={styles.actionBtnText}>+ Buy Asset</Text>
@@ -437,6 +454,10 @@ const styles = StyleSheet.create({
   titleBar:     { paddingHorizontal: SPACING.lg, paddingVertical: SPACING.md, borderBottomWidth: 1, borderBottomColor: COLORS.border, backgroundColor: COLORS.bg2 },
   headerTitle:  { fontFamily: FONTS.displayBold, fontSize: 22, color: COLORS.t1 },
   scroll:       { padding: SPACING.lg },
+  ledgerSection:{ marginBottom: SPACING.xl },
+  ledgerRow:    { paddingVertical: SPACING.sm, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  ledgerTitle:  { fontFamily: FONTS.bodySemiBold, fontSize: 13, color: COLORS.t1 },
+  ledgerMeta:   { fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4, marginTop: 2 },
   actionRow:    { flexDirection: 'row', gap: SPACING.md, marginBottom: SPACING.xl },
   actionBtn:    { flex: 1, paddingVertical: 12, borderRadius: RADII.md, borderWidth: 1.5, borderColor: COLORS.teal, alignItems: 'center' },
   actionBtnText:{ fontFamily: FONTS.bodySemiBold, fontSize: 13, color: COLORS.teal },

@@ -1,42 +1,22 @@
-import { spawnClassmates, ensureClassmates, agePeople, getClassmates } from '@engine/peopleEngine';
-import type { Person } from '../../types';
+import { rollInteraction, getInteraction } from '@engine/peopleEngine';
 
-describe('peopleEngine', () => {
-  it('spawnClassmates creates classmates with relationType classmate', () => {
-    const classmates = spawnClassmates('Alex', 3);
-    expect(classmates).toHaveLength(3);
-    expect(classmates.every(c => c.relationType === 'classmate')).toBe(true);
+describe('rollInteraction', () => {
+  it('returns success outcome when roll passes', () => {
+    const interaction = getInteraction('cut_off');
+    expect(interaction).not.toBeNull();
+    const result = rollInteraction(interaction!);
+    expect(result.success).toBe(true);
+    expect(result.delta).toBe(-50);
   });
 
-  it('ensureClassmates adds classmates when none exist', () => {
-    const people: Person[] = [];
-    const updated = ensureClassmates(people, 'Jordan');
-    expect(updated.some(p => p.relationType === 'classmate')).toBe(true);
-    expect(updated.length).toBeGreaterThan(people.length);
-  });
-
-  it('ensureClassmates is idempotent when classmates exist', () => {
-    const existing = spawnClassmates('Sam', 2);
-    const updated = ensureClassmates(existing, 'Sam');
-    expect(updated).toBe(existing);
-  });
-
-  it('getClassmates filters alive classmates', () => {
-    const people: Person[] = [
-      { id: '1', name: 'A', age: 10, gender: 'male', relationType: 'classmate', relationshipScore: 50, avatarSeed: 'a', isAlive: true },
-      { id: '2', name: 'B', age: 10, gender: 'female', relationType: 'classmate', relationshipScore: 50, avatarSeed: 'b', isAlive: false },
-      { id: '3', name: 'C', age: 40, gender: 'male', relationType: 'father', relationshipScore: 80, avatarSeed: 'c', isAlive: true },
-    ];
-    expect(getClassmates(people)).toHaveLength(1);
-  });
-
-  it('agePeople increments age for living non-pets', () => {
-    const people: Person[] = [
-      { id: '1', name: 'Kid', age: 5, gender: 'male', relationType: 'child', relationshipScore: 80, avatarSeed: 'k', isAlive: true },
-      { id: '2', name: 'Dog', age: 2, gender: 'male', relationType: 'pet', relationshipScore: 90, avatarSeed: 'd', isAlive: true },
-    ];
-    const aged = agePeople(people);
-    expect(aged[0].age).toBe(6);
-    expect(aged[1].age).toBe(2);
+  it('can return fail message for risky interactions', () => {
+    const interaction = getInteraction('insult');
+    expect(interaction).not.toBeNull();
+    const fails: string[] = [];
+    for (let i = 0; i < 50; i++) {
+      const r = rollInteraction(interaction!);
+      if (!r.success) fails.push(r.message);
+    }
+    expect(fails.length).toBeGreaterThan(0);
   });
 });

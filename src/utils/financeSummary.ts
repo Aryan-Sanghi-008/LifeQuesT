@@ -3,6 +3,7 @@ import type { Character } from '../types';
 
 export interface FinanceSummary {
   bank: number;
+  debt: number;
   assetValue: number;
   totalDebt: number;
   netWorth: number;
@@ -10,13 +11,15 @@ export interface FinanceSummary {
 }
 
 export function getFinanceSummary(
-  character: Pick<Character, 'bankBalance' | 'assets' | 'career'>,
+  character: Pick<Character, 'bankBalance' | 'assets' | 'career'> & { debt?: number },
 ): FinanceSummary {
   const bank = character.bankBalance;
+  const debt = character.debt ?? 0;
   const assetValue = character.assets.reduce((s, a) => s + a.value, 0);
-  const totalDebt = character.assets.reduce((s, a) => s + (a.debt ?? 0), 0);
-  const netWorth = computeNetWorth({ bankBalance: bank, assets: character.assets });
+  const assetDebt = character.assets.reduce((s, a) => s + (a.debt ?? 0), 0);
+  const totalDebt = debt + assetDebt;
+  const netWorth = computeNetWorth({ bankBalance: bank, assets: character.assets, debt });
   const annualIncome = character.career?.salary ?? 0;
 
-  return { bank, assetValue, totalDebt, netWorth, annualIncome };
+  return { bank, debt, assetValue, totalDebt, netWorth, annualIncome };
 }
