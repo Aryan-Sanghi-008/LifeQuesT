@@ -77,10 +77,10 @@ describe('tickAnnualEconomy', () => {
     expect(result.bankBalance).toBe(1000);
   });
 
-  it('applies partial expenses for teens', () => {
+  it('applies partial expenses for young adults', () => {
     const child = tickAnnualEconomy(10, 1000, 0, 0, [], 'US');
-    const teen = tickAnnualEconomy(15, 1000, 0, 0, [], 'US');
-    expect(teen.livingExpenses).toBeGreaterThan(child.livingExpenses);
+    const youngAdult = tickAnnualEconomy(18, 1000, 0, 0, [], 'US');
+    expect(youngAdult.livingExpenses).toBeGreaterThan(child.livingExpenses);
   });
 });
 

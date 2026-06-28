@@ -1,5 +1,10 @@
-import { Character, CharacterStats, StatEffect } from '../types';
-import { getAnnualCostOfLiving, getCountryEconomy, applyTax, getMaxPersonalDebt } from '../data/countryEconomy';
+import { Character, CharacterStats, StatEffect } from "../types";
+import {
+  getAnnualCostOfLiving,
+  getCountryEconomy,
+  applyTax,
+  getMaxPersonalDebt,
+} from "../data/countryEconomy";
 
 export const clamp = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
 
@@ -18,7 +23,7 @@ export function applyCashDelta(
 }
 
 export function computeNetWorth(
-  character: Pick<Character, 'bankBalance' | 'assets' | 'debt'>,
+  character: Pick<Character, "bankBalance" | "assets" | "debt">,
 ): number {
   const assetValue = character.assets.reduce((s, a) => s + a.value, 0);
   const assetDebt = character.assets.reduce((s, a) => s + (a.debt ?? 0), 0);
@@ -36,19 +41,23 @@ export function applyEffect(
   bankBalance: number,
   effect: StatEffect,
   bankDelta = 0,
-  assets: Character['assets'] = [],
+  assets: Character["assets"] = [],
   debt = 0,
 ) {
   const next = { ...stats };
-  (Object.keys(effect) as Array<keyof StatEffect>).forEach(k => {
-    if (k === 'karma') return;
+  (Object.keys(effect) as Array<keyof StatEffect>).forEach((k) => {
+    if (k === "karma") return;
     const val = effect[k] as number | undefined;
     const rec = next as unknown as Record<string, number>;
     if (val !== undefined && k in rec) rec[k] = clamp(rec[k] + val);
   });
   const nextKarma = Math.max(-100, Math.min(300, karma + (effect.karma ?? 0)));
   const cash = applyCashDelta(bankBalance, debt, bankDelta);
-  const netWorth = computeNetWorth({ bankBalance: cash.bankBalance, assets, debt: cash.debt });
+  const netWorth = computeNetWorth({
+    bankBalance: cash.bankBalance,
+    assets,
+    debt: cash.debt,
+  });
   next.wealth = wealthStatFromNetWorth(netWorth);
   return {
     stats: next,
@@ -70,8 +79,8 @@ export interface AnnualEconomyResult {
 }
 
 function livingExpenseAgeFactor(age: number): number {
-  if (age >= 20) return 1.0;
-  if (age >= 13) return 0.4;
+  if (age >= 22) return 0.3;
+  if (age >= 18) return 0.1;
   return 0;
 }
 
@@ -80,20 +89,28 @@ export function tickAnnualEconomy(
   bankBalance: number,
   debt: number,
   salaryGross: number,
-  assets: Character['assets'],
-  countryCode = 'US',
+  assets: Character["assets"],
+  countryCode = "US",
 ): AnnualEconomyResult {
   const eco = getCountryEconomy(countryCode);
   const baseCoL = getAnnualCostOfLiving(countryCode);
-  const inflationAdjusted = Math.round(baseCoL * eco.costOfLivingIndex * (1 + eco.inflationRate * 0.5));
-  const livingExpenses = Math.round(inflationAdjusted * livingExpenseAgeFactor(age));
+  const inflationAdjusted = Math.round(
+    baseCoL * eco.costOfLivingIndex * (1 + eco.inflationRate * 0.5),
+  );
+  const livingExpenses = Math.round(
+    inflationAdjusted * livingExpenseAgeFactor(age),
+  );
 
   const salaryNet = salaryGross > 0 ? applyTax(salaryGross, countryCode) : 0;
   const taxPaid = salaryGross - salaryNet;
 
   const netCashFlow = salaryNet - livingExpenses;
   const cash = applyCashDelta(bankBalance, debt, netCashFlow);
-  const netWorth = computeNetWorth({ bankBalance: cash.bankBalance, assets, debt: cash.debt });
+  const netWorth = computeNetWorth({
+    bankBalance: cash.bankBalance,
+    assets,
+    debt: cash.debt,
+  });
 
   return {
     bankBalance: cash.bankBalance,
@@ -113,7 +130,7 @@ export interface DebtCrisisResult {
 }
 
 export function getTotalDebt(
-  character: Pick<Character, 'bankBalance' | 'assets' | 'debt'>,
+  character: Pick<Character, "bankBalance" | "assets" | "debt">,
 ): number {
   const cashDebt = character.debt ?? 0;
   const assetDebt = character.assets.reduce((s, a) => s + (a.debt ?? 0), 0);
@@ -121,10 +138,10 @@ export function getTotalDebt(
 }
 
 export function checkDebtCrisis(
-  character: Pick<Character, 'bankBalance' | 'assets' | 'debt' | 'countryCode'>,
+  character: Pick<Character, "bankBalance" | "assets" | "debt" | "countryCode">,
 ): DebtCrisisResult {
   const totalDebt = getTotalDebt(character);
-  const limit = getMaxPersonalDebt(character.countryCode ?? 'IN');
+  const limit = getMaxPersonalDebt(character.countryCode ?? "IN");
   return { crisis: totalDebt >= limit, limit, totalDebt };
 }
 
@@ -134,18 +151,26 @@ export interface InvestResult {
   ok: boolean;
   message: string;
   bankBalance: number;
-  asset?: Character['assets'][number];
+  asset?: Character["assets"][number];
 }
 
 export function investInMarket(
-  character: Pick<Character, 'bankBalance' | 'assets' | 'age'>,
+  character: Pick<Character, "bankBalance" | "assets" | "age">,
   amount: number,
 ): InvestResult {
   if (amount < MIN_INVESTMENT) {
-    return { ok: false, message: `Minimum investment is ${MIN_INVESTMENT.toLocaleString()}.`, bankBalance: character.bankBalance };
+    return {
+      ok: false,
+      message: `Minimum investment is ${MIN_INVESTMENT.toLocaleString()}.`,
+      bankBalance: character.bankBalance,
+    };
   }
   if (character.bankBalance < amount) {
-    return { ok: false, message: 'Not enough funds in your bank account.', bankBalance: character.bankBalance };
+    return {
+      ok: false,
+      message: "Not enough funds in your bank account.",
+      bankBalance: character.bankBalance,
+    };
   }
 
   // Volatility model: normal-ish distribution centred at 1.0, std dev ~0.18
@@ -154,16 +179,17 @@ export function investInMarket(
   const normal = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
   const variance = Math.max(0.5, Math.min(1.8, 1.0 + normal * 0.18));
   const value = Math.round(amount * variance);
-  const asset: Character['assets'][number] = {
+  const asset: Character["assets"][number] = {
     id: `invest_${Date.now()}`,
-    type: 'investment',
-    name: 'Stock Portfolio',
+    type: "investment",
+    name: "Stock Portfolio",
     value,
     purchasedAge: character.age,
   };
 
   const gain = value - amount;
-  const gainLabel = gain >= 0 ? `+${gain.toLocaleString()}` : `${gain.toLocaleString()}`;
+  const gainLabel =
+    gain >= 0 ? `+${gain.toLocaleString()}` : `${gain.toLocaleString()}`;
   return {
     ok: true,
     message: `Invested ${amount.toLocaleString()}. Market returned ${value.toLocaleString()} (${gainLabel}).`,

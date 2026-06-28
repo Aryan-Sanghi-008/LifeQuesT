@@ -22,11 +22,10 @@ export function WillEditorScreen() {
   const character = useGameStore(s => s.character);
   const setWill = useGameStore(s => s.setWill);
 
-  if (!character) return null;
+  const [willType, setWillType] = useState<WillDetails['type']>(character?.will?.type ?? 'equal');
+  const [heirId, setHeirId] = useState<string | undefined>(character?.will?.targetHeirId);
 
-  const currentWill = character.will;
-  const [willType, setWillType] = useState<WillDetails['type']>(currentWill?.type ?? 'equal');
-  const [heirId, setHeirId] = useState<string | undefined>(currentWill?.targetHeirId);
+  if (!character) return null;
 
   const heirs = character.people.filter(
     p => (p.relationType === 'child' || p.relationType === 'sibling') && p.isAlive
