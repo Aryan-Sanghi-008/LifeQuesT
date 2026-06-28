@@ -54,6 +54,7 @@ describe('runAgeUp', () => {
   });
 
   it('does not double-count salary on age-up', () => {
+    const randomSpy = jest.spyOn(Math, 'random').mockReturnValue(0.99);
     const character = baseCharacter({
       age: 29,
       bankBalance: 200_000,
@@ -75,6 +76,7 @@ describe('runAgeUp', () => {
       'US',
     );
     const outcome = runAgeUp(character);
+    randomSpy.mockRestore();
     expect(['complete', 'pending_decision']).toContain(outcome.type);
     if (outcome.type !== 'complete' && outcome.type !== 'pending_decision') return;
 
@@ -116,5 +118,21 @@ describe('runAgeUp', () => {
     expect(outcome.patch.educationLevel).toBe('elementary');
     const milestone = outcome.newEventRecords.find(r => r.id === 'edu_milestone_primary');
     expect(milestone).toBeDefined();
+  });
+
+  it('applies focus phase patch after age-up for teens', () => {
+    const character = baseCharacter({
+      age: 25,
+      lifePhase: 'acting',
+      focusConfirmedForAge: 25,
+      focusAllocation: { career: 2, education: 1 },
+      focusPointsSpent: { career: 5 },
+    });
+    const outcome = runAgeUp(character);
+    if (outcome.type !== 'complete' && outcome.type !== 'pending_decision') return;
+    expect(outcome.patch.lifePhase).toBe('review');
+    expect(outcome.patch.focusConfirmedForAge).toBe(-1);
+    expect(outcome.patch.focusPointsSpent?.career).toBe(7);
+    expect(outcome.patch.focusDomainsUsed).toContain('career');
   });
 });

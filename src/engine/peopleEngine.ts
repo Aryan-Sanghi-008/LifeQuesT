@@ -56,6 +56,28 @@ export function spawnCoworkers(characterName: string, occupation: string, count 
   );
 }
 
+const TEACHER_SUBJECTS = ['Math', 'Science', 'English', 'History', 'Arts'] as const;
+
+export function spawnTeachers(characterName: string, count = 3): Person[] {
+  return Array.from({ length: count }, (_, i) => {
+    const c = generateClassmate(characterName, i + 100);
+    const subject = TEACHER_SUBJECTS[i % TEACHER_SUBJECTS.length];
+    return enrichPersonProfile({
+      ...c,
+      relationType: 'teacher',
+      occupation: `${subject} Teacher`,
+      subject,
+      favorScore: 45 + Math.floor(Math.random() * 30),
+      goals: ['Help students succeed', 'Maintain order'],
+    });
+  });
+}
+
+export function ensureTeachers(people: Person[], characterName: string): Person[] {
+  if (people.some(p => p.relationType === 'teacher')) return people;
+  return [...people, ...spawnTeachers(characterName)];
+}
+
 export function ensureClassmates(people: Person[], characterName: string): Person[] {
   if (people.some(p => p.relationType === 'classmate')) return people;
   return [...people, ...spawnClassmates(characterName)];

@@ -1,6 +1,8 @@
 // ─── LifeQuest Career Paths System ───────────────────────────────────────────
 // 50+ career paths with full eligibility requirements and progression trees.
 
+import type { CareerSkillNode } from '../types';
+
 export type CareerCategory =
   | 'technology'
   | 'medicine'
@@ -52,6 +54,7 @@ export interface CareerPath {
   maxSalary: number;
   requirements: CareerRequirements;
   progressionPaths: CareerProgression[];
+  skillTree?: CareerSkillNode[];
   isEntryLevel: boolean;
   seniorityLevel: 1 | 2 | 3 | 4 | 5; // 1=entry, 5=top
   perks?: string[];
@@ -424,16 +427,34 @@ export const CAREER_PATHS: CareerPath[] = [
 
 // ─── Helper Functions ─────────────────────────────────────────────────────────
 
+let _phaseBCareers: CareerPath[] | undefined;
+
+function getPhaseBCareers(): CareerPath[] {
+  if (!_phaseBCareers) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    _phaseBCareers = require('./careerPathsPhaseB').PHASE_B_CAREER_PATHS as CareerPath[];
+  }
+  return _phaseBCareers;
+}
+
+function allCareerPaths(): CareerPath[] {
+  return [...CAREER_PATHS, ...getPhaseBCareers()];
+}
+
 export function getCareerById(id: string): CareerPath | undefined {
-  return CAREER_PATHS.find(c => c.id === id);
+  return allCareerPaths().find(c => c.id === id);
 }
 
 export function getCareersByCategory(category: CareerCategory): CareerPath[] {
-  return CAREER_PATHS.filter(c => c.category === category);
+  return allCareerPaths().filter(c => c.category === category);
 }
 
 export function getEntryLevelCareers(): CareerPath[] {
-  return CAREER_PATHS.filter(c => c.isEntryLevel);
+  return allCareerPaths().filter(c => c.isEntryLevel);
+}
+
+export function getAllCareerPaths(): CareerPath[] {
+  return allCareerPaths();
 }
 
 /** Get progression options for the current career */

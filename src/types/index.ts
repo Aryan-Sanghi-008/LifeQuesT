@@ -134,6 +134,9 @@ export interface Person {
   memoriesOfPlayer?: PlayerMemoryNote[];
   secrets?: string[];
   discoveredSecrets?: string[];
+  petStats?: PetStats;
+  subject?: string;
+  favorScore?: number;
 }
 
 export type RelationshipStage =
@@ -149,6 +152,108 @@ export interface CriminalRecord {
   jailYearsRemaining: number;
   onProbation: boolean;
   probationYearsRemaining?: number;
+  heatLevel?: number;
+  convictions?: Array<{ crimeId: string; age: number; sentenceYears: number }>;
+}
+
+export type LegalStage = 'investigation' | 'trial' | 'sentencing' | 'parole';
+
+export interface LegalCase {
+  crimeId: string;
+  stage: LegalStage;
+  evidence: number;
+  lawyerQuality?: number;
+  startedAtAge: number;
+}
+
+export type CrimeTier = 'petty' | 'property' | 'financial' | 'violent' | 'organized' | 'cyber' | 'traffic';
+
+export interface CrimeDef {
+  id: string;
+  label: string;
+  tier: CrimeTier;
+  heatGain: number;
+  baseSentenceYears: number;
+  karmaPenalty: number;
+  fineAmount?: number;
+}
+
+export type PropertyTier = 'shelter' | 'basic' | 'mid' | 'upper' | 'luxury';
+
+export interface PropertyDef {
+  id: string;
+  name: string;
+  tier: PropertyTier;
+  value: number;
+  downPaymentPct: number;
+  mortgageRate: number;
+  termYears: number;
+  maintenancePct: number;
+  appreciationPct: number;
+  minAge: number;
+  happinessBonus?: number;
+}
+
+export interface BusinessEmployee {
+  id: string;
+  name: string;
+  role: string;
+  salary: number;
+  performance: number;
+}
+
+export interface HobbyProgress {
+  xp: number;
+  level: number;
+  lastPracticedAge?: number;
+}
+
+export type HobbyCategory =
+  | 'sports'
+  | 'arts'
+  | 'games'
+  | 'outdoors'
+  | 'collecting'
+  | 'cooking'
+  | 'writing'
+  | 'crafts'
+  | 'music'
+  | 'other';
+
+export interface HobbyDef {
+  id: string;
+  label: string;
+  category: HobbyCategory;
+  description: string;
+  xpPerSession: number;
+  minAge: number;
+  maxLevel: number;
+  statEffect: Partial<CharacterStats>;
+}
+
+export interface SocialPost {
+  id: string;
+  age: number;
+  platform: string;
+  content: string;
+  virality: number;
+  followerDelta: number;
+}
+
+export interface PetStats {
+  happiness: number;
+  health: number;
+  training: number;
+  speciesId: string;
+}
+
+export interface CareerSkillNode {
+  id: string;
+  label: string;
+  branch: 'technical' | 'leadership' | 'specialist';
+  minPerformance: number;
+  minYearsInRole: number;
+  requiredCert?: string;
 }
 
 export interface Business {
@@ -157,7 +262,8 @@ export interface Business {
   revenue: number;
   expenses: number;
   valuation: number;
-  employees: number;
+  employees: BusinessEmployee[];
+  payrollMonthly: number;
   foundedAge: number;
 }
 
@@ -180,6 +286,9 @@ export interface Asset {
   value: number;
   debt?: number;
   purchasedAge: number;
+  propertyDefId?: string;
+  mortgageRate?: number;
+  mortgageTermYears?: number;
 }
 
 // ─── Activities ───────────────────────────────────────────────────────────────
@@ -308,7 +417,14 @@ export interface Character {
   lifePhase?: LifePhase;
   lastYearReview?: YearReviewSnapshot;
   focusDomainsUsed?: FocusDomain[];
+  focusPointsSpent?: FocusAllocation;
   completedMemoryChains?: string[];
+  gpa?: number;
+  creditScore?: number;
+  heatLevel?: number;
+  hobbyProgress?: Record<string, HobbyProgress>;
+  socialPosts?: SocialPost[];
+  legalCase?: LegalCase;
   createdAt: number;
   updatedAt: number;
 }
@@ -422,6 +538,11 @@ export type RootStackParamList = {
   Study: undefined;
   Leaderboard: undefined;
   AspirationPicker: undefined;
+  Court: undefined;
+  SocialMedia: undefined;
+  PetCare: { personId: string };
+  HobbyDetail: { hobbyId: string };
+  Mortgage: { propertyDefId: string };
 };
 
 export type MainTabParamList = {

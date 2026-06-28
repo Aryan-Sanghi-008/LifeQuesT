@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useGameStore } from '@store/gameStore';
-import { resolveRootRoute, needsAspirationRoute } from '@navigation/gamePhase';
+import { resolveRootRoute, needsAspirationRoute, needsCourtRoute } from '@navigation/gamePhase';
 import { getCurrentRouteName, resetToRoute } from '@navigation/navigationRef';
 
 /**
@@ -14,10 +14,18 @@ export function useGameNavigationSync(): void {
   const isAlive = useGameStore(s => s.character?.isAlive);
   const pendingReincarnation = useGameStore(s => s.pendingReincarnation);
   const pendingAspirationPicker = useGameStore(s => s.pendingAspirationPicker);
+  const pendingCourt = useGameStore(s => s.pendingCourt);
   const isHydrated = useGameStore(s => s.isHydrated);
 
   useEffect(() => {
     if (!isHydrated) return;
+
+    if (needsCourtRoute({ user, character, pendingReincarnation, pendingCourt })) {
+      if (getCurrentRouteName() !== 'Court') {
+        resetToRoute('Court');
+      }
+      return;
+    }
 
     if (needsAspirationRoute({ user, character, pendingReincarnation, pendingAspirationPicker })) {
       if (getCurrentRouteName() !== 'AspirationPicker') {
@@ -34,5 +42,5 @@ export function useGameNavigationSync(): void {
     if (getCurrentRouteName() === target) return;
 
     resetToRoute(target);
-  }, [user, character, characterId, isAlive, pendingReincarnation, pendingAspirationPicker, isHydrated]);
+  }, [user, character, characterId, isAlive, pendingReincarnation, pendingAspirationPicker, pendingCourt, isHydrated]);
 }

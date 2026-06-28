@@ -31,7 +31,7 @@ function getEducationRank(level: string): number {
  * Returns detailed eligibility result with reason and hire probability.
  */
 export function checkCareerEligibility(
-  character: Pick<Character, 'age' | 'educationLevel' | 'educationStage' | 'degreeIds' | 'certificationIds' | 'stats' | 'traits' | 'countryCode' | 'criminalRecord' | 'assets' | 'career' | 'totalCareerYears'>,
+  character: Pick<Character, 'age' | 'educationLevel' | 'educationStage' | 'degreeIds' | 'certificationIds' | 'stats' | 'traits' | 'countryCode' | 'criminalRecord' | 'assets' | 'career' | 'totalCareerYears' | 'gpa' | 'creditScore'>,
   careerId: string,
 ): EligibilityResult {
   const career = getCareerById(careerId);
@@ -186,33 +186,53 @@ export function checkCareerEligibility(
  * Takes into account intelligence gap, education level, traits, and luck.
  */
 export function computeHireProbability(
-  character: Pick<Character, 'stats' | 'educationLevel' | 'traits'>,
+  character: Pick<Character, 'stats' | 'educationLevel' | 'traits' | 'gpa' | 'creditScore'>,
   career: CareerPath,
 ): number {
   const req = career.requirements;
 
-  // Base score from intelligence
   const intScore = Math.min(100, (character.stats.intelligence / req.minIntelligence) * 60);
-
-  // Education bonus
   const charEduRank = getEducationRank(character.educationLevel);
   const reqEduRank  = getEducationRank(req.minEducationStage);
   const eduBonus    = Math.min(20, Math.max(0, (charEduRank - reqEduRank) * 5));
-
-  // Social bonus
   const socialBonus = Math.min(10, (character.stats.social / 100) * 10);
-
-  // Ambition bonus
   const ambitionBonus = Math.min(5, (character.stats.ambition / 100) * 5);
-
-  // Lucky trait bonus
   const luckyBonus = character.traits.includes('lucky') ? 8 : 0;
-
-  // Seniority penalty — harder to get senior roles
   const seniorityPenalty = (career.seniorityLevel - 1) * 5;
+  const gpaBonus = character.gpa ? Math.min(10, (character.gpa / 4) * 10) : 0;
+  const creditBonus = character.creditScore
+    ? Math.min(8, Math.max(-10, (character.creditScore - 650) / 25))
+    : 0;
 
-  const raw = intScore + eduBonus + socialBonus + ambitionBonus + luckyBonus - seniorityPenalty;
+  const raw = intScore + eduBonus + socialBonus + ambitionBonus + luckyBonus + gpaBonus + creditBonus - seniorityPenalty;
   return Math.round(Math.max(5, Math.min(95, raw)));
+}
+
+export interface SkillNodeProgress {
+  id: string;
+  label: string;
+  branch: 'technical' | 'leadership' | 'specialist';
+  minPerformance: number;
+  minYearsInRole: number;
+  requiredCert?: string;
+  unlocked: boolean;
+}
+
+export function getSkillTreeProgress(
+  career: CareerPath,
+  character: Pick<Character, 'career' | 'certificationIds'>,
+): SkillNodeProgress[] {
+  const nodes = career.skillTree ?? [];
+  const performance = character.career?.performance ?? 0;
+  const years = character.career?.yearsEmployed ?? 0;
+  const certs = new Set(character.certificationIds ?? []);
+
+  return nodes.map(node => ({
+    ...node,
+    unlocked: performance >= node.minPerformance
+      && years >= node.minYearsInRole
+      && (!node.requiredCert || certs.has(node.requiredCert)),
+  }));
 }
 
 /**

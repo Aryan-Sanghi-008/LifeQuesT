@@ -3,11 +3,16 @@ import {
   View, Text, ScrollView, Pressable, StyleSheet, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { COLORS, FONTS, RADII, SPACING } from '../constants/theme';
 import { useGameStore } from '../store/gameStore';
 import { ACTIVITIES } from '../data/gameData';
-import { Activity, ActivityCategory } from '../types';
+import { HOBBY_CATALOG } from '../data/hobbies';
+import { Activity, ActivityCategory, RootStackParamList } from '../types';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { SectionLabel } from '../components/index';
+import { getHobbyProgress } from '../engine/hobbyEngine';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { formatCurrency } from '../utils/currency';
 
@@ -121,13 +126,16 @@ type FilterCat = 'all' | ActivityCategory;
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export function ActivitiesScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const character        = useGameStore(s => s.character);
   const performActivity  = useGameStore(s => s.performActivity);
   const [filter, setFilter] = useState<FilterCat>('all');
+  const [tab, setTab] = useState<'activities' | 'hobbies'>('activities');
 
   if (!character) return null;
 
-  const { countryCode } = character;
+  const { countryCode, age } = character;
+  const eligibleHobbies = HOBBY_CATALOG.filter(h => age >= h.minAge).slice(0, 20);
   const eligible = ACTIVITIES.filter(a =>
     character.age >= a.minAge && character.age <= a.maxAge &&
     (filter === 'all' || a.category === filter)
@@ -170,6 +178,22 @@ export function ActivitiesScreen() {
           <ScreenHeader title="Activities" subtitle="Things you can do right now" />
         </View>
 
+        <View style={styles.tabBar}>
+          {(['activities', 'hobbies'] as const).map(t => (
+            <Pressable
+              key={t}
+              onPress={() => setTab(t)}
+              style={[styles.tabChip, tab === t && styles.tabChipActive]}
+            >
+              <Text style={[styles.tabLabel, tab === t && styles.tabLabelActive]}>
+                {t === 'activities' ? 'Activities' : 'Hobby Hub'}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+
+        {tab === 'activities' && (
+        <>
         {/* Filter chips */}
         <View style={styles.filterBar}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContent}>
@@ -219,6 +243,31 @@ export function ActivitiesScreen() {
           )}
           <View style={{ height: SPACING.xxxl }} />
         </ScrollView>
+        </>
+        )}
+
+        {tab === 'hobbies' && (
+        <ScrollView style={styles.contentScroll} contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          <SectionLabel label="Your Hobbies" />
+          {eligibleHobbies.map(h => {
+            const progress = getHobbyProgress(character, h.id);
+            return (
+              <Pressable
+                key={h.id}
+                onPress={() => navigation.navigate('HobbyDetail', { hobbyId: h.id })}
+                style={styles.hobbyRow}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.hobbyName}>{h.label}</Text>
+                  <Text style={styles.hobbySub}>{h.category} · Lv {progress.level}</Text>
+                </View>
+                <Text style={styles.hobbyXp}>{progress.xp} XP</Text>
+              </Pressable>
+            );
+          })}
+          <View style={{ height: SPACING.xxxl }} />
+        </ScrollView>
+        )}
         </View>
       </SafeAreaView>
     </View>
@@ -240,4 +289,13 @@ const styles = StyleSheet.create({
   empty:        { alignItems: 'center', paddingTop: SPACING.xxxl, gap: SPACING.md },
   emptyIconWrap:{ width: 72, height: 72, borderRadius: 22, backgroundColor: COLORS.bg2, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
   emptyText:    { fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.t3 },
+  tabBar: { flexDirection: 'row', gap: SPACING.sm, paddingHorizontal: SPACING.lg, paddingBottom: SPACING.sm },
+  tabChip: { flex: 1, paddingVertical: 8, borderRadius: RADII.md, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' },
+  tabChipActive: { borderColor: COLORS.gold, backgroundColor: `${COLORS.gold}12` },
+  tabLabel: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.t3 },
+  tabLabelActive: { fontFamily: FONTS.bodySemiBold, color: COLORS.gold },
+  hobbyRow: { flexDirection: 'row', alignItems: 'center', padding: SPACING.md, backgroundColor: COLORS.bgCard, borderRadius: RADII.md, borderWidth: 1, borderColor: COLORS.border, marginBottom: SPACING.sm },
+  hobbyName: { fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.t1 },
+  hobbySub: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4, marginTop: 2 },
+  hobbyXp: { fontFamily: FONTS.monoSemiBold, fontSize: 12, color: COLORS.gold },
 });

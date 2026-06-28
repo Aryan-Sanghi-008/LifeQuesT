@@ -55,7 +55,16 @@ import {
   foundBusiness as createBusiness,
   sellBusiness as liquidateBusiness,
   canFoundBusiness,
+  hireEmployee as hireBizEmployee,
+  fireEmployee as fireBizEmployee,
+  normalizeBusinessEmployees,
 } from '../engine/businessEngine';
+import { createPropertyAsset } from '../engine/housingEngine';
+import { PROPERTY_MAP } from '../data/properties';
+import { hireLawyer, resolveTrial, applyVerdictToRecord } from '../engine/legalEngine';
+import { createPost, applyPostToCharacter } from '../engine/socialMediaEngine';
+import { practiceHobby as runPracticeHobby } from '../engine/hobbyEngine';
+import { careForPet, initPetStats } from '../engine/petEngine';
 import {
   pickStudyQuestions, gradeStudySession, canStudy, StudyQuestion, StudySessionResult,
   advanceEducation, enrollInProgram,
@@ -220,6 +229,12 @@ function buildCharacter(data: CreateCharacterPayload): Character {
     memoryTags: [],
     completedMemoryChains: [],
     focusDomainsUsed: [],
+    focusPointsSpent: {},
+    gpa: undefined,
+    creditScore: 650,
+    heatLevel: 0,
+    hobbyProgress: {},
+    socialPosts: [],
     focusConfirmedForAge: -1,
     lifePhase: 'planning',
     familyReputation: 50,
@@ -270,6 +285,7 @@ interface GameStore {
   lastAgeUpNotice: string | null;
   pendingReincarnation: boolean;
   pendingAspirationPicker: boolean;
+  pendingCourt: boolean;
 
   setUser: (user: AppUser | null) => void;
   onUserChanged: (user: AppUser | null) => Promise<void>;
@@ -297,6 +313,14 @@ interface GameStore {
   dismissYearReview: () => void;
   setAspirations: (primary: AspirationId, secondary: AspirationId) => { ok: boolean; message?: string };
   clearPendingAspirationPicker: () => void;
+  purchaseProperty: (propertyDefId: string) => { ok: boolean; message: string };
+  resolveCourt: (lawyerQuality: number, lawyerCost?: number) => { ok: boolean; message: string };
+  clearPendingCourt: () => void;
+  createSocialPost: (content: string) => { ok: boolean; message: string };
+  practiceHobby: (hobbyId: string) => { ok: boolean; message: string };
+  careForPet: (personId: string, action: 'feed' | 'train' | 'vet' | 'play') => { ok: boolean; message: string };
+  hireEmployee: (businessId: string, role: string) => { ok: boolean; message: string };
+  fireEmployee: (businessId: string, employeeId: string) => { ok: boolean; message: string };
   ageUp: () => void;
   clearAgeUpNotice: () => void;
   clearPendingReincarnation: () => void;
@@ -352,6 +376,7 @@ export const useGameStore = create<GameStore>()(
     lastAgeUpNotice: null,
     pendingReincarnation: false,
     pendingAspirationPicker: false,
+    pendingCourt: false,
 
     setUser: (user) => set(s => { s.user = user; }),
 
@@ -852,6 +877,116 @@ export const useGameStore = create<GameStore>()(
 
     clearPendingAspirationPicker: () => set(s => { s.pendingAspirationPicker = false; }),
 
+    purchaseProperty: (propertyDefId) => {
+      const { character } = get();
+      if (!character) return { ok: false, message: 'No character.' };
+      const def = PROPERTY_MAP[propertyDefId];
+      if (!def) return { ok: false, message: 'Property not found.' };
+      if (character.age < def.minAge) return { ok: false, message: `Must be at least ${def.minAge}.` };
+      const { asset, downPayment } = createPropertyAsset(def, character.age);
+      if (character.bankBalance < downPayment) return { ok: false, message: 'Insufficient funds for down payment.' };
+      set(s => {
+        if (!s.character) return;
+        s.character.assets.push(asset);
+        s.character.bankBalance -= downPayment;
+        s.character.stats.wealth = clamp(computeNetWorth(s.character) / 10000);
+      });
+      void get()._persist();
+      return { ok: true, message: `Purchased ${def.name}.` };
+    },
+
+    resolveCourt: (lawyerQuality, lawyerCost = 0) => {
+      const { character } = get();
+      if (!character?.legalCase) return { ok: false, message: 'No active case.' };
+      if (character.bankBalance < lawyerCost) return { ok: false, message: 'Insufficient funds for lawyer.' };
+      const withLawyer = hireLawyer(character.legalCase, lawyerQuality);
+      const verdict = resolveTrial(character, withLawyer);
+      set(s => {
+        if (!s.character) return;
+        s.character.criminalRecord = applyVerdictToRecord(s.character, withLawyer.crimeId, verdict);
+        s.character.legalCase = undefined;
+        s.character.heatLevel = Math.max(0, (s.character.heatLevel ?? 0) - 30);
+        s.character.bankBalance = Math.max(0, s.character.bankBalance - lawyerCost - verdict.fine);
+        s.pendingCourt = false;
+      });
+      void get()._persist();
+      return { ok: true, message: verdict.message };
+    },
+
+    clearPendingCourt: () => set(s => { s.pendingCourt = false; }),
+
+    createSocialPost: (content) => {
+      const { character } = get();
+      if (!character) return { ok: false, message: 'No character.' };
+      const { post } = createPost(character, content);
+      set(s => {
+        if (!s.character) return;
+        const patch = applyPostToCharacter(s.character, post);
+        Object.assign(s.character, patch);
+      });
+      void get()._persist();
+      return { ok: true, message: `Posted! +${post.followerDelta} followers.` };
+    },
+
+    practiceHobby: (hobbyId) => {
+      const { character } = get();
+      if (!character) return { ok: false, message: 'No character.' };
+      const result = runPracticeHobby(character, hobbyId);
+      if (!result) return { ok: false, message: 'Cannot practice this hobby now.' };
+      set(s => {
+        if (!s.character) return;
+        s.character.hobbyProgress = { ...s.character.hobbyProgress, [hobbyId]: result.progress };
+        s.character.stats = { ...s.character.stats, ...result.statPatch };
+      });
+      void get()._persist();
+      return { ok: true, message: `Leveled up! Now level ${result.progress.level}.` };
+    },
+
+    careForPet: (personId, action) => {
+      const { character } = get();
+      if (!character) return { ok: false, message: 'No character.' };
+      const idx = character.people.findIndex(p => p.id === personId && p.relationType === 'pet');
+      if (idx < 0) return { ok: false, message: 'Pet not found.' };
+      set(s => {
+        if (!s.character) return;
+        const pet = s.character.people[idx];
+        const withStats = pet.petStats ? pet : { ...pet, petStats: initPetStats() };
+        s.character.people[idx] = careForPet(withStats, action);
+      });
+      void get()._persist();
+      return { ok: true, message: `Pet cared for (${action}).` };
+    },
+
+    hireEmployee: (businessId, role) => {
+      const { character } = get();
+      if (!character) return { ok: false, message: 'No character.' };
+      const biz = character.businesses.find(b => b.id === businessId);
+      if (!biz) return { ok: false, message: 'Business not found.' };
+      set(s => {
+        if (!s.character) return;
+        const i = s.character.businesses.findIndex(b => b.id === businessId);
+        const normalized = { ...biz, employees: normalizeBusinessEmployees(biz.employees) };
+        s.character.businesses[i] = hireBizEmployee(normalized, role);
+      });
+      void get()._persist();
+      return { ok: true, message: `Hired ${role}.` };
+    },
+
+    fireEmployee: (businessId, employeeId) => {
+      const { character } = get();
+      if (!character) return { ok: false, message: 'No character.' };
+      const biz = character.businesses.find(b => b.id === businessId);
+      if (!biz) return { ok: false, message: 'Business not found.' };
+      set(s => {
+        if (!s.character) return;
+        const i = s.character.businesses.findIndex(b => b.id === businessId);
+        const normalized = { ...biz, employees: normalizeBusinessEmployees(biz.employees) };
+        s.character.businesses[i] = fireBizEmployee(normalized, employeeId);
+      });
+      void get()._persist();
+      return { ok: true, message: 'Employee released.' };
+    },
+
     ageUp: () => {
       const { character, pendingDecision, isProcessing } = get();
       if (!character || pendingDecision || isProcessing || !character.isAlive) return;
@@ -895,6 +1030,7 @@ export const useGameStore = create<GameStore>()(
           s.sessionAges += 1;
           s.ageUpsSinceAd += 1;
           if (outcome.needsAspirationPick) s.pendingAspirationPicker = true;
+          if ('needsCourt' in outcome && outcome.needsCourt) s.pendingCourt = true;
           if (withDecision && outcome.type === 'pending_decision') {
             s.pendingDecision = { event: outcome.decisionEvent };
           }

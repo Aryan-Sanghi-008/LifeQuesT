@@ -24,19 +24,14 @@ export function evaluateAchievements(character: Character): Set<string> {
   const focusDomainsUsed = character.focusDomainsUsed ?? [];
   if (focusDomainsUsed.length >= FOCUS_DOMAINS.length) earned.add('focused_life');
 
-  const allocation = character.focusAllocation ?? {};
-  const totalFocus = (domain: keyof typeof allocation) =>
-    character.eventHistory.length > 0
-      ? focusDomainsUsed.filter(d => d === domain).length * 3
-      : 0;
-
-  if (totalFocus('career') >= 10) earned.add('career_focus_master');
-  if (totalFocus('education') >= 10) earned.add('education_focus_master');
-  if (totalFocus('health') >= 10) earned.add('health_focus_master');
-  if (totalFocus('social') >= 10) earned.add('social_focus_master');
-  if (totalFocus('finance') >= 10) earned.add('finance_focus_master');
-  if (totalFocus('hobby') >= 10) earned.add('hobby_focus_master');
-  if (totalFocus('family') >= 10) earned.add('family_focus_master');
+  const focusPointsSpent = character.focusPointsSpent ?? {};
+  if (focusPointsSpent.career && focusPointsSpent.career >= 10) earned.add('career_focus_master');
+  if (focusPointsSpent.education && focusPointsSpent.education >= 10) earned.add('education_focus_master');
+  if (focusPointsSpent.health && focusPointsSpent.health >= 10) earned.add('health_focus_master');
+  if (focusPointsSpent.social && focusPointsSpent.social >= 10) earned.add('social_focus_master');
+  if (focusPointsSpent.finance && focusPointsSpent.finance >= 10) earned.add('finance_focus_master');
+  if (focusPointsSpent.hobby && focusPointsSpent.hobby >= 10) earned.add('hobby_focus_master');
+  if (focusPointsSpent.family && focusPointsSpent.family >= 10) earned.add('family_focus_master');
 
   const chains = character.completedMemoryChains ?? [];
   if (chains.length >= 1) earned.add('chain_complete_1');

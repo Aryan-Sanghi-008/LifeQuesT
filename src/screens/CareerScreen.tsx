@@ -9,7 +9,8 @@ import { COLORS, FONTS, RADII, SPACING } from '../constants/theme';
 import { useGameStore } from '../store/gameStore';
 import { NpcAvatar } from '../components/Avatars';
 import { Card, StatBar, SectionLabel, Badge } from '../components/index';
-import { getEligibleCareers, checkCareerEligibility, getCountrySalary } from '../engine/careerEngine';
+import { getEligibleCareers, checkCareerEligibility, getCountrySalary, getSkillTreeProgress } from '../engine/careerEngine';
+import { getAllCareerPaths } from '../data/careerPaths';
 import { resolveEducationLevelForDisplay } from '../engine/educationEngine';
 import { listPursuableCertifications, getCertificationLabel } from '../engine/certificationEngine';
 import { CAREER_PATHS } from '../data/careerPaths';
@@ -306,6 +307,37 @@ function JobBoard() {
   );
 }
 
+function SkillTreePanel() {
+  const character = useGameStore(s => s.character);
+  if (!character?.career) return null;
+
+  const path = getAllCareerPaths().find(c => c.label === character.career!.title);
+  if (!path?.skillTree?.length) return null;
+
+  const nodes = getSkillTreeProgress(path, character);
+
+  return (
+    <Card style={{ gap: SPACING.sm, marginTop: SPACING.md }}>
+      <Text style={{ fontFamily: FONTS.bodySemiBold, fontSize: 10, color: COLORS.t4, letterSpacing: 2 }}>
+        SKILL TREE
+      </Text>
+      {nodes.map(node => (
+        <View key={node.id} style={{ gap: 4 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text style={{ fontFamily: FONTS.bodySemiBold, fontSize: 13, color: node.unlocked ? COLORS.emerald : COLORS.t2 }}>
+              {node.label}
+            </Text>
+            <Text style={{ fontFamily: FONTS.body, fontSize: 10, color: COLORS.t4 }}>
+              {node.unlocked ? 'Unlocked' : `${node.minPerformance}% · ${node.minYearsInRole}yr`}
+            </Text>
+          </View>
+          <StatBar value={node.unlocked ? 100 : Math.min(100, character.career!.performance)} color={node.unlocked ? COLORS.emerald : COLORS.gold} height={4} />
+        </View>
+      ))}
+    </Card>
+  );
+}
+
 export function CareerScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const character = useGameStore(s => s.character);
@@ -343,7 +375,12 @@ export function CareerScreen() {
             </Pressable>
           )}
           <SectionLabel label={inSchool ? 'School Life' : 'Career'} style={{ marginTop: SPACING.xl, marginBottom: SPACING.md }} />
-          {inSchool ? <ClassRoster /> : <JobPanel />}
+          {inSchool ? <ClassRoster /> : (
+            <>
+              <JobPanel />
+              <SkillTreePanel />
+            </>
+          )}
           {!inSchool && character.age >= 16 && (
             <>
               <SectionLabel label="Job Board" style={{ marginTop: SPACING.xl, marginBottom: SPACING.md }} />

@@ -49,9 +49,28 @@ export function NPCProfileSheet({ person }: NPCProfileSheetProps) {
       {personality && (
         <View style={styles.block}>
           <Text style={styles.label}>Personality</Text>
-          <Text style={styles.value}>
-            O{personality.openness} C{personality.conscientiousness} E{personality.extraversion} A{personality.agreeableness} N{personality.neuroticism}
-          </Text>
+          <View style={styles.traitBars}>
+            <View style={styles.traitRow}>
+              <Text style={styles.traitLabel}>Openness</Text>
+              <StatBar value={personality.openness} color={COLORS.sapphire} height={5} />
+            </View>
+            <View style={styles.traitRow}>
+              <Text style={styles.traitLabel}>Conscientiousness</Text>
+              <StatBar value={personality.conscientiousness} color={COLORS.emerald} height={5} />
+            </View>
+            <View style={styles.traitRow}>
+              <Text style={styles.traitLabel}>Extraversion</Text>
+              <StatBar value={personality.extraversion} color={COLORS.gold} height={5} />
+            </View>
+            <View style={styles.traitRow}>
+              <Text style={styles.traitLabel}>Agreeableness</Text>
+              <StatBar value={personality.agreeableness} color={COLORS.teal} height={5} />
+            </View>
+            <View style={styles.traitRow}>
+              <Text style={styles.traitLabel}>Neuroticism</Text>
+              <StatBar value={personality.neuroticism} color={COLORS.orchid} height={5} />
+            </View>
+          </View>
         </View>
       )}
 
@@ -84,4 +103,7 @@ const styles = StyleSheet.create({
   label: { fontFamily: FONTS.bodyBold, fontSize: 11, color: COLORS.t4, textTransform: 'uppercase', letterSpacing: 0.6 },
   value: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.t2, marginTop: 2 },
   memory: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.t3, marginTop: 2 },
+  traitBars: { gap: 6, marginTop: 4 },
+  traitRow: { gap: 2 },
+  traitLabel: { fontFamily: FONTS.body, fontSize: 10, color: COLORS.t4 },
 });

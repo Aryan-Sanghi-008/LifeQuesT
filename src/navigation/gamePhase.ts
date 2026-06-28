@@ -19,6 +19,10 @@ export function needsAspirationRoute(state: GameNavState & { pendingAspirationPi
   return Boolean(state.character?.isAlive && state.pendingAspirationPicker);
 }
 
+export function needsCourtRoute(state: GameNavState & { pendingCourt?: boolean }): boolean {
+  return Boolean(state.character?.isAlive && state.pendingCourt);
+}
+
 export type GamePhase = 'auth' | 'slots' | 'alive' | 'dead';
 
 export function getGamePhase(state: GameNavState): GamePhase {

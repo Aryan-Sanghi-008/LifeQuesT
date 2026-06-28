@@ -397,6 +397,15 @@ export function LifeScreen() {
             </Svg>
             <Text style={styles.actBtnText}>Activities</Text>
           </Pressable>
+          <Pressable
+            onPress={() => navigation.navigate('SocialMedia')}
+            style={styles.actBtn}
+          >
+            <Svg width={12} height={12} viewBox="0 0 24 24" fill="none">
+              <Path stroke={COLORS.sapphire} strokeWidth={2} strokeLinecap="round" d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/>
+            </Svg>
+            <Text style={styles.actBtnText}>Social</Text>
+          </Pressable>
         </View>
 
         {jailBannerText ? (

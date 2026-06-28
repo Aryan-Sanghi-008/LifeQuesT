@@ -162,6 +162,20 @@ export function trackFocusDomainsUsed(
   return [...set];
 }
 
+export function accumulateFocusPointsSpent(
+  existing: FocusAllocation | undefined,
+  allocation: FocusAllocation,
+): FocusAllocation {
+  const next: FocusAllocation = { ...existing };
+  for (const [domain, points] of Object.entries(allocation) as [FocusDomain, number][]) {
+    if ((points ?? 0) > 0) {
+      const key = domain as FocusDomain;
+      next[key] = (next[key] ?? 0) + points;
+    }
+  }
+  return next;
+}
+
 export function isFocusConfirmedForAge(
   character: Pick<Character, 'age' | 'focusConfirmedForAge'>,
 ): boolean {

@@ -3,14 +3,18 @@ import {
   View, Text, ScrollView, Pressable, StyleSheet, Alert, TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, FONTS, RADII, SPACING } from '../constants/theme';
 import { useGameStore } from '../store/gameStore';
-import { Asset } from '../types';
+import { Asset, PropertyTier, RootStackParamList } from '../types';
 import { SectionLabel } from '../components/index';
 import Svg, { Path, Circle, Rect, Polyline } from 'react-native-svg';
 import { formatCurrency } from '../utils/currency';
 import { getFinanceSummary } from '../utils/financeSummary';
+import { PROPERTY_CATALOG, getPropertiesByTier } from '../data/properties';
+import { EMPLOYEE_ROLES } from '../engine/businessEngine';
 import type { Character } from '../types';
 
 // ─── Balance Hero ─────────────────────────────────────────────────────────────
@@ -61,6 +65,54 @@ const bh = StyleSheet.create({
   metricValue: { fontFamily: FONTS.monoSemiBold, fontSize: 13 },
   metricDivider: { width: 1, height: 24, backgroundColor: COLORS.border },
   cashDebtHint: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4, marginTop: SPACING.xs },
+});
+
+const TIER_LABELS: Record<PropertyTier, string> = {
+  shelter: 'Shelter',
+  basic: 'Basic',
+  mid: 'Mid-Range',
+  upper: 'Upper',
+  luxury: 'Luxury',
+};
+
+function FinanceHQ({ character }: { character: Character }) {
+  const cc = character.countryCode ?? 'IN';
+  const fmt = (n: number) => formatCurrency(n, cc);
+  const finance = getFinanceSummary(character);
+  const propertyCount = character.assets.filter(a => a.type === 'property').length;
+  const vehicleCount = character.assets.filter(a => a.type === 'vehicle').length;
+  const investCount = character.assets.filter(a => a.type === 'investment').length;
+
+  return (
+    <View style={fh.wrap}>
+      <Text style={fh.title}>Finance HQ</Text>
+      <View style={fh.row}>
+        <View style={fh.metric}>
+          <Text style={fh.label}>Credit Score</Text>
+          <Text style={[fh.value, { color: (character.creditScore ?? 650) >= 700 ? COLORS.emerald : COLORS.gold }]}>
+            {character.creditScore ?? 650}
+          </Text>
+        </View>
+        <View style={fh.metric}>
+          <Text style={fh.label}>Monthly Burn</Text>
+          <Text style={[fh.value, { color: COLORS.crimson }]}>{fmt(finance.monthlyHousingBurn)}</Text>
+        </View>
+      </View>
+      <Text style={fh.alloc}>
+        Assets: {propertyCount} property · {vehicleCount} vehicle · {investCount} investment
+      </Text>
+    </View>
+  );
+}
+
+const fh = StyleSheet.create({
+  wrap: { marginBottom: SPACING.lg, padding: SPACING.md, backgroundColor: COLORS.bgCard, borderRadius: RADII.md, borderWidth: 1, borderColor: COLORS.border, gap: SPACING.sm },
+  title: { fontFamily: FONTS.bodySemiBold, fontSize: 10, color: COLORS.t4, letterSpacing: 2 },
+  row: { flexDirection: 'row', gap: SPACING.md },
+  metric: { flex: 1 },
+  label: { fontFamily: FONTS.body, fontSize: 10, color: COLORS.t4 },
+  value: { fontFamily: FONTS.monoSemiBold, fontSize: 15, marginTop: 2 },
+  alloc: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.t3 },
 });
 
 // ─── Asset SVG Icons ──────────────────────────────────────────────────────────
@@ -156,10 +208,8 @@ const asc = StyleSheet.create({
   debtFill:  { height: '100%', backgroundColor: COLORS.crimson, borderRadius: 2 },
 });
 
-// ─── Buy Modal ────────────────────────────────────────────────────────────────
+// ─── Buy Modal (vehicles & investments) ───────────────────────────────────────
 const BUY_OPTIONS = [
-  { type: 'property' as const, name: '1BHK Apartment',  value: 2500000, debt: 2000000 },
-  { type: 'property' as const, name: '2BHK Flat',        value: 4500000, debt: 3500000 },
   { type: 'vehicle'  as const, name: 'Hatchback Car',    value: 600000,  debt: 400000  },
   { type: 'vehicle'  as const, name: 'SUV',              value: 1500000, debt: 1000000 },
   { type: 'investment' as const, name: 'Stock Portfolio', value: 50000,  debt: 0       },
@@ -284,20 +334,28 @@ const fb = StyleSheet.create({
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export function AssetsScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const character    = useGameStore(s => s.character);
   const foundBusinessAction = useGameStore(s => s.foundBusiness);
   const sellBusinessAction = useGameStore(s => s.sellBusiness);
+  const hireEmployeeAction = useGameStore(s => s.hireEmployee);
+  const fireEmployeeAction = useGameStore(s => s.fireEmployee);
   const purchaseAsset = useGameStore(s => s.purchaseAsset);
   const sellAsset    = useGameStore(s => s.sellAsset);
   const investInStocks = useGameStore(s => s.investInStocks);
   const [showBuy, setShowBuy] = useState(false);
   const [showFoundModal, setShowFoundModal] = useState(false);
   const [businessName, setBusinessName] = useState('');
+  const [propertyTier, setPropertyTier] = useState<PropertyTier | 'all'>('all');
 
   if (!character) return null;
 
-  const { bankBalance, assets, countryCode } = character;
+  const { bankBalance, assets, countryCode, age } = character;
   const fmt = (n: number) => formatCurrency(n, countryCode);
+
+  const catalogProperties = (propertyTier === 'all' ? PROPERTY_CATALOG : getPropertiesByTier(propertyTier))
+    .filter(p => age >= p.minAge)
+    .slice(0, 12);
 
   const handleBuy = (opt: typeof BUY_OPTIONS[number]) => {
     const success = purchaseAsset({
@@ -336,6 +394,40 @@ export function AssetsScreen() {
         <BalanceHero character={character} />
 
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          <FinanceHQ character={character} />
+
+          <SectionLabel label="Property Market" style={{ marginBottom: SPACING.sm }} />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: SPACING.md }}>
+            {(['all', 'shelter', 'basic', 'mid', 'upper', 'luxury'] as const).map(tier => (
+              <Pressable
+                key={tier}
+                onPress={() => setPropertyTier(tier)}
+                style={[styles.tierChip, propertyTier === tier && styles.tierChipActive]}
+              >
+                <Text style={[styles.tierChipText, propertyTier === tier && styles.tierChipTextActive]}>
+                  {tier === 'all' ? 'All' : TIER_LABELS[tier]}
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+          {catalogProperties.map(p => {
+            const down = Math.round(p.value * p.downPaymentPct);
+            const affordable = bankBalance >= down;
+            return (
+              <Pressable
+                key={p.id}
+                onPress={() => navigation.navigate('Mortgage', { propertyDefId: p.id })}
+                style={[styles.propRow, !affordable && { opacity: 0.5 }]}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.propName}>{p.name}</Text>
+                  <Text style={styles.propSub}>{TIER_LABELS[p.tier]} · Down {fmt(down)}</Text>
+                </View>
+                <Text style={styles.propPrice}>{fmt(p.value)}</Text>
+              </Pressable>
+            );
+          })}
+
           {character.eventHistory.filter(e => e.category === 'financial').slice(-5).reverse().length > 0 && (
             <View style={styles.ledgerSection}>
               <SectionLabel label="Recent Transactions" style={{ marginBottom: SPACING.sm }} />
@@ -412,12 +504,42 @@ export function AssetsScreen() {
           {(character.businesses ?? []).map(b => (
             <View key={b.id} style={{ marginBottom: SPACING.md, padding: SPACING.md, backgroundColor: COLORS.bg2, borderRadius: RADII.md }}>
               <Text style={styles.headerTitle}>{b.name}</Text>
-              <Text style={styles.emptyHint}>Valuation {fmt(b.valuation)} · {b.employees} employees</Text>
+              <Text style={styles.emptyHint}>
+                Valuation {fmt(b.valuation)} · {b.employees.length} employees · Payroll {fmt(b.payrollMonthly ?? 0)}/mo
+              </Text>
+              {b.employees.filter(e => e.role !== 'CEO').map(emp => (
+                <View key={emp.id} style={styles.empRow}>
+                  <Text style={styles.empName}>{emp.name} · {emp.role}</Text>
+                  <Pressable onPress={() => {
+                    const result = fireEmployeeAction(b.id, emp.id);
+                    Alert.alert('Business', result.message);
+                  }}>
+                    <Text style={styles.fireText}>Fire</Text>
+                  </Pressable>
+                </View>
+              ))}
+              <Pressable
+                onPress={() => {
+                  Alert.alert('Hire Employee', 'Choose a role', [
+                    ...EMPLOYEE_ROLES.map(role => ({
+                      text: role,
+                      onPress: () => {
+                        const result = hireEmployeeAction(b.id, role);
+                        Alert.alert(result.ok ? 'Hired' : 'Business', result.message);
+                      },
+                    })),
+                    { text: 'Cancel', style: 'cancel' },
+                  ]);
+                }}
+                style={[styles.actionBtn, { marginTop: SPACING.sm }]}
+              >
+                <Text style={styles.actionBtnText}>+ Hire</Text>
+              </Pressable>
               <Pressable onPress={() => {
                 const result = sellBusinessAction(b.id);
                 Alert.alert(result.ok ? 'Sold' : 'Business', result.message);
               }}>
-                <Text style={[styles.actionBtnText, { color: COLORS.crimson }]}>Sell</Text>
+                <Text style={[styles.actionBtnText, { color: COLORS.crimson, marginTop: SPACING.sm }]}>Sell Business</Text>
               </Pressable>
             </View>
           ))}
@@ -465,4 +587,15 @@ const styles = StyleSheet.create({
   emptyIconWrap:{ width: 72, height: 72, borderRadius: 22, backgroundColor: COLORS.bg2, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
   emptyText:    { fontFamily: FONTS.bodySemiBold, fontSize: 16, color: COLORS.t3 },
   emptyHint:    { fontFamily: FONTS.body, fontSize: 13, color: COLORS.t4 },
+  tierChip: { paddingHorizontal: SPACING.md, paddingVertical: 6, borderRadius: RADII.sm, borderWidth: 1, borderColor: COLORS.border, marginRight: SPACING.sm },
+  tierChipActive: { borderColor: COLORS.teal, backgroundColor: `${COLORS.teal}12` },
+  tierChipText: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.t3 },
+  tierChipTextActive: { color: COLORS.teal, fontFamily: FONTS.bodySemiBold },
+  propRow: { flexDirection: 'row', alignItems: 'center', padding: SPACING.md, backgroundColor: COLORS.bgCard, borderRadius: RADII.md, borderWidth: 1, borderColor: COLORS.border, marginBottom: SPACING.sm },
+  propName: { fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.t1 },
+  propSub: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4, marginTop: 2 },
+  propPrice: { fontFamily: FONTS.monoSemiBold, fontSize: 13, color: COLORS.teal },
+  empRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 4 },
+  empName: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.t2 },
+  fireText: { fontFamily: FONTS.bodySemiBold, fontSize: 11, color: COLORS.crimson },
 });

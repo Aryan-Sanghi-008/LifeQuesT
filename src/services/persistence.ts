@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Character, MAX_SAVE_SLOTS, EducationLevel } from '../types';
+import { Character, MAX_SAVE_SLOTS, EducationLevel, BusinessEmployee } from '../types';
 import { generateRandomDNA, generateRandomPersonality } from '../utils/genetics';
 import { getLifeStage } from '../utils/lifeStage';
 import { isMmkvAvailable } from '../utils/nativeAvailability';
@@ -152,6 +152,22 @@ export function setDailyBonusLastClaim(dateKey: string): void {
   setString(DAILY_BONUS_KEY, dateKey);
 }
 
+function migrateBusinessEmployees(
+  employees: BusinessEmployee[] | number | undefined,
+): BusinessEmployee[] {
+  if (Array.isArray(employees)) return employees;
+  if (typeof employees === 'number' && employees > 0) {
+    return Array.from({ length: employees }, (_, i) => ({
+      id: `emp_migrated_${i}`,
+      name: i === 0 ? 'Founder' : `Employee ${i}`,
+      role: i === 0 ? 'CEO' : 'Staff',
+      salary: i === 0 ? 0 : 30000,
+      performance: 60,
+    }));
+  }
+  return [{ id: 'emp_founder', name: 'Founder', role: 'CEO', salary: 0, performance: 80 }];
+}
+
 export function normalizeCharacter(char: Character): Character {
   if (!char.gender) char.gender = 'male';
   if (!char.avatarSeed) char.avatarSeed = char.name + char.id;
@@ -203,8 +219,18 @@ export function normalizeCharacter(char: Character): Character {
   if (!char.memoryTags) char.memoryTags = [];
   if (!char.completedMemoryChains) char.completedMemoryChains = [];
   if (!char.focusDomainsUsed) char.focusDomainsUsed = [];
+  if (!char.focusPointsSpent) char.focusPointsSpent = {};
   if (char.focusConfirmedForAge === undefined) char.focusConfirmedForAge = -1;
   if (!char.lifePhase) char.lifePhase = 'planning';
+  if (char.creditScore === undefined) char.creditScore = 650;
+  if (char.heatLevel === undefined) char.heatLevel = char.criminalRecord?.heatLevel ?? 0;
+  if (!char.hobbyProgress) char.hobbyProgress = {};
+  if (!char.socialPosts) char.socialPosts = [];
+  char.businesses = (char.businesses ?? []).map(b => ({
+    ...b,
+    employees: migrateBusinessEmployees(b.employees),
+    payrollMonthly: b.payrollMonthly ?? 0,
+  }));
 
   // Ensure all people have the interactionCooldowns record (added in v4+ fix)
   char.people = char.people.map(p => ({

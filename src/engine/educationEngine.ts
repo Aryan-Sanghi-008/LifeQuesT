@@ -1,5 +1,9 @@
 import { EducationLevel, Character } from '../types';
 import { clamp } from './economyEngine';
+
+function clampRange(v: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, v));
+}
 import { DEGREES, Degree, EducationStage } from '../data/educationDegrees';
 
 export interface StudyQuestion {
@@ -192,15 +196,15 @@ export function resolveEducationLevelForDisplay(
  * Filters by current education stage and character's existing degrees.
  */
 export function getEnrollableDegrees(
-  character: Pick<Character, 'age' | 'educationLevel' | 'educationStage' | 'degreeIds'>,
+  character: Pick<Character, 'age' | 'educationLevel' | 'educationStage' | 'degreeIds' | 'gpa'>,
 ): Degree[] {
   const stage = (character.educationStage as EducationStage | undefined) ?? 'none';
   const owned = new Set(character.degreeIds ?? []);
 
   return DEGREES.filter(d => {
     if (owned.has(d.id)) return false;
-    // Require prior degree if specified
     if (d.requiredPrior && !owned.has(d.requiredPrior)) return false;
+    if (!meetsDegreeGPA(character, d)) return false;
     // Age gates
     const minAge: Record<string, number> = {
       diploma: 17, undergraduate: 18, masters: 21, phd: 23,
@@ -282,4 +286,32 @@ export function advanceEducation(
  */
 export function getEarnedDegrees(degreeIds: string[]): Degree[] {
   return degreeIds.map(id => DEGREES.find(d => d.id === id)).filter((d): d is Degree => !!d);
+}
+
+export function initGPA(age: number): number {
+  return age < 13 ? 2.8 : 2.5;
+}
+
+export function tickGPA(
+  character: Pick<Character, 'age' | 'gpa' | 'stats' | 'people' | 'focusAllocation'>,
+): number {
+  if (character.age < 5 || character.age > 25) return character.gpa ?? 0;
+
+  let gpa = character.gpa ?? initGPA(character.age);
+  const eduFocus = character.focusAllocation?.education ?? 0;
+  const intBonus = (character.stats.intelligence - 50) / 500;
+  const focusBonus = eduFocus * 0.05;
+
+  const teachers = character.people.filter(p => p.relationType === 'teacher');
+  const favorBonus = teachers.length
+    ? teachers.reduce((s, t) => s + (t.favorScore ?? 50), 0) / teachers.length / 500
+    : 0;
+
+  gpa = clampRange(gpa + intBonus + focusBonus + favorBonus, 0, 4);
+  return Math.round(gpa * 100) / 100;
+}
+
+export function meetsDegreeGPA(character: Pick<Character, 'gpa'>, degree: Degree): boolean {
+  if (!degree.minGPA) return true;
+  return (character.gpa ?? 0) >= degree.minGPA;
 }

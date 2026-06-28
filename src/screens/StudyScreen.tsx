@@ -22,10 +22,29 @@ function DegreeSelector({
 }) {
   const enrollable = getEnrollableDegrees(character);
   const earned = getEarnedDegrees(character.degreeIds ?? []);
+  const teachers = character.people.filter(p => p.relationType === 'teacher');
+  const gpa = character.gpa;
 
   return (
     <ScrollView contentContainerStyle={styles.scroll}>
       <Text style={styles.title}>Education</Text>
+
+      {(character.age >= 5 && character.age <= 25) && (
+        <View style={styles.gpaCard}>
+          <Text style={styles.gpaLabel}>GPA</Text>
+          <Text style={styles.gpaValue}>{gpa !== undefined ? gpa.toFixed(2) : '—'} / 4.00</Text>
+          {teachers.length > 0 && (
+            <>
+              <Text style={[styles.gpaLabel, { marginTop: SPACING.md }]}>Teachers</Text>
+              {teachers.map(t => (
+                <Text key={t.id} style={styles.teacherRow}>
+                  {t.name}{t.subject ? ` · ${t.subject}` : ''} · Favor {t.favorScore ?? 50}
+                </Text>
+              ))}
+            </>
+          )}
+        </View>
+      )}
 
       {earned.length > 0 && (
         <>
@@ -220,4 +239,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   skipText: { fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.sapphire },
+  gpaCard: {
+    backgroundColor: COLORS.bgCard,
+    borderRadius: RADII.md,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    padding: SPACING.md,
+    marginBottom: SPACING.lg,
+    gap: 4,
+  },
+  gpaLabel: { fontFamily: FONTS.bodySemiBold, fontSize: 10, color: COLORS.t4, letterSpacing: 1.5 },
+  gpaValue: { fontFamily: FONTS.displayBold, fontSize: 28, color: COLORS.sapphire },
+  teacherRow: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.t2, marginTop: 2 },
 });

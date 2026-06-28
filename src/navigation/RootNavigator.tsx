@@ -12,6 +12,11 @@ import { ActivitiesScreen } from '../screens/ActivitiesScreen';
 import StudyScreen from '../screens/StudyScreen';
 import LeaderboardScreen from '../screens/LeaderboardScreen';
 import { AspirationPickerScreen } from '../screens/AspirationPickerScreen';
+import { CourtScreen } from '../screens/CourtScreen';
+import { MortgageScreen } from '../screens/MortgageScreen';
+import { SocialMediaScreen } from '../screens/SocialMediaScreen';
+import { PetCareScreen } from '../screens/PetCareScreen';
+import { HobbyDetailScreen } from '../screens/HobbyDetailScreen';
 import { useGameStore } from '../store/gameStore';
 import { resolveRootRoute } from './gamePhase';
 
@@ -48,6 +53,11 @@ export default function RootNavigator() {
       <Stack.Screen name="Study" component={StudyScreen} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="Leaderboard" component={LeaderboardScreen} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="AspirationPicker" component={AspirationPickerScreen} options={{ animation: 'slide_from_bottom', presentation: 'modal', gestureEnabled: false }} />
+      <Stack.Screen name="Court" component={CourtScreen} options={{ animation: 'slide_from_bottom', presentation: 'modal', gestureEnabled: false }} />
+      <Stack.Screen name="Mortgage" component={MortgageScreen} options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
+      <Stack.Screen name="SocialMedia" component={SocialMediaScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="PetCare" component={PetCareScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="HobbyDetail" component={HobbyDetailScreen} options={{ animation: 'slide_from_right' }} />
     </Stack.Navigator>
   );
 }

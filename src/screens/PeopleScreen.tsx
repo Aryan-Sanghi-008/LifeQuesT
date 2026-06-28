@@ -3,12 +3,14 @@ import {
   View, Text, ScrollView, Pressable, StyleSheet, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, FONTS, RADII, SPACING } from '../constants/theme';
 import { useGameStore } from '../store/gameStore';
 import { NpcAvatar } from '../components/Avatars';
 import { Card, SectionLabel } from '../components/index';
-import { Person, RelationType } from '../types';
+import { Person, RelationType, RootStackParamList } from '../types';
 import { getRelationshipStageLabel } from '@utils/relationshipLabels';
 import { getInteraction, enrichPersonProfile } from '@engine/peopleEngine';
 import { NPCProfileSheet } from '@components/NPCProfileSheet';
@@ -204,9 +206,19 @@ function getGroup(rt: RelationType): string {
 }
 
 export function PeopleScreen() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const character       = useGameStore(s => s.character);
   const interactWithPerson = useGameStore(s => s.interactWithPerson);
   const [selected, setSelected] = useState<Person | null>(null);
+
+  const handlePersonPress = (person: Person) => {
+    if (!person.isAlive) return;
+    if (person.relationType === 'pet') {
+      navigation.navigate('PetCare', { personId: person.id });
+      return;
+    }
+    setSelected(person);
+  };
 
   if (!character) return null;
 
@@ -265,7 +277,7 @@ export function PeopleScreen() {
                 {persons.map((person, i) => (
                   <View key={person.id}>
                     {i > 0 && <View style={styles.divider} />}
-                    <PersonRow person={person} onPress={() => setSelected(person)} />
+                    <PersonRow person={person} onPress={() => handlePersonPress(person)} />
                   </View>
                 ))}
               </Card>

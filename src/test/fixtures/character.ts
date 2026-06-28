@@ -65,6 +65,7 @@ export function createTestCharacter(overrides: Partial<Character> = {}): Charact
     memoryTags: [],
     completedMemoryChains: [],
     focusDomainsUsed: [],
+    focusPointsSpent: {},
     createdAt: 1,
     updatedAt: 1,
     ...overrides,
