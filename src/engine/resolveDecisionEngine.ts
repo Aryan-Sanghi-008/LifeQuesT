@@ -35,7 +35,7 @@ export function runResolveDecision(
   const choice = event.choices?.find(c => c.id === choiceId);
   if (!choice) return null;
 
-  const isLucky = character.traits.includes('lucky');
+  const isLucky = character.traits.includes('lucky') || character.traits.includes('prestige_lucky_star');
   const hadChance = choice.successChance !== undefined;
   let luckBoosts = character.luckBoostsRemaining;
   const success = applySuccessChance(choice.successChance, isLucky, luckBoosts);

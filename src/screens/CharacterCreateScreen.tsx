@@ -13,6 +13,8 @@ import { GradientButton, FadeInView } from '../components/index';
 import { useGameStore } from '../store/gameStore';
 import { COUNTRIES, ZODIACS, TRAITS, FAMILY_BACKGROUNDS } from '../data/gameData';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
+import { CHALLENGES } from '../engine/challengeEngine';
+import { PRESTIGE_TRAITS } from '../engine/prestigeEngine';
 
 const { width } = Dimensions.get('window');
 const STEP_COUNT = 3;
@@ -177,9 +179,10 @@ const BG_ICONS: Record<string, React.ReactNode> = {
   royalty: <Svg width={20} height={20} viewBox="0 0 24 24" fill={COLORS.gold}><Path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></Svg>,
 };
 
-function Step2({ country, setCountry, background, setBackground }: {
+function Step2({ country, setCountry, background, setBackground, activeChallengeId, setActiveChallengeId }: {
   country: string; setCountry: (v: string) => void;
   background: FamilyBackground; setBackground: (v: FamilyBackground) => void;
+  activeChallengeId: string | undefined; setActiveChallengeId: (v: string | undefined) => void;
 }) {
   return (
     <FadeInView style={styles.stepContainer}>
@@ -245,6 +248,41 @@ function Step2({ country, setCountry, background, setBackground }: {
           );
         })}
       </View>
+
+      <Text style={[styles.inputLabel, { marginTop: SPACING.xl }]}>CHALLENGE MODE (OPTIONAL)</Text>
+      <Text style={styles.traitHint}>Select a challenge constraints to earn bonus Prestige Points</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: SPACING.md }}>
+        <View style={{ flexDirection: 'row', gap: SPACING.sm, paddingHorizontal: 2, paddingBottom: 4 }}>
+          <Pressable
+            onPress={() => setActiveChallengeId(undefined)}
+            style={[
+              styles.countryChip,
+              activeChallengeId === undefined && { borderColor: COLORS.t3, backgroundColor: `${COLORS.t3}10` },
+            ]}
+          >
+            <Text style={[styles.countryName, activeChallengeId === undefined && { color: COLORS.t1, fontFamily: FONTS.bodyBold }]}>
+              Standard Life (No Challenge)
+            </Text>
+          </Pressable>
+          {Object.values(CHALLENGES).map(c => {
+            const active = c.id === activeChallengeId;
+            return (
+              <Pressable
+                key={c.id}
+                onPress={() => setActiveChallengeId(c.id)}
+                style={[
+                  styles.countryChip,
+                  active && { borderColor: COLORS.teal, backgroundColor: `${COLORS.teal}10` },
+                ]}
+              >
+                <Text style={[styles.countryName, active && { color: COLORS.teal, fontFamily: FONTS.bodyBold }]}>
+                  {c.title}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </ScrollView>
     </FadeInView>
   );
 }
@@ -256,6 +294,8 @@ function Step3({ zodiac, setZodiac, traits, toggleTrait, isPremium }: {
   traits: string[]; toggleTrait: (id: string) => void;
   isPremium: boolean;
 }) {
+  const globalPrestige = useGameStore(s => s.globalPrestige);
+  const unlockedPrestige = globalPrestige.unlockedTraitIds ?? [];
   return (
     <FadeInView style={styles.stepContainer}>
       <Text style={styles.stepTitle}>Your Nature</Text>
@@ -318,6 +358,46 @@ function Step3({ zodiac, setZodiac, traits, toggleTrait, isPremium }: {
           );
         })}
       </View>
+
+      {/* Prestige Unlocked Traits */}
+      {unlockedPrestige.length > 0 && (
+        <>
+          <Text style={[styles.inputLabel, { marginTop: SPACING.xl }]}>PRESTIGE TRAITS</Text>
+          <Text style={styles.traitHint}>Unlocks from your cross-life Achievements and Prestige progress</Text>
+          <View style={styles.traitGrid}>
+            {PRESTIGE_TRAITS.filter(pt => unlockedPrestige.includes(pt.id)).map(pt => {
+              const active = traits.includes(pt.id);
+              const locked = !active && traits.length >= 2;
+              return (
+                <Pressable
+                  key={pt.id}
+                  onPress={() => {
+                    if (!locked) toggleTrait(pt.id);
+                  }}
+                  style={[
+                    styles.traitCard,
+                    { borderColor: COLORS.gold },
+                    active && { borderColor: `${COLORS.gold}80`, backgroundColor: `${COLORS.gold}08` },
+                    locked && styles.traitCardLocked,
+                  ]}
+                >
+                  {active && (
+                    <View style={[styles.traitCheck, { backgroundColor: COLORS.gold }]}>
+                      <Svg width={10} height={10} viewBox="0 0 24 24" fill="none">
+                        <Path stroke="#FFFFFF" strokeWidth={3} strokeLinecap="round" d="M20 6L9 17l-5-5"/>
+                      </Svg>
+                    </View>
+                  )}
+                  <Text style={[styles.traitLabel, { color: COLORS.gold }, active && { fontFamily: FONTS.bodyBold }]}>
+                    {pt.label}
+                  </Text>
+                  <Text style={styles.traitDesc}>{pt.description}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </>
+      )}
     </FadeInView>
   );
 }
@@ -339,6 +419,7 @@ export function CharacterCreateScreen({ navigation, route }: Props) {
   const [background, setBackground] = useState<FamilyBackground>('middle');
   const [zodiac, setZodiac]         = useState('leo');
   const [traits, setTraits]         = useState<string[]>([]);
+  const [activeChallengeId, setActiveChallengeId] = useState<string | undefined>(undefined);
   const [isCreating, setIsCreating] = useState(false);
 
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -384,6 +465,7 @@ export function CharacterCreateScreen({ navigation, route }: Props) {
         familyBackground: background,
         traits,
         carriedStats: carriedStats ?? undefined,
+        activeChallengeId,
       });
     }
   };
@@ -449,7 +531,16 @@ export function CharacterCreateScreen({ navigation, route }: Props) {
                   onNameFocus={() => scrollRef.current?.scrollToEnd({ animated: true })}
                 />
               )}
-              {step === 1 && <Step2 country={country} setCountry={setCountry} background={background} setBackground={setBackground} />}
+              {step === 1 && (
+                <Step2
+                  country={country}
+                  setCountry={setCountry}
+                  background={background}
+                  setBackground={setBackground}
+                  activeChallengeId={activeChallengeId}
+                  setActiveChallengeId={setActiveChallengeId}
+                />
+              )}
               {step === 2 && (
                 <Step3
                   zodiac={zodiac}

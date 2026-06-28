@@ -1,57 +1,102 @@
-import { create } from 'zustand';
-import { immer } from 'zustand/middleware/immer';
+import { create } from "zustand";
+import { immer } from "zustand/middleware/immer";
 import {
-  Character, CharacterStats,
-  PendingDecision, AppUser, AvatarId, FamilyBackground,
-  Gender, Asset, SaveSlot,
-  DailyQuest, Person, CharacterDNA, BigFivePersonality,
-  FocusAllocation, AspirationId, WillDetails,
-} from '../types';
+  Character,
+  CharacterStats,
+  PendingDecision,
+  AppUser,
+  AvatarId,
+  FamilyBackground,
+  Gender,
+  Asset,
+  SaveSlot,
+  DailyQuest,
+  Person,
+  CharacterDNA,
+  BigFivePersonality,
+  FocusAllocation,
+  AspirationId,
+  WillDetails,
+  GlobalPrestigeState,
+  SyncConflict,
+} from "../types";
 import {
-  generateRandomDNA, generateRandomPersonality, determineTraitsFromPersonality,
-  crossoverDNA, crossoverPersonality,
-} from '../utils/genetics';
-import { continueAsHeir } from '../engine/legacyEngine';
+  generateRandomDNA,
+  generateRandomPersonality,
+  determineTraitsFromPersonality,
+  crossoverDNA,
+  crossoverPersonality,
+} from "../utils/genetics";
+import { continueAsHeir } from "../engine/legacyEngine";
+import { TRAITS, COUNTRIES, ACTIVITIES } from "../data/gameData";
+import { ACHIEVEMENT_COIN_REWARDS } from "../data/achievements";
+import { getStartingBalance, getCountryEconomy } from "../data/countryEconomy";
+import { generateParents, generatePet } from "../utils/npcGenerator";
 import {
-  TRAITS, COUNTRIES, ACTIVITIES,
-} from '../data/gameData';
-import { ACHIEVEMENT_COIN_REWARDS } from '../data/achievements';
-import { getStartingBalance, getCountryEconomy } from '../data/countryEconomy';
-import { generateParents, generatePet } from '../utils/npcGenerator';
-import { applyEffect, computeNetWorth, clamp, investInMarket } from '../engine/economyEngine';
+  applyEffect,
+  computeNetWorth,
+  clamp,
+  investInMarket,
+} from "../engine/economyEngine";
+import { applySuccessChance, consumeLuckBoost } from "../engine/eventEngine";
 import {
-  applySuccessChance, consumeLuckBoost,
-} from '../engine/eventEngine';
-import {
-  workHarder, askForRaise,
-  checkCareerEligibility, rollForHire, getCountrySalary,
+  workHarder,
+  askForRaise,
+  checkCareerEligibility,
+  rollForHire,
+  getCountrySalary,
   applyForPromotion,
-} from '../engine/careerEngine';
+} from "../engine/careerEngine";
 import {
-  checkCertificationEligibility, rollCertificationExam,
-} from '../engine/certificationEngine';
-import { getCareerById, careerPathToLegacy } from '../data/careerPaths';
+  checkCertificationEligibility,
+  rollCertificationExam,
+} from "../engine/certificationEngine";
+import { getCareerById, careerPathToLegacy } from "../data/careerPaths";
 import {
-  ensureCoworkers, getInteraction, rollInteraction, getClassmates,
-  appendPlayerMemory, enrichPersonProfile, discoverSecret,
-} from '../engine/peopleEngine';
+  ensureCoworkers,
+  getInteraction,
+  rollInteraction,
+  getClassmates,
+  appendPlayerMemory,
+  enrichPersonProfile,
+  discoverSecret,
+} from "../engine/peopleEngine";
 import {
-  getActiveSlotId, setActiveSlotId, saveCharacterLocal,
-  loadCharacterLocal, deleteCharacterLocal, listLocalSlots,
-  migrateLegacySaves, normalizeCharacter,
-  getDailyBonusLastClaim, setDailyBonusLastClaim,
-  getDailyQuestsProgress, setDailyQuestsProgress,
-} from '../services/persistence';
+  getActiveSlotId,
+  setActiveSlotId,
+  saveCharacterLocal,
+  loadCharacterLocal,
+  deleteCharacterLocal,
+  listLocalSlots,
+  migrateLegacySaves,
+  normalizeCharacter,
+  getDailyBonusLastClaim,
+  setDailyBonusLastClaim,
+  getDailyQuestsProgress,
+  setDailyQuestsProgress,
+  loadGlobalPrestige,
+  saveGlobalPrestige,
+} from "../services/persistence";
 import {
-  syncSaveToCloud, pullCloudSaveIfNewer, listCloudSlots, deleteCloudSave,
-} from '../services/cloudSave';
-import { mergeSlotLists } from '../utils/saveSync';
+  processCharacterDeath,
+  PRESTIGE_TRAITS,
+} from "../engine/prestigeEngine";
 import {
-  fetchUserEntitlements, applyEntitlementsToCharacter, hasPendingGrants, clearConsumedGrants,
-} from '../services/entitlements';
-import { logEvent } from '../services/analytics';
-import { writeWidgetSnapshot } from '../services/widgetSnapshot';
-import { recordCrime, isInJail } from '../engine/crimeEngine';
+  syncSaveToCloud,
+  listCloudSlots,
+  deleteCloudSave,
+  loadSaveFromCloud,
+} from "../services/cloudSave";
+import { mergeSlotLists } from "../utils/saveSync";
+import {
+  fetchUserEntitlements,
+  applyEntitlementsToCharacter,
+  hasPendingGrants,
+  clearConsumedGrants,
+} from "../services/entitlements";
+import { logEvent } from "../services/analytics";
+import { writeWidgetSnapshot } from "../services/widgetSnapshot";
+import { recordCrime, isInJail } from "../engine/crimeEngine";
 import {
   foundBusiness as createBusiness,
   sellBusiness as liquidateBusiness,
@@ -59,28 +104,51 @@ import {
   hireEmployee as hireBizEmployee,
   fireEmployee as fireBizEmployee,
   normalizeBusinessEmployees,
-} from '../engine/businessEngine';
-import { createPropertyAsset } from '../engine/housingEngine';
-import { PROPERTY_MAP } from '../data/properties';
-import { hireLawyer, resolveTrial, applyVerdictToRecord } from '../engine/legalEngine';
-import { createPost, applyPostToCharacter } from '../engine/socialMediaEngine';
-import { practiceHobby as runPracticeHobby } from '../engine/hobbyEngine';
-import { careForPet, initPetStats } from '../engine/petEngine';
+} from "../engine/businessEngine";
+import { createPropertyAsset } from "../engine/housingEngine";
+import { PROPERTY_MAP } from "../data/properties";
 import {
-  pickStudyQuestions, gradeStudySession, canStudy, StudyQuestion, StudySessionResult,
-  advanceEducation, enrollInProgram,
-} from '../engine/educationEngine';
+  hireLawyer,
+  resolveTrial,
+  applyVerdictToRecord,
+} from "../engine/legalEngine";
+import { createPost, applyPostToCharacter } from "../engine/socialMediaEngine";
+import { practiceHobby as runPracticeHobby } from "../engine/hobbyEngine";
+import { careForPet, initPetStats } from "../engine/petEngine";
 import {
-  pickDailyQuests, updateQuestProgress, isQuestComplete, claimQuest, stampKarmaBaseline,
-} from '../engine/questEngine';
-import { runAgeUp } from '../engine/ageUpEngine';
-import { runResolveDecision } from '../engine/resolveDecisionEngine';
-import { evaluateAchievements, getNewAchievementIds } from '../engine/achievementEngine';
-import { validateFocusAllocation, isFocusConfirmedForAge } from '../engine/focusEngine';
-import { validateAspirations } from '../engine/aspirationEngine';
-import { SEASON_PASS_TIERS } from '../data/gameData';
-import { hapticAgeUp, hapticAchievement, hapticDeath } from '../services/haptics';
-import { playSound } from '../services/audio';
+  pickStudyQuestions,
+  gradeStudySession,
+  canStudy,
+  StudyQuestion,
+  StudySessionResult,
+  advanceEducation,
+  enrollInProgram,
+} from "../engine/educationEngine";
+import {
+  pickDailyQuests,
+  updateQuestProgress,
+  isQuestComplete,
+  claimQuest,
+  stampKarmaBaseline,
+} from "../engine/questEngine";
+import { runAgeUp } from "../engine/ageUpEngine";
+import { runResolveDecision } from "../engine/resolveDecisionEngine";
+import {
+  evaluateAchievements,
+  getNewAchievementIds,
+} from "../engine/achievementEngine";
+import {
+  validateFocusAllocation,
+  isFocusConfirmedForAge,
+} from "../engine/focusEngine";
+import { validateAspirations } from "../engine/aspirationEngine";
+import { SEASON_PASS_TIERS } from "../data/gameData";
+import {
+  hapticAgeUp,
+  hapticAchievement,
+  hapticDeath,
+} from "../services/haptics";
+import { playSound } from "../services/audio";
 
 function generateId(): string {
   return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -89,10 +157,12 @@ function generateId(): string {
 /** Bumps on createCharacter to invalidate in-flight loadGame calls. */
 let loadGeneration = 0;
 
-function defaultUnlockedStyles(gender: Gender): NonNullable<Character['unlockedAvatarStyles']> {
-  if (gender === 'female') return ['lorelei'];
-  if (gender === 'other') return ['notionists'];
-  return ['adventurer'];
+function defaultUnlockedStyles(
+  gender: Gender,
+): NonNullable<Character["unlockedAvatarStyles"]> {
+  if (gender === "female") return ["lorelei"];
+  if (gender === "other") return ["notionists"];
+  return ["adventurer"];
 }
 
 export interface CreateCharacterPayload {
@@ -108,80 +178,128 @@ export interface CreateCharacterPayload {
   carriedStats?: Partial<CharacterStats>;
   parentDNA?: CharacterDNA | null;
   partnerDNA?: CharacterDNA | null;
-  parentPersonality?: BigFivePersonality | null;
-  partnerPersonality?: BigFivePersonality | null;
+  parentPersonality?: BigFivePersonality;
+  partnerPersonality?: BigFivePersonality;
+  activeChallengeId?: string;
 }
 
 function buildCharacter(data: CreateCharacterPayload): Character {
-  const bgData: Record<FamilyBackground, number> = { poor: 5, middle: 30, wealthy: 65, royalty: 90 };
+  const bgData: Record<FamilyBackground, number> = {
+    poor: 5,
+    middle: 30,
+    wealthy: 65,
+    royalty: 90,
+  };
   const wealthStart = bgData[data.familyBackground] ?? 30;
-  const countryData = COUNTRIES.find(c => c.code === data.countryCode);
+  const countryData = COUNTRIES.find((c) => c.code === data.countryCode);
   const wealthMod = countryData?.wealthMod ?? 0;
 
-  const dna = (data.parentDNA && data.partnerDNA)
-    ? crossoverDNA(data.parentDNA, data.partnerDNA)
-    : generateRandomDNA();
+  const dna =
+    data.parentDNA && data.partnerDNA
+      ? crossoverDNA(data.parentDNA, data.partnerDNA)
+      : generateRandomDNA();
 
-  const personality = (data.parentPersonality && data.partnerPersonality)
-    ? crossoverPersonality(data.parentPersonality, data.partnerPersonality)
-    : generateRandomPersonality();
+  const personality =
+    data.parentPersonality && data.partnerPersonality
+      ? crossoverPersonality(data.parentPersonality, data.partnerPersonality)
+      : generateRandomPersonality();
+
+  if (data.traits.includes("prestige_genius_dna")) {
+    dna.statPotentials.intelligence = 100;
+  }
 
   const geneticTraits = determineTraitsFromPersonality(personality, dna);
   const traits = Array.from(new Set([...data.traits, ...geneticTraits]));
 
   const traitEffect: Partial<CharacterStats> = {};
-  traits.forEach(traitId => {
-    const trait = TRAITS.find(t => t.id === traitId);
+  traits.forEach((traitId) => {
+    const trait = TRAITS.find((t) => t.id === traitId);
     if (!trait) return;
     const te = traitEffect as unknown as Record<string, number>;
     const se = trait.statEffect as unknown as Record<string, number>;
-    Object.keys(se).forEach(k => { te[k] = (te[k] ?? 0) + se[k]; });
+    Object.keys(se).forEach((k) => {
+      te[k] = (te[k] ?? 0) + se[k];
+    });
   });
 
   const zodiacBonus: Partial<CharacterStats> = {};
   if (data.zodiacBonusStat) {
-    (zodiacBonus as unknown as Record<string, number>)[data.zodiacBonusStat] = 5;
+    (zodiacBonus as unknown as Record<string, number>)[data.zodiacBonusStat] =
+      5;
   }
 
   const applyCarry = (base: number, key: keyof CharacterStats) => {
     const carried = data.carriedStats?.[key];
     const statCap = dna.statPotentials[key] ?? 100;
     const baseCapped = Math.min(statCap, base);
-    if (carried !== undefined) return clamp(Math.round(baseCapped * 0.5 + carried * 0.5));
+    if (carried !== undefined)
+      return clamp(Math.round(baseCapped * 0.5 + carried * 0.5));
     return clamp(baseCapped);
   };
 
   const stats: CharacterStats = {
-    health:       applyCarry(clamp(80 + (traitEffect.health ?? 0)), 'health'),
-    happiness:    applyCarry(clamp(70 + (traitEffect.happiness ?? 0)), 'happiness'),
-    intelligence: applyCarry(clamp(50 + (traitEffect.intelligence ?? 0) + (zodiacBonus.intelligence ?? 0)), 'intelligence'),
-    wealth:       clamp(wealthStart + wealthMod + (traitEffect.wealth ?? 0)),
-    fitness:      applyCarry(clamp(60 + (traitEffect.fitness ?? 0)), 'fitness'),
-    looks:        applyCarry(clamp(60 + (traitEffect.looks ?? 0)), 'looks'),
-    social:       applyCarry(clamp(50 + (traitEffect.social ?? 0) + (zodiacBonus.social ?? 0)), 'social'),
-    ambition:     applyCarry(clamp(50 + (traitEffect.ambition ?? 0) + (zodiacBonus.ambition ?? 0)), 'ambition'),
-    mentalHealth: applyCarry(clamp(70 + (traitEffect.mentalHealth ?? 0)), 'mentalHealth'),
+    health: applyCarry(
+      clamp(
+        80 +
+          (traitEffect.health ?? 0) +
+          (data.traits.includes("prestige_immune_system") ? 20 : 0),
+      ),
+      "health",
+    ),
+    happiness: applyCarry(
+      clamp(70 + (traitEffect.happiness ?? 0)),
+      "happiness",
+    ),
+    intelligence: applyCarry(
+      clamp(
+        50 + (traitEffect.intelligence ?? 0) + (zodiacBonus.intelligence ?? 0),
+      ),
+      "intelligence",
+    ),
+    wealth: clamp(wealthStart + wealthMod + (traitEffect.wealth ?? 0)),
+    fitness: applyCarry(clamp(60 + (traitEffect.fitness ?? 0)), "fitness"),
+    looks: applyCarry(clamp(60 + (traitEffect.looks ?? 0)), "looks"),
+    social: applyCarry(
+      clamp(50 + (traitEffect.social ?? 0) + (zodiacBonus.social ?? 0)),
+      "social",
+    ),
+    ambition: applyCarry(
+      clamp(50 + (traitEffect.ambition ?? 0) + (zodiacBonus.ambition ?? 0)),
+      "ambition",
+    ),
+    mentalHealth: applyCarry(
+      clamp(70 + (traitEffect.mentalHealth ?? 0)),
+      "mentalHealth",
+    ),
   };
 
   // Use centralized country economy for starting balance (TASK 3 fix)
-  const bankBalance = getStartingBalance(data.familyBackground, data.countryCode);
+  let bankBalance = getStartingBalance(data.familyBackground, data.countryCode);
+  if (data.traits.includes("prestige_royal_blood")) {
+    bankBalance += 150000;
+  }
   const id = generateId();
-  const parents = generateParents(data.name, data.countryCode, data.familyBackground);
+  const parents = generateParents(
+    data.name,
+    data.countryCode,
+    data.familyBackground,
+  );
 
   return normalizeCharacter({
     id,
     name: data.name,
     gender: data.gender,
+    activeChallengeId: data.activeChallengeId,
     avatarSeed: data.avatarSeed ?? `${data.name}-${id}`,
-    avatarId: (data.gender === 'female' ? 'female_1' : 'male_1') as AvatarId,
-    lifeStage: 'infant',
-    country: countryData?.name ?? 'India',
-    countryFlag: countryData?.flag ?? '🇮🇳',
-    countryCode: data.countryCode ?? 'IN',
+    avatarId: (data.gender === "female" ? "female_1" : "male_1") as AvatarId,
+    lifeStage: "infant",
+    country: countryData?.name ?? "India",
+    countryFlag: countryData?.flag ?? "🇮🇳",
+    countryCode: data.countryCode ?? "IN",
     zodiac: data.zodiac,
     familyBackground: data.familyBackground,
     traits,
-    job: 'Student',
+    job: "Student",
     age: 0,
     birthYear: new Date().getFullYear(),
     stats,
@@ -191,18 +309,24 @@ function buildCharacter(data: CreateCharacterPayload): Character {
     netWorthPeak: bankBalance,
     relationships: 0,
     children: 0,
-    educationLevel: 'none',
+    educationLevel: "none",
     people: parents,
     career: null,
     assets: [],
     achievements: [],
-    eventHistory: [{
-      id: 'birth', age: 0,
-      title: 'Welcome to the World',
-      description: 'You took your first breath. The room was loud, then warm.',
-      statEffect: { happiness: 10, health: 5 },
-      category: 'milestone', color: '#2DD4BF', timestamp: Date.now(),
-    }],
+    eventHistory: [
+      {
+        id: "birth",
+        age: 0,
+        title: "Welcome to the World",
+        description:
+          "You took your first breath. The room was loud, then warm.",
+        statEffect: { happiness: 10, health: 5 },
+        category: "milestone",
+        color: "#2DD4BF",
+        timestamp: Date.now(),
+      },
+    ],
     isAlive: true,
     coins: 500,
     gems: 0,
@@ -212,13 +336,24 @@ function buildCharacter(data: CreateCharacterPayload): Character {
     hasReincarnationScroll: false,
     businesses: [],
     socialFollowers: 0,
-    avatarStyle: data.gender === 'female' ? 'lorelei' : data.gender === 'other' ? 'notionists' : 'adventurer',
-    unlockedAvatarStyles: [data.gender === 'female' ? 'lorelei' : data.gender === 'other' ? 'notionists' : 'adventurer'],
+    avatarStyle:
+      data.gender === "female"
+        ? "lorelei"
+        : data.gender === "other"
+          ? "notionists"
+          : "adventurer",
+    unlockedAvatarStyles: [
+      data.gender === "female"
+        ? "lorelei"
+        : data.gender === "other"
+          ? "notionists"
+          : "adventurer",
+    ],
     degreeIds: [],
     certificationIds: [],
     totalCareerYears: 0,
-    educationStage: 'none',
-    educationBranch: 'none',
+    educationStage: "none",
+    educationBranch: "none",
     seasonXp: 0,
     hasSeasonPass: false,
     claimedSeasonTiers: [],
@@ -237,7 +372,7 @@ function buildCharacter(data: CreateCharacterPayload): Character {
     hobbyProgress: {},
     socialPosts: [],
     focusConfirmedForAge: -1,
-    lifePhase: 'planning',
+    lifePhase: "planning",
     familyReputation: 50,
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -245,10 +380,16 @@ function buildCharacter(data: CreateCharacterPayload): Character {
 }
 
 function buildLocalSlotList(): SaveSlot[] {
-  return listLocalSlots().map(slotId => {
+  return listLocalSlots().map((slotId) => {
     const char = loadCharacterLocal(slotId);
     if (!char) {
-      return { slotId, name: 'Empty Slot', age: 0, isAlive: false, updatedAt: 0 };
+      return {
+        slotId,
+        name: "Empty Slot",
+        age: 0,
+        isAlive: false,
+        updatedAt: 0,
+      };
     }
     const normalized = normalizeCharacter(char);
     const gen = normalized.generation ?? 1;
@@ -265,7 +406,7 @@ function buildLocalSlotList(): SaveSlot[] {
 }
 
 function isCloudUser(uid: string | undefined): boolean {
-  return Boolean(uid && !uid.startsWith('local_guest_'));
+  return Boolean(uid && !uid.startsWith("local_guest_"));
 }
 
 interface GameStore {
@@ -290,6 +431,13 @@ interface GameStore {
   pendingReincarnation: boolean;
   pendingAspirationPicker: boolean;
   pendingCourt: boolean;
+  globalPrestige: GlobalPrestigeState;
+  syncConflict: SyncConflict | null;
+  resolveConflictChoice: (choice: "local" | "cloud") => void;
+  unlockFantasyDlc: (method: "gems" | "coins" | "prestige") => {
+    ok: boolean;
+    message?: string;
+  };
 
   setUser: (user: AppUser | null) => void;
   onUserChanged: (user: AppUser | null) => Promise<void>;
@@ -298,6 +446,10 @@ interface GameStore {
   loadDailyQuests: () => void;
   claimQuestReward: (questId: string) => { ok: boolean; message: string };
   addSeasonXp: (amount: number) => void;
+  purchasePrestigeUnlock: (traitId: string) => {
+    ok: boolean;
+    message?: string;
+  };
   claimSeasonTier: (tier: number) => { ok: boolean; message: string };
   startStudySession: () => StudyQuestion[];
   completeStudySession: (answers: number[]) => StudySessionResult;
@@ -308,33 +460,57 @@ interface GameStore {
   sellBusiness: (businessId: string) => { ok: boolean; message: string };
   getClassmates: () => Person[];
   investInStocks: (amount: number) => { ok: boolean; message: string };
-    setAvatarStyle: (style: Character['avatarStyle']) => void;
-    unlockAvatarStyle: (style: NonNullable<Character['avatarStyle']>) => void;
-    setSeasonPass: (v: boolean) => void;
+  setAvatarStyle: (style: Character["avatarStyle"]) => void;
+  unlockAvatarStyle: (style: NonNullable<Character["avatarStyle"]>) => void;
+  setSeasonPass: (v: boolean) => void;
   createCharacter: (payload: CreateCharacterPayload) => void;
-  setFocusAllocation: (allocation: FocusAllocation) => { ok: boolean; message?: string };
+  setFocusAllocation: (allocation: FocusAllocation) => {
+    ok: boolean;
+    message?: string;
+  };
   confirmFocusAndAct: () => { ok: boolean; message?: string };
   dismissYearReview: () => void;
-  setAspirations: (primary: AspirationId, secondary: AspirationId) => { ok: boolean; message?: string };
+  setAspirations: (
+    primary: AspirationId,
+    secondary: AspirationId,
+  ) => { ok: boolean; message?: string };
   clearPendingAspirationPicker: () => void;
   purchaseProperty: (propertyDefId: string) => { ok: boolean; message: string };
-  resolveCourt: (lawyerQuality: number, lawyerCost?: number) => { ok: boolean; message: string };
+  resolveCourt: (
+    lawyerQuality: number,
+    lawyerCost?: number,
+  ) => { ok: boolean; message: string };
   clearPendingCourt: () => void;
   setWill: (will: WillDetails) => { ok: boolean; message?: string };
   playAsHeir: (heirId: string) => { ok: boolean; message?: string };
   createSocialPost: (content: string) => { ok: boolean; message: string };
   practiceHobby: (hobbyId: string) => { ok: boolean; message: string };
-  careForPet: (personId: string, action: 'feed' | 'train' | 'vet' | 'play') => { ok: boolean; message: string };
-  hireEmployee: (businessId: string, role: string) => { ok: boolean; message: string };
-  fireEmployee: (businessId: string, employeeId: string) => { ok: boolean; message: string };
+  careForPet: (
+    personId: string,
+    action: "feed" | "train" | "vet" | "play",
+  ) => { ok: boolean; message: string };
+  hireEmployee: (
+    businessId: string,
+    role: string,
+  ) => { ok: boolean; message: string };
+  fireEmployee: (
+    businessId: string,
+    employeeId: string,
+  ) => { ok: boolean; message: string };
   ageUp: () => void;
   clearAgeUpNotice: () => void;
   clearPendingReincarnation: () => void;
   resolveDecision: (choiceId: string) => void;
   dismissDecision: () => void;
-  performActivity: (activityId: string) => { success: boolean; message: string };
-  interactWithPerson: (personId: string, interactionId: string) => { delta: number; message: string };
-  purchaseAsset: (asset: Omit<Asset, 'id' | 'purchasedAge'>) => boolean;
+  performActivity: (activityId: string) => {
+    success: boolean;
+    message: string;
+  };
+  interactWithPerson: (
+    personId: string,
+    interactionId: string,
+  ) => { delta: number; message: string };
+  purchaseAsset: (asset: Omit<Asset, "id" | "purchasedAge">) => boolean;
   sellAsset: (assetId: string) => boolean;
   applyForJob: (jobId: string) => { success: boolean; message: string };
   workHarder: () => void;
@@ -369,7 +545,7 @@ export const useGameStore = create<GameStore>()(
     ageUpsSinceAd: 0,
     user: null,
     isHydrated: false,
-    activeSlotId: '0',
+    activeSlotId: "0",
     carriedStatsForCreate: null,
     carriedParentDNA: null,
     carriedPartnerDNA: null,
@@ -383,13 +559,26 @@ export const useGameStore = create<GameStore>()(
     pendingReincarnation: false,
     pendingAspirationPicker: false,
     pendingCourt: false,
+    globalPrestige: {
+      prestigePoints: 0,
+      prestigeLevel: 1,
+      totalLivesLived: 0,
+      completedChallengeIds: [],
+      unlockedTraitIds: [],
+    },
+    syncConflict: null,
 
-    setUser: (user) => set(s => { s.user = user; }),
+    setUser: (user) =>
+      set((s) => {
+        s.user = user;
+      }),
 
     onUserChanged: async (user) => {
-      set(s => { s.user = user; });
+      set((s) => {
+        s.user = user;
+      });
       if (!isCloudUser(user?.uid)) {
-        set(s => {
+        set((s) => {
           s.slotList = buildLocalSlotList();
           s.slotsSynced = false;
         });
@@ -401,8 +590,13 @@ export const useGameStore = create<GameStore>()(
         if (entitlements) {
           const { character } = get();
           if (character) {
-            const updated = applyEntitlementsToCharacter(character, entitlements);
-            set(s => { if (s.character) s.character = updated; });
+            const updated = applyEntitlementsToCharacter(
+              character,
+              entitlements,
+            );
+            set((s) => {
+              if (s.character) s.character = updated;
+            });
             if (hasPendingGrants(entitlements)) {
               await clearConsumedGrants(user!.uid);
               void get()._persist();
@@ -410,7 +604,7 @@ export const useGameStore = create<GameStore>()(
           }
         }
       } catch (e) {
-        console.warn('[entitlements] hydrate failed', e);
+        console.warn("[entitlements] hydrate failed", e);
       }
 
       await get().refreshSlotList();
@@ -421,7 +615,7 @@ export const useGameStore = create<GameStore>()(
       const localSlots = buildLocalSlotList();
 
       if (!isCloudUser(user?.uid)) {
-        set(s => {
+        set((s) => {
           s.slotList = localSlots;
           s.slotsSynced = false;
         });
@@ -431,14 +625,14 @@ export const useGameStore = create<GameStore>()(
       try {
         const cloudSlots = await listCloudSlots(user!.uid);
         const merged = mergeSlotLists(localSlots, cloudSlots);
-        set(s => {
+        set((s) => {
           s.slotList = merged;
-          s.slotsSynced = cloudSlots.some(slot => slot.updatedAt > 0);
+          s.slotsSynced = cloudSlots.some((slot) => slot.updatedAt > 0);
         });
         return merged;
       } catch (e) {
-        console.warn('[cloudSave] refreshSlotList failed', e);
-        set(s => {
+        console.warn("[cloudSave] refreshSlotList failed", e);
+        set((s) => {
           s.slotList = localSlots;
           s.slotsSynced = false;
         });
@@ -448,20 +642,20 @@ export const useGameStore = create<GameStore>()(
 
     claimDailyBonus: () => {
       const { character } = get();
-      if (!character) return { ok: false, message: 'No active character.' };
+      if (!character) return { ok: false, message: "No active character." };
 
       const today = new Date().toISOString().slice(0, 10);
       const lastClaim = getDailyBonusLastClaim();
       if (lastClaim === today) {
-        return { ok: false, message: 'Daily bonus already claimed today.' };
+        return { ok: false, message: "Daily bonus already claimed today." };
       }
 
       setDailyBonusLastClaim(today);
-      set(s => {
+      set((s) => {
         if (s.character) s.character.coins += 25;
       });
       void get()._persist();
-      return { ok: true, message: 'You received 25 coins!' };
+      return { ok: true, message: "You received 25 coins!" };
     },
 
     loadDailyQuests: () => {
@@ -470,28 +664,40 @@ export const useGameStore = create<GameStore>()(
       const raw = getDailyQuestsProgress(today);
       if (raw) {
         try {
-          const quests = stampKarmaBaseline(JSON.parse(raw) as DailyQuest[], karma);
-          set(s => { s.dailyQuests = quests; });
+          const quests = stampKarmaBaseline(
+            JSON.parse(raw) as DailyQuest[],
+            karma,
+          );
+          set((s) => {
+            s.dailyQuests = quests;
+          });
           return;
-        } catch { /* fall through */ }
+        } catch {
+          /* fall through */
+        }
       }
       const quests = pickDailyQuests(today, 3, karma);
       setDailyQuestsProgress(today, JSON.stringify(quests));
-      set(s => { s.dailyQuests = quests; });
+      set((s) => {
+        s.dailyQuests = quests;
+      });
     },
 
     claimQuestReward: (questId) => {
       const { dailyQuests, character } = get();
-      if (!character) return { ok: false, message: 'No active character.' };
-      const quest = dailyQuests.find(q => q.id === questId);
-      if (!quest) return { ok: false, message: 'Quest not found.' };
-      if (quest.claimed) return { ok: false, message: 'Already claimed.' };
-      if (!isQuestComplete(quest)) return { ok: false, message: 'Quest not complete.' };
+      if (!character) return { ok: false, message: "No active character." };
+      const quest = dailyQuests.find((q) => q.id === questId);
+      if (!quest) return { ok: false, message: "Quest not found." };
+      if (quest.claimed) return { ok: false, message: "Already claimed." };
+      if (!isQuestComplete(quest))
+        return { ok: false, message: "Quest not complete." };
 
-      const updated = dailyQuests.map(q => q.id === questId ? claimQuest(q) : q);
+      const updated = dailyQuests.map((q) =>
+        q.id === questId ? claimQuest(q) : q,
+      );
       const today = new Date().toISOString().slice(0, 10);
       setDailyQuestsProgress(today, JSON.stringify(updated));
-      set(s => {
+      set((s) => {
         s.dailyQuests = updated;
         if (s.character) s.character.coins += quest.rewardCoins;
       });
@@ -501,7 +707,7 @@ export const useGameStore = create<GameStore>()(
     },
 
     addSeasonXp: (amount) => {
-      set(s => {
+      set((s) => {
         if (!s.character) return;
         s.character.seasonXp = (s.character.seasonXp ?? 0) + amount;
       });
@@ -509,22 +715,25 @@ export const useGameStore = create<GameStore>()(
 
     claimSeasonTier: (tier) => {
       const { character } = get();
-      if (!character?.hasSeasonPass) return { ok: false, message: 'Season pass required.' };
-      const tierDef = SEASON_PASS_TIERS.find(t => t.tier === tier);
-      if (!tierDef) return { ok: false, message: 'Invalid tier.' };
+      if (!character?.hasSeasonPass)
+        return { ok: false, message: "Season pass required." };
+      const tierDef = SEASON_PASS_TIERS.find((t) => t.tier === tier);
+      if (!tierDef) return { ok: false, message: "Invalid tier." };
       if ((character.claimedSeasonTiers ?? []).includes(tier)) {
-        return { ok: false, message: 'Tier already claimed.' };
+        return { ok: false, message: "Tier already claimed." };
       }
       if ((character.seasonXp ?? 0) < tierDef.xpRequired) {
-        return { ok: false, message: 'Not enough season XP.' };
+        return { ok: false, message: "Not enough season XP." };
       }
-      set(s => {
+      set((s) => {
         if (!s.character) return;
-        if (!s.character.claimedSeasonTiers) s.character.claimedSeasonTiers = [];
+        if (!s.character.claimedSeasonTiers)
+          s.character.claimedSeasonTiers = [];
         s.character.claimedSeasonTiers.push(tier);
         s.character.coins += tierDef.rewardCoins;
         if (tierDef.rewardGems) s.character.gems += tierDef.rewardGems;
-        if (tierDef.rewardLuckBoosts) s.character.luckBoostsRemaining += tierDef.rewardLuckBoosts;
+        if (tierDef.rewardLuckBoosts)
+          s.character.luckBoostsRemaining += tierDef.rewardLuckBoosts;
       });
       void get()._persist();
       return { ok: true, message: `Claimed tier ${tier} rewards!` };
@@ -532,35 +741,52 @@ export const useGameStore = create<GameStore>()(
 
     startStudySession: () => {
       const { character } = get();
-      if (!character || !canStudy(character.age, character.educationLevel)) return [];
+      if (!character || !canStudy(character.age, character.educationLevel))
+        return [];
       const questions = pickStudyQuestions(3);
-      set(s => { s.studyQuestions = questions; });
+      set((s) => {
+        s.studyQuestions = questions;
+      });
       return questions;
     },
 
     completeStudySession: (answers) => {
       const { character, studyQuestions } = get();
       const empty: StudySessionResult = {
-        score: 0, totalQuestions: 0, passed: false, intelligenceGain: 0, mentalHealthGain: 0,
+        score: 0,
+        totalQuestions: 0,
+        passed: false,
+        intelligenceGain: 0,
+        mentalHealthGain: 0,
       };
       if (!character || !studyQuestions?.length) return empty;
 
       const result = gradeStudySession(
-        answers, studyQuestions, character.stats.intelligence,
+        answers,
+        studyQuestions,
+        character.stats.intelligence,
       );
 
-      set(s => {
+      set((s) => {
         if (!s.character) return;
-        s.character.stats.intelligence = clamp(s.character.stats.intelligence + result.intelligenceGain);
-        s.character.stats.mentalHealth = clamp(s.character.stats.mentalHealth + result.mentalHealthGain);
+        s.character.stats.intelligence = clamp(
+          s.character.stats.intelligence + result.intelligenceGain,
+        );
+        s.character.stats.mentalHealth = clamp(
+          s.character.stats.mentalHealth + result.mentalHealthGain,
+        );
         s.studyQuestions = null;
       });
 
       const today = new Date().toISOString().slice(0, 10);
-      const quests = get().dailyQuests.length ? get().dailyQuests : pickDailyQuests(today);
-      const updated = updateQuestProgress(quests, 'study_session', 1);
+      const quests = get().dailyQuests.length
+        ? get().dailyQuests
+        : pickDailyQuests(today);
+      const updated = updateQuestProgress(quests, "study_session", 1);
       setDailyQuestsProgress(today, JSON.stringify(updated));
-      set(s => { s.dailyQuests = updated; });
+      set((s) => {
+        s.dailyQuests = updated;
+      });
       get().addSeasonXp(result.passed ? 25 : 5);
       get()._checkAchievements();
       void get()._persist();
@@ -569,12 +795,19 @@ export const useGameStore = create<GameStore>()(
 
     grantDegree: (degreeId) => {
       const { character } = get();
-      if (!character) return { ok: false, message: 'No character.' };
+      if (!character) return { ok: false, message: "No character." };
       if ((character.degreeIds ?? []).includes(degreeId)) {
-        return { ok: false, message: 'You already have this degree.' };
+        return { ok: false, message: "You already have this degree." };
       }
-      if (character.enrolledDegreeId && character.enrolledDegreeId !== degreeId) {
-        return { ok: false, message: 'You are enrolled in a different program. Finish or re-enroll.' };
+      if (
+        character.enrolledDegreeId &&
+        character.enrolledDegreeId !== degreeId
+      ) {
+        return {
+          ok: false,
+          message:
+            "You are enrolled in a different program. Finish or re-enroll.",
+        };
       }
 
       const advResult = advanceEducation(character, degreeId);
@@ -585,7 +818,7 @@ export const useGameStore = create<GameStore>()(
       const degree = advResult.degreeEarned;
       const alreadyEnrolled = character.enrolledDegreeId === degreeId;
 
-      set(s => {
+      set((s) => {
         if (!s.character) return;
         if (!s.character.degreeIds) s.character.degreeIds = [];
         if (!s.character.degreeIds.includes(degreeId)) {
@@ -604,8 +837,13 @@ export const useGameStore = create<GameStore>()(
         // Tuition already paid at enrollment
         if (!alreadyEnrolled) {
           const eco = getCountryEconomy(s.character.countryCode);
-          const tuition = Math.round(degree.baseAnnualCost * eco.salaryMultiplier);
-          s.character.bankBalance = Math.max(0, s.character.bankBalance - tuition);
+          const tuition = Math.round(
+            degree.baseAnnualCost * eco.salaryMultiplier,
+          );
+          s.character.bankBalance = Math.max(
+            0,
+            s.character.bankBalance - tuition,
+          );
         }
         s.character.enrolledDegreeId = undefined;
       });
@@ -619,10 +857,10 @@ export const useGameStore = create<GameStore>()(
 
     enrollInDegree: (degreeId) => {
       const { character } = get();
-      if (!character) return { ok: false, message: 'No character.' };
+      if (!character) return { ok: false, message: "No character." };
 
       if (character.enrolledDegreeId === degreeId) {
-        return { ok: true, message: 'Already enrolled in this program.' };
+        return { ok: true, message: "Already enrolled in this program." };
       }
 
       const enrollResult = enrollInProgram(character, degreeId);
@@ -631,14 +869,22 @@ export const useGameStore = create<GameStore>()(
       }
 
       const eco = getCountryEconomy(character.countryCode);
-      const tuition = Math.round((enrollResult.annualCost ?? 0) * eco.salaryMultiplier);
+      const tuition = Math.round(
+        (enrollResult.annualCost ?? 0) * eco.salaryMultiplier,
+      );
       if (character.bankBalance < tuition) {
-        return { ok: false, message: `Insufficient funds. Tuition is ${eco.currencySymbol}${tuition.toLocaleString(eco.currencyLocale)}.` };
+        return {
+          ok: false,
+          message: `Insufficient funds. Tuition is ${eco.currencySymbol}${tuition.toLocaleString(eco.currencyLocale)}.`,
+        };
       }
 
-      set(s => {
+      set((s) => {
         if (!s.character) return;
-        s.character.bankBalance = Math.max(0, s.character.bankBalance - tuition);
+        s.character.bankBalance = Math.max(
+          0,
+          s.character.bankBalance - tuition,
+        );
         s.character.enrolledDegreeId = degreeId;
       });
 
@@ -651,11 +897,14 @@ export const useGameStore = create<GameStore>()(
 
     takeCertificationExam: (certId) => {
       const { character } = get();
-      if (!character) return { ok: false, message: 'No character.' };
+      if (!character) return { ok: false, message: "No character." };
 
       const eligibility = checkCertificationEligibility(character, certId);
       if (!eligibility.eligible) {
-        return { ok: false, message: eligibility.reason ?? 'Not eligible for this exam.' };
+        return {
+          ok: false,
+          message: eligibility.reason ?? "Not eligible for this exam.",
+        };
       }
 
       if (character.bankBalance < eligibility.cost) {
@@ -667,15 +916,20 @@ export const useGameStore = create<GameStore>()(
       }
 
       const exam = rollCertificationExam(character, certId);
-      set(s => {
+      set((s) => {
         if (!s.character) return;
-        s.character.bankBalance = Math.max(0, s.character.bankBalance - eligibility.cost);
+        s.character.bankBalance = Math.max(
+          0,
+          s.character.bankBalance - eligibility.cost,
+        );
         if (exam.passed) {
           if (!s.character.certificationIds) s.character.certificationIds = [];
           if (!s.character.certificationIds.includes(certId)) {
             s.character.certificationIds.push(certId);
           }
-          s.character.stats.intelligence = clamp(s.character.stats.intelligence + 2);
+          s.character.stats.intelligence = clamp(
+            s.character.stats.intelligence + 2,
+          );
         }
       });
 
@@ -685,24 +939,29 @@ export const useGameStore = create<GameStore>()(
 
     foundBusiness: (name) => {
       const { character } = get();
-      if (!character) return { ok: false, message: 'No character.' };
-      if (!canFoundBusiness(character)) return { ok: false, message: 'You need to be an entrepreneur first.' };
+      if (!character) return { ok: false, message: "No character." };
+      if (!canFoundBusiness(character))
+        return { ok: false, message: "You need to be an entrepreneur first." };
       const biz = createBusiness(character, name);
-      if (!biz) return { ok: false, message: 'Could not found business.' };
-      set(s => { if (s.character) s.character.businesses.push(biz); });
+      if (!biz) return { ok: false, message: "Could not found business." };
+      set((s) => {
+        if (s.character) s.character.businesses.push(biz);
+      });
       void get()._persist();
       return { ok: true, message: `Founded ${name}!` };
     },
 
     sellBusiness: (businessId) => {
       const { character } = get();
-      if (!character) return { ok: false, message: 'No character.' };
-      const biz = character.businesses.find(b => b.id === businessId);
-      if (!biz) return { ok: false, message: 'Business not found.' };
+      if (!character) return { ok: false, message: "No character." };
+      const biz = character.businesses.find((b) => b.id === businessId);
+      if (!biz) return { ok: false, message: "Business not found." };
       const payout = liquidateBusiness(biz);
-      set(s => {
+      set((s) => {
         if (!s.character) return;
-        s.character.businesses = s.character.businesses.filter(b => b.id !== businessId);
+        s.character.businesses = s.character.businesses.filter(
+          (b) => b.id !== businessId,
+        );
         s.character.bankBalance += payout;
       });
       void get()._persist();
@@ -717,10 +976,11 @@ export const useGameStore = create<GameStore>()(
 
     investInStocks: (amount) => {
       const { character } = get();
-      if (!character) return { ok: false, message: 'No character.' };
+      if (!character) return { ok: false, message: "No character." };
       const result = investInMarket(character, amount);
-      if (!result.ok || !result.asset) return { ok: false, message: result.message };
-      set(s => {
+      if (!result.ok || !result.asset)
+        return { ok: false, message: result.message };
+      set((s) => {
         if (!s.character) return;
         s.character.bankBalance = result.bankBalance;
         s.character.assets.push(result.asset!);
@@ -733,9 +993,11 @@ export const useGameStore = create<GameStore>()(
 
     setAvatarStyle: (style) => {
       if (!style) return;
-      set(s => {
+      set((s) => {
         if (!s.character) return;
-        const unlocked = s.character.unlockedAvatarStyles ?? defaultUnlockedStyles(s.character.gender);
+        const unlocked =
+          s.character.unlockedAvatarStyles ??
+          defaultUnlockedStyles(s.character.gender);
         if (!unlocked.includes(style)) return;
         s.character.avatarStyle = style;
       });
@@ -743,9 +1005,11 @@ export const useGameStore = create<GameStore>()(
     },
 
     unlockAvatarStyle: (style) => {
-      set(s => {
+      set((s) => {
         if (!s.character) return;
-        const unlocked = s.character.unlockedAvatarStyles ?? defaultUnlockedStyles(s.character.gender);
+        const unlocked =
+          s.character.unlockedAvatarStyles ??
+          defaultUnlockedStyles(s.character.gender);
         if (!unlocked.includes(style)) unlocked.push(style);
         s.character.unlockedAvatarStyles = unlocked;
         s.character.avatarStyle = style;
@@ -754,7 +1018,9 @@ export const useGameStore = create<GameStore>()(
     },
 
     setSeasonPass: (v) => {
-      set(s => { if (s.character) s.character.hasSeasonPass = v; });
+      set((s) => {
+        if (s.character) s.character.hasSeasonPass = v;
+      });
       void get()._persist();
     },
 
@@ -763,7 +1029,7 @@ export const useGameStore = create<GameStore>()(
       if (!character) return;
 
       const stamped = { ...character, updatedAt: Date.now() };
-      set(s => {
+      set((s) => {
         if (s.character) s.character.updatedAt = stamped.updatedAt;
       });
 
@@ -774,7 +1040,7 @@ export const useGameStore = create<GameStore>()(
         try {
           await syncSaveToCloud(user!.uid, activeSlotId, stamped);
         } catch (e) {
-          console.warn('[cloudSave] sync failed', e);
+          console.warn("[cloudSave] sync failed", e);
         }
       }
     },
@@ -798,7 +1064,7 @@ export const useGameStore = create<GameStore>()(
 
       const slotId = get().activeSlotId;
       saveCharacterLocal(char, slotId);
-      set(s => {
+      set((s) => {
         s.character = char;
         s.pendingDecision = null;
         s.sessionAges = 0;
@@ -812,16 +1078,18 @@ export const useGameStore = create<GameStore>()(
         s.slotList = buildLocalSlotList();
       });
       void get()._persist();
-      void logEvent('create_character', { name: char.name });
+      void logEvent("create_character", { name: char.name });
     },
 
     setFocusAllocation: (allocation) => {
       const { character } = get();
-      if (!character?.isAlive) return { ok: false, message: 'No active character.' };
-      if (character.lifePhase !== 'planning') return { ok: false, message: 'Not in planning phase.' };
+      if (!character?.isAlive)
+        return { ok: false, message: "No active character." };
+      if (character.lifePhase !== "planning")
+        return { ok: false, message: "Not in planning phase." };
       const result = validateFocusAllocation(character.age, allocation);
       if (!result.valid) return { ok: false, message: result.message };
-      set(s => {
+      set((s) => {
         if (!s.character) return;
         s.character.focusAllocation = result.normalized ?? allocation;
       });
@@ -831,12 +1099,13 @@ export const useGameStore = create<GameStore>()(
 
     confirmFocusAndAct: () => {
       const { character } = get();
-      if (!character?.isAlive) return { ok: false, message: 'No active character.' };
+      if (!character?.isAlive)
+        return { ok: false, message: "No active character." };
       if (character.age <= 12) {
-        set(s => {
+        set((s) => {
           if (!s.character) return;
           s.character.focusConfirmedForAge = s.character.age;
-          s.character.lifePhase = 'acting';
+          s.character.lifePhase = "acting";
         });
         void get()._persist();
         return { ok: true };
@@ -844,20 +1113,20 @@ export const useGameStore = create<GameStore>()(
       const allocation = character.focusAllocation ?? {};
       const result = validateFocusAllocation(character.age, allocation);
       if (!result.valid) return { ok: false, message: result.message };
-      set(s => {
+      set((s) => {
         if (!s.character) return;
         s.character.focusAllocation = result.normalized ?? allocation;
         s.character.focusConfirmedForAge = s.character.age;
-        s.character.lifePhase = 'acting';
+        s.character.lifePhase = "acting";
       });
       void get()._persist();
       return { ok: true };
     },
 
     dismissYearReview: () => {
-      set(s => {
-        if (!s.character || s.character.lifePhase !== 'review') return;
-        s.character.lifePhase = 'planning';
+      set((s) => {
+        if (!s.character || s.character.lifePhase !== "review") return;
+        s.character.lifePhase = "planning";
         s.character.focusAllocation = undefined;
         s.character.lastYearReview = undefined;
       });
@@ -866,12 +1135,14 @@ export const useGameStore = create<GameStore>()(
 
     setAspirations: (primary, secondary) => {
       const { character } = get();
-      if (!character) return { ok: false, message: 'No character.' };
-      if (character.age < 16) return { ok: false, message: 'Too young to set aspirations.' };
-      if (character.aspirations) return { ok: false, message: 'Aspirations already set.' };
+      if (!character) return { ok: false, message: "No character." };
+      if (character.age < 16)
+        return { ok: false, message: "Too young to set aspirations." };
+      if (character.aspirations)
+        return { ok: false, message: "Aspirations already set." };
       const result = validateAspirations(primary, secondary);
       if (!result.valid) return { ok: false, message: result.message };
-      set(s => {
+      set((s) => {
         if (!s.character) return;
         s.character.aspirations = { primary, secondary };
         s.pendingAspirationPicker = false;
@@ -881,12 +1152,15 @@ export const useGameStore = create<GameStore>()(
       return { ok: true };
     },
 
-    clearPendingAspirationPicker: () => set(s => { s.pendingAspirationPicker = false; }),
+    clearPendingAspirationPicker: () =>
+      set((s) => {
+        s.pendingAspirationPicker = false;
+      }),
 
     setWill: (will) => {
       const { character } = get();
-      if (!character) return { ok: false, message: 'No character.' };
-      set(s => {
+      if (!character) return { ok: false, message: "No character." };
+      set((s) => {
         if (s.character) s.character.will = will;
       });
       void get()._persist();
@@ -895,36 +1169,41 @@ export const useGameStore = create<GameStore>()(
 
     playAsHeir: (heirId) => {
       const { character } = get();
-      if (!character) return { ok: false, message: 'No character.' };
+      if (!character) return { ok: false, message: "No character." };
       try {
         const newChar = continueAsHeir(character, heirId);
-        set(s => {
+        set((s) => {
           s.character = newChar;
           s.pendingDecision = null;
           s.sessionAges = 0;
           s.slotList = buildLocalSlotList();
         });
-        
+
         loadGeneration += 1;
-        
+
         const slotId = get().activeSlotId;
         saveCharacterLocal(newChar, slotId);
         void get()._persist();
         return { ok: true };
       } catch (e: any) {
-        return { ok: false, message: e.message ?? 'Failed to continue as heir.' };
+        return {
+          ok: false,
+          message: e.message ?? "Failed to continue as heir.",
+        };
       }
     },
 
     purchaseProperty: (propertyDefId) => {
       const { character } = get();
-      if (!character) return { ok: false, message: 'No character.' };
+      if (!character) return { ok: false, message: "No character." };
       const def = PROPERTY_MAP[propertyDefId];
-      if (!def) return { ok: false, message: 'Property not found.' };
-      if (character.age < def.minAge) return { ok: false, message: `Must be at least ${def.minAge}.` };
+      if (!def) return { ok: false, message: "Property not found." };
+      if (character.age < def.minAge)
+        return { ok: false, message: `Must be at least ${def.minAge}.` };
       const { asset, downPayment } = createPropertyAsset(def, character.age);
-      if (character.bankBalance < downPayment) return { ok: false, message: 'Insufficient funds for down payment.' };
-      set(s => {
+      if (character.bankBalance < downPayment)
+        return { ok: false, message: "Insufficient funds for down payment." };
+      set((s) => {
         if (!s.character) return;
         s.character.assets.push(asset);
         s.character.bankBalance -= downPayment;
@@ -936,29 +1215,41 @@ export const useGameStore = create<GameStore>()(
 
     resolveCourt: (lawyerQuality, lawyerCost = 0) => {
       const { character } = get();
-      if (!character?.legalCase) return { ok: false, message: 'No active case.' };
-      if (character.bankBalance < lawyerCost) return { ok: false, message: 'Insufficient funds for lawyer.' };
+      if (!character?.legalCase)
+        return { ok: false, message: "No active case." };
+      if (character.bankBalance < lawyerCost)
+        return { ok: false, message: "Insufficient funds for lawyer." };
       const withLawyer = hireLawyer(character.legalCase, lawyerQuality);
       const verdict = resolveTrial(character, withLawyer);
-      set(s => {
+      set((s) => {
         if (!s.character) return;
-        s.character.criminalRecord = applyVerdictToRecord(s.character, withLawyer.crimeId, verdict);
+        s.character.criminalRecord = applyVerdictToRecord(
+          s.character,
+          withLawyer.crimeId,
+          verdict,
+        );
         s.character.legalCase = undefined;
         s.character.heatLevel = Math.max(0, (s.character.heatLevel ?? 0) - 30);
-        s.character.bankBalance = Math.max(0, s.character.bankBalance - lawyerCost - verdict.fine);
+        s.character.bankBalance = Math.max(
+          0,
+          s.character.bankBalance - lawyerCost - verdict.fine,
+        );
         s.pendingCourt = false;
       });
       void get()._persist();
       return { ok: true, message: verdict.message };
     },
 
-    clearPendingCourt: () => set(s => { s.pendingCourt = false; }),
+    clearPendingCourt: () =>
+      set((s) => {
+        s.pendingCourt = false;
+      }),
 
     createSocialPost: (content) => {
       const { character } = get();
-      if (!character) return { ok: false, message: 'No character.' };
+      if (!character) return { ok: false, message: "No character." };
       const { post } = createPost(character, content);
-      set(s => {
+      set((s) => {
         if (!s.character) return;
         const patch = applyPostToCharacter(s.character, post);
         Object.assign(s.character, patch);
@@ -969,27 +1260,38 @@ export const useGameStore = create<GameStore>()(
 
     practiceHobby: (hobbyId) => {
       const { character } = get();
-      if (!character) return { ok: false, message: 'No character.' };
+      if (!character) return { ok: false, message: "No character." };
       const result = runPracticeHobby(character, hobbyId);
-      if (!result) return { ok: false, message: 'Cannot practice this hobby now.' };
-      set(s => {
+      if (!result)
+        return { ok: false, message: "Cannot practice this hobby now." };
+      set((s) => {
         if (!s.character) return;
-        s.character.hobbyProgress = { ...s.character.hobbyProgress, [hobbyId]: result.progress };
+        s.character.hobbyProgress = {
+          ...s.character.hobbyProgress,
+          [hobbyId]: result.progress,
+        };
         s.character.stats = { ...s.character.stats, ...result.statPatch };
       });
       void get()._persist();
-      return { ok: true, message: `Leveled up! Now level ${result.progress.level}.` };
+      return {
+        ok: true,
+        message: `Leveled up! Now level ${result.progress.level}.`,
+      };
     },
 
     careForPet: (personId, action) => {
       const { character } = get();
-      if (!character) return { ok: false, message: 'No character.' };
-      const idx = character.people.findIndex(p => p.id === personId && p.relationType === 'pet');
-      if (idx < 0) return { ok: false, message: 'Pet not found.' };
-      set(s => {
+      if (!character) return { ok: false, message: "No character." };
+      const idx = character.people.findIndex(
+        (p) => p.id === personId && p.relationType === "pet",
+      );
+      if (idx < 0) return { ok: false, message: "Pet not found." };
+      set((s) => {
         if (!s.character) return;
         const pet = s.character.people[idx];
-        const withStats = pet.petStats ? pet : { ...pet, petStats: initPetStats() };
+        const withStats = pet.petStats
+          ? pet
+          : { ...pet, petStats: initPetStats() };
         s.character.people[idx] = careForPet(withStats, action);
       });
       void get()._persist();
@@ -998,13 +1300,16 @@ export const useGameStore = create<GameStore>()(
 
     hireEmployee: (businessId, role) => {
       const { character } = get();
-      if (!character) return { ok: false, message: 'No character.' };
-      const biz = character.businesses.find(b => b.id === businessId);
-      if (!biz) return { ok: false, message: 'Business not found.' };
-      set(s => {
+      if (!character) return { ok: false, message: "No character." };
+      const biz = character.businesses.find((b) => b.id === businessId);
+      if (!biz) return { ok: false, message: "Business not found." };
+      set((s) => {
         if (!s.character) return;
-        const i = s.character.businesses.findIndex(b => b.id === businessId);
-        const normalized = { ...biz, employees: normalizeBusinessEmployees(biz.employees) };
+        const i = s.character.businesses.findIndex((b) => b.id === businessId);
+        const normalized = {
+          ...biz,
+          employees: normalizeBusinessEmployees(biz.employees),
+        };
         s.character.businesses[i] = hireBizEmployee(normalized, role);
       });
       void get()._persist();
@@ -1013,32 +1318,36 @@ export const useGameStore = create<GameStore>()(
 
     fireEmployee: (businessId, employeeId) => {
       const { character } = get();
-      if (!character) return { ok: false, message: 'No character.' };
-      const biz = character.businesses.find(b => b.id === businessId);
-      if (!biz) return { ok: false, message: 'Business not found.' };
-      set(s => {
+      if (!character) return { ok: false, message: "No character." };
+      const biz = character.businesses.find((b) => b.id === businessId);
+      if (!biz) return { ok: false, message: "Business not found." };
+      set((s) => {
         if (!s.character) return;
-        const i = s.character.businesses.findIndex(b => b.id === businessId);
-        const normalized = { ...biz, employees: normalizeBusinessEmployees(biz.employees) };
+        const i = s.character.businesses.findIndex((b) => b.id === businessId);
+        const normalized = {
+          ...biz,
+          employees: normalizeBusinessEmployees(biz.employees),
+        };
         s.character.businesses[i] = fireBizEmployee(normalized, employeeId);
       });
       void get()._persist();
-      return { ok: true, message: 'Employee released.' };
+      return { ok: true, message: "Employee released." };
     },
 
     ageUp: () => {
       const { character, pendingDecision, isProcessing } = get();
-      if (!character || pendingDecision || isProcessing || !character.isAlive) return;
-      if (character.lifePhase === 'review') return;
+      if (!character || pendingDecision || isProcessing || !character.isAlive)
+        return;
+      if (character.lifePhase === "review") return;
       if (character.age >= 13) {
-        if (character.lifePhase === 'planning') return;
+        if (character.lifePhase === "planning") return;
         if (!isFocusConfirmedForAge(character)) return;
       }
 
       const outcome = runAgeUp(character);
 
-      if (outcome.type === 'jail_tick') {
-        set(s => {
+      if (outcome.type === "jail_tick") {
+        set((s) => {
           if (s.character) s.character.criminalRecord = outcome.criminalRecord;
           s.lastAgeUpNotice = outcome.message;
         });
@@ -1046,40 +1355,51 @@ export const useGameStore = create<GameStore>()(
         return;
       }
 
-      set(s => { s.isProcessing = true; });
+      set((s) => {
+        s.isProcessing = true;
+      });
 
-      if (outcome.type === 'death') {
-        set(s => {
+      if (outcome.type === "death") {
+        const prestigeRes = processCharacterDeath(
+          character,
+          get().globalPrestige,
+        );
+        set((s) => {
           if (!s.character) return;
           Object.assign(s.character, outcome.patch);
+          s.globalPrestige = prestigeRes.nextState;
           s.isProcessing = false;
         });
+        saveGlobalPrestige(prestigeRes.nextState);
         hapticDeath();
-        void playSound('death');
+        void playSound("death");
         void get()._persist();
         return;
       }
 
       const applyPatch = (withDecision: boolean) => {
-        set(s => {
+        set((s) => {
           if (!s.character) return;
           Object.assign(s.character, outcome.patch);
-          outcome.newEventRecords.forEach(r => s.character!.eventHistory.push(r));
+          outcome.newEventRecords.forEach((r) =>
+            s.character!.eventHistory.push(r),
+          );
           s.isProcessing = false;
           s.sessionAges += 1;
           s.ageUpsSinceAd += 1;
           if (outcome.needsAspirationPick) s.pendingAspirationPicker = true;
-          if ('needsCourt' in outcome && outcome.needsCourt) s.pendingCourt = true;
-          if (withDecision && outcome.type === 'pending_decision') {
+          if ("needsCourt" in outcome && outcome.needsCourt)
+            s.pendingCourt = true;
+          if (withDecision && outcome.type === "pending_decision") {
             s.pendingDecision = { event: outcome.decisionEvent };
           }
         });
       };
 
       hapticAgeUp();
-      void playSound('age_up');
+      void playSound("age_up");
 
-      if (outcome.type === 'pending_decision') {
+      if (outcome.type === "pending_decision") {
         applyPatch(true);
       } else {
         applyPatch(false);
@@ -1089,26 +1409,38 @@ export const useGameStore = create<GameStore>()(
         const quests = get().dailyQuests.length
           ? get().dailyQuests
           : pickDailyQuests(today, 3, outcome.karma);
-        let updated = updateQuestProgress(quests, 'age_up', 1);
-        updated = updateQuestProgress(updated, 'reach_karma', 0, outcome.karma);
-        updated = updateQuestProgress(updated, 'gain_karma', 0, outcome.karma);
+        let updated = updateQuestProgress(quests, "age_up", 1);
+        updated = updateQuestProgress(updated, "reach_karma", 0, outcome.karma);
+        updated = updateQuestProgress(updated, "gain_karma", 0, outcome.karma);
         setDailyQuestsProgress(today, JSON.stringify(updated));
-        set(s => { s.dailyQuests = updated; });
+        set((s) => {
+          s.dailyQuests = updated;
+        });
       }
       void get()._persist();
     },
 
-    clearAgeUpNotice: () => set(s => { s.lastAgeUpNotice = null; }),
-    clearPendingReincarnation: () => set(s => { s.pendingReincarnation = false; }),
+    clearAgeUpNotice: () =>
+      set((s) => {
+        s.lastAgeUpNotice = null;
+      }),
+    clearPendingReincarnation: () =>
+      set((s) => {
+        s.pendingReincarnation = false;
+      }),
 
     resolveDecision: (choiceId) => {
       const { character, pendingDecision } = get();
       if (!character || !pendingDecision) return;
 
-      const result = runResolveDecision(character, pendingDecision.event, choiceId);
+      const result = runResolveDecision(
+        character,
+        pendingDecision.event,
+        choiceId,
+      );
       if (!result) return;
 
-      set(s => {
+      set((s) => {
         if (!s.character) return;
         Object.assign(s.character, result.patch);
         s.character.eventHistory.push(result.eventRecord);
@@ -1119,37 +1451,62 @@ export const useGameStore = create<GameStore>()(
       void get()._persist();
     },
 
-    dismissDecision: () => set(s => { s.pendingDecision = null; }),
+    dismissDecision: () =>
+      set((s) => {
+        s.pendingDecision = null;
+      }),
 
     performActivity: (activityId) => {
       const { character } = get();
-      if (!character) return { success: false, message: 'No character.' };
+      if (!character) return { success: false, message: "No character." };
 
-      const activity = ACTIVITIES.find(a => a.id === activityId);
-      if (!activity) return { success: false, message: 'Unknown activity.' };
+      const activity = ACTIVITIES.find((a) => a.id === activityId);
+      if (!activity) return { success: false, message: "Unknown activity." };
       if (character.age < activity.minAge || character.age > activity.maxAge) {
-        return { success: false, message: 'Too young or too old for this activity.' };
+        return {
+          success: false,
+          message: "Too young or too old for this activity.",
+        };
       }
       if (activity.cost && character.coins < activity.cost) {
-        return { success: false, message: 'Not enough coins.' };
+        return { success: false, message: "Not enough coins." };
       }
-      if (activity.bankEffect && activity.bankEffect < 0 && character.bankBalance < Math.abs(activity.bankEffect)) {
-        return { success: false, message: 'Not enough money.' };
+      if (
+        activity.bankEffect &&
+        activity.bankEffect < 0 &&
+        character.bankBalance < Math.abs(activity.bankEffect)
+      ) {
+        return { success: false, message: "Not enough money." };
       }
 
-      const isLucky = character.traits.includes('lucky');
+      const isLucky =
+        character.traits.includes("lucky") ||
+        character.traits.includes("prestige_lucky_star");
       const hadChance = activity.successChance !== undefined;
       let luckBoosts = character.luckBoostsRemaining;
-      const success = applySuccessChance(activity.successChance, isLucky, luckBoosts);
-      if (hadChance && luckBoosts > 0) luckBoosts = consumeLuckBoost(isLucky, luckBoosts, hadChance);
+      const success = applySuccessChance(
+        activity.successChance,
+        isLucky,
+        luckBoosts,
+      );
+      if (hadChance && luckBoosts > 0)
+        luckBoosts = consumeLuckBoost(isLucky, luckBoosts, hadChance);
 
-      const effect = success ? activity.statEffect : (activity.failStatEffect ?? activity.statEffect);
+      const effect = success
+        ? activity.statEffect
+        : (activity.failStatEffect ?? activity.statEffect);
       const bankDelta = success ? (activity.bankEffect ?? 0) : 0;
       const { stats, karma, bankBalance, debt } = applyEffect(
-        character.stats, character.karma, character.bankBalance, effect, bankDelta, character.assets, character.debt ?? 0,
+        character.stats,
+        character.karma,
+        character.bankBalance,
+        effect,
+        bankDelta,
+        character.assets,
+        character.debt ?? 0,
       );
 
-      set(s => {
+      set((s) => {
         if (!s.character) return;
         s.character.stats = stats;
         s.character.karma = karma;
@@ -1157,41 +1514,60 @@ export const useGameStore = create<GameStore>()(
         s.character.debt = debt;
         s.character.luckBoostsRemaining = luckBoosts;
         if (activity.cost) s.character.coins -= activity.cost;
-        if (activity.addsPerson === 'pet') s.character.people.push(generatePet('dog'));
+        if (activity.addsPerson === "pet")
+          s.character.people.push(generatePet("dog"));
         s.character.eventHistory.push({
-          id: `activity_${activityId}_${Date.now()}`, age: character.age,
+          id: `activity_${activityId}_${Date.now()}`,
+          age: character.age,
           title: activity.label,
-          description: success ? activity.description : `${activity.description} It didn't go as planned.`,
-          statEffect: effect, category: 'activity', color: '#2DD4BF', timestamp: Date.now(),
+          description: success
+            ? activity.description
+            : `${activity.description} It didn't go as planned.`,
+          statEffect: effect,
+          category: "activity",
+          color: "#2DD4BF",
+          timestamp: Date.now(),
         });
-        s.character.netWorthPeak = Math.max(s.character.netWorthPeak, computeNetWorth(s.character));
+        s.character.netWorthPeak = Math.max(
+          s.character.netWorthPeak,
+          computeNetWorth(s.character),
+        );
       });
 
-      if (activityId === 'crime_petty' && success) {
-        const updated = recordCrime(get().character!, 'shoplifting');
-        set(s => { if (s.character) s.character.criminalRecord = updated.criminalRecord; });
+      if (activityId === "crime_petty" && success) {
+        const updated = recordCrime(get().character!, "shoplifting");
+        set((s) => {
+          if (s.character) s.character.criminalRecord = updated.criminalRecord;
+        });
       }
 
       const today = new Date().toISOString().slice(0, 10);
-      const quests = get().dailyQuests.length ? get().dailyQuests : pickDailyQuests(today);
-      const updatedQuests = updateQuestProgress(quests, 'complete_activity', 1);
+      const quests = get().dailyQuests.length
+        ? get().dailyQuests
+        : pickDailyQuests(today);
+      const updatedQuests = updateQuestProgress(quests, "complete_activity", 1);
       setDailyQuestsProgress(today, JSON.stringify(updatedQuests));
-      set(s => { s.dailyQuests = updatedQuests; });
+      set((s) => {
+        s.dailyQuests = updatedQuests;
+      });
 
       get()._checkAchievements();
       void get()._persist();
-      return { success, message: success ? 'Success!' : 'Didn\'t go as planned.' };
+      return {
+        success,
+        message: success ? "Success!" : "Didn't go as planned.",
+      };
     },
 
     interactWithPerson: (personId, interactionId) => {
       const { character } = get();
-      if (!character) return { delta: 0, message: 'No character.' };
+      if (!character) return { delta: 0, message: "No character." };
 
       const interaction = getInteraction(interactionId);
-      if (!interaction) return { delta: 0, message: 'Unknown interaction.' };
+      if (!interaction) return { delta: 0, message: "Unknown interaction." };
 
-      const person = character.people.find(p => p.id === personId);
-      if (!person) return { delta: 0, message: 'Person not found.' };
+      const person = character.people.find((p) => p.id === personId);
+      if (!person) return { delta: 0, message: "Person not found." };
 
       if (person.lastInteractionAge === character.age) {
         return {
@@ -1201,27 +1577,45 @@ export const useGameStore = create<GameStore>()(
       }
 
       const rolled = rollInteraction(interaction);
-      if (rolled.bankDelta < 0 && character.bankBalance < Math.abs(rolled.bankDelta)) {
-        return { delta: 0, message: 'Not enough money for that.' };
+      if (
+        rolled.bankDelta < 0 &&
+        character.bankBalance < Math.abs(rolled.bankDelta)
+      ) {
+        return { delta: 0, message: "Not enough money for that." };
       }
 
       const { stats, karma, bankBalance, debt } = applyEffect(
-        character.stats, character.karma, character.bankBalance,
-        {}, rolled.bankDelta, character.assets, character.debt ?? 0,
+        character.stats,
+        character.karma,
+        character.bankBalance,
+        {},
+        rolled.bankDelta,
+        character.assets,
+        character.debt ?? 0,
       );
 
-      set(s => {
+      set((s) => {
         if (!s.character) return;
-        const p = s.character.people.find(x => x.id === personId);
+        const p = s.character.people.find((x) => x.id === personId);
         if (p) {
           const engagementBonus = rolled.success ? 5 : 0;
-          p.relationshipScore = Math.max(0, Math.min(100, p.relationshipScore + rolled.delta + engagementBonus));
+          p.relationshipScore = Math.max(
+            0,
+            Math.min(100, p.relationshipScore + rolled.delta + engagementBonus),
+          );
           p.lastInteractionAge = s.character.age;
           if (!p.interactionCooldowns) p.interactionCooldowns = {};
           p.interactionCooldowns[interactionId] = s.character.age;
           const enriched = enrichPersonProfile(p);
-          Object.assign(p, appendPlayerMemory(enriched, rolled.message, s.character.age));
-          if (interactionId === 'gift' && rolled.success && enriched.secrets?.[0]) {
+          Object.assign(
+            p,
+            appendPlayerMemory(enriched, rolled.message, s.character.age),
+          );
+          if (
+            interactionId === "gift" &&
+            rolled.success &&
+            enriched.secrets?.[0]
+          ) {
             Object.assign(p, discoverSecret(enriched, enriched.secrets[0]));
           }
         }
@@ -1237,16 +1631,25 @@ export const useGameStore = create<GameStore>()(
 
     applyForJob: (jobId) => {
       const { character } = get();
-      if (!character) return { success: false, message: 'No character.' };
-      if (isInJail(character)) return { success: false, message: 'You cannot work while serving time.' };
-      if (character.age < 16) return { success: false, message: 'Too young to work.' };
+      if (!character) return { success: false, message: "No character." };
+      if (isInJail(character))
+        return {
+          success: false,
+          message: "You cannot work while serving time.",
+        };
+      if (character.age < 16)
+        return { success: false, message: "Too young to work." };
 
       // Try new career engine first
       const careerPath = getCareerById(jobId);
       if (careerPath) {
         const eligibility = checkCareerEligibility(character, jobId);
         if (!eligibility.eligible) {
-          return { success: false, message: eligibility.reason ?? 'You are not eligible for this career.' };
+          return {
+            success: false,
+            message:
+              eligibility.reason ?? "You are not eligible for this career.",
+          };
         }
         if (!rollForHire(eligibility.hireProbability)) {
           return {
@@ -1254,27 +1657,37 @@ export const useGameStore = create<GameStore>()(
             message: `You applied for ${careerPath.label} (${eligibility.hireProbability}% chance) but didn't get it. Try again.`,
           };
         }
-        const localSalary = getCountrySalary(careerPath.baseSalary, character.countryCode);
+        const localSalary = getCountrySalary(
+          careerPath.baseSalary,
+          character.countryCode,
+        );
         const career = careerPathToLegacy(careerPath);
         career.salary = localSalary;
-        set(s => {
+        set((s) => {
           if (!s.character) return;
           s.character.career = career;
           s.character.job = careerPath.label;
-          s.character.people = ensureCoworkers(s.character.people, s.character.name, careerPath.label);
+          s.character.people = ensureCoworkers(
+            s.character.people,
+            s.character.name,
+            careerPath.label,
+          );
         });
         void get()._persist();
-        return { success: true, message: `You're now a ${careerPath.label} at ${careerPath.company}!` };
+        return {
+          success: true,
+          message: `You're now a ${careerPath.label} at ${careerPath.company}!`,
+        };
       }
 
-      return { success: false, message: 'Career not found.' };
+      return { success: false, message: "Career not found." };
     },
 
     workHarder: () => {
       const { character } = get();
       if (!character?.career) return;
       if (isInJail(character)) return;
-      set(s => {
+      set((s) => {
         if (!s.character?.career) return;
         s.character.career = workHarder(s.character.career);
         s.character.stats.health = clamp(s.character.stats.health - 3);
@@ -1284,39 +1697,55 @@ export const useGameStore = create<GameStore>()(
 
     askForRaise: () => {
       const { character } = get();
-      if (!character?.career) return { success: false, message: 'You need a job first.' };
-      if (isInJail(character)) return { success: false, message: 'You cannot work while serving time.' };
+      if (!character?.career)
+        return { success: false, message: "You need a job first." };
+      if (isInJail(character))
+        return {
+          success: false,
+          message: "You cannot work while serving time.",
+        };
       const success = Math.random() < 0.65;
-      set(s => {
+      set((s) => {
         if (!s.character?.career) return;
         s.character.career = askForRaise(s.character.career, success);
       });
       void get()._persist();
       return success
-        ? { success: true, message: 'Your boss agreed to a raise!' }
-        : { success: false, message: 'Not this year — keep performing.' };
+        ? { success: true, message: "Your boss agreed to a raise!" }
+        : { success: false, message: "Not this year — keep performing." };
     },
 
     quitJob: () => {
-      set(s => {
+      set((s) => {
         if (!s.character) return;
         s.character.career = null;
-        s.character.job = 'Unemployed';
-        s.character.people = s.character.people.filter(p => p.relationType !== 'coworker');
+        s.character.job = "Unemployed";
+        s.character.people = s.character.people.filter(
+          (p) => p.relationType !== "coworker",
+        );
       });
       void get()._persist();
     },
 
     applyForPromotion: () => {
       const { character } = get();
-      if (!character?.career) return { success: false, message: 'You need a job first.' };
-      if (isInJail(character)) return { success: false, message: 'You cannot work while serving time.' };
+      if (!character?.career)
+        return { success: false, message: "You need a job first." };
+      if (isInJail(character))
+        return {
+          success: false,
+          message: "You cannot work while serving time.",
+        };
       const perfOk = character.career.performance >= 55;
       const success = perfOk && Math.random() < 0.6;
-      let message = 'Promotion denied — improve your performance.';
-      set(s => {
+      let message = "Promotion denied — improve your performance.";
+      set((s) => {
         if (!s.character?.career) return;
-        const result = applyForPromotion(s.character.career, success, s.character);
+        const result = applyForPromotion(
+          s.character.career,
+          success,
+          s.character,
+        );
         s.character.career = result.career;
         if (result.newTitle) {
           s.character.job = result.newTitle;
@@ -1324,29 +1753,42 @@ export const useGameStore = create<GameStore>()(
         }
       });
       void get()._persist();
-      return { success, message: success ? message : 'Promotion denied — improve your performance.' };
+      return {
+        success,
+        message: success
+          ? message
+          : "Promotion denied — improve your performance.",
+      };
     },
 
     reincarnate: () => {
       const { character } = get();
       if (!character) return null;
 
-      const canCarry = character.hasReincarnationScroll || character.luckBoostsRemaining > 0;
+      const canCarry =
+        character.hasReincarnationScroll || character.luckBoostsRemaining > 0;
       let carried: Partial<CharacterStats> | null = null;
 
       if (canCarry) {
-        const entries = Object.entries(character.stats) as [keyof CharacterStats, number][];
+        const entries = Object.entries(character.stats) as [
+          keyof CharacterStats,
+          number,
+        ][];
         const top3 = entries.sort((a, b) => b[1] - a[1]).slice(0, 3);
-        carried = Object.fromEntries(top3.map(([k, v]) => [k, Math.round(v * 0.5)])) as Partial<CharacterStats>;
+        carried = Object.fromEntries(
+          top3.map(([k, v]) => [k, Math.round(v * 0.5)]),
+        ) as Partial<CharacterStats>;
       }
 
       const parentDNA = character.dna;
       const parentPers = character.personality;
-      const partner = character.people.find(p => p.relationType === 'partner' || p.relationType === 'spouse');
+      const partner = character.people.find(
+        (p) => p.relationType === "partner" || p.relationType === "spouse",
+      );
       const partnerDNA = partner?.dna || generateRandomDNA();
       const partnerPers = partner?.personality || generateRandomPersonality();
 
-      set(s => {
+      set((s) => {
         s.carriedStatsForCreate = carried;
         s.carriedParentDNA = parentDNA;
         s.carriedPartnerDNA = partnerDNA;
@@ -1366,24 +1808,142 @@ export const useGameStore = create<GameStore>()(
       return carried;
     },
 
-    addLuckBoost: (n) => set(s => {
-      if (s.character) s.character.luckBoostsRemaining += n;
-    }),
+    purchasePrestigeUnlock: (traitId) => {
+      const prestige = get().globalPrestige;
+      const trait = PRESTIGE_TRAITS.find((t) => t.id === traitId);
+      if (!trait) return { ok: false, message: "Invalid prestige trait." };
+      if (prestige.prestigePoints < trait.cost) {
+        return { ok: false, message: "Not enough prestige points." };
+      }
+      if (prestige.unlockedTraitIds.includes(traitId)) {
+        return { ok: false, message: "Trait already unlocked." };
+      }
 
-    useReincarnationScroll: () => set(s => {
-      if (s.character) s.character.hasReincarnationScroll = true;
-    }),
+      const nextPrestige = {
+        ...prestige,
+        prestigePoints: prestige.prestigePoints - trait.cost,
+        unlockedTraitIds: [...prestige.unlockedTraitIds, traitId],
+      };
+
+      set((s) => {
+        s.globalPrestige = nextPrestige;
+      });
+      saveGlobalPrestige(nextPrestige);
+      return { ok: true };
+    },
+
+    resolveConflictChoice: (choice) => {
+      const conflict = get().syncConflict;
+      if (!conflict) return;
+
+      const id = get().activeSlotId;
+      const selected = choice === "local" ? conflict.local : conflict.cloud;
+      saveCharacterLocal(selected, id);
+
+      const prestige = loadGlobalPrestige();
+      set((s) => {
+        s.character = selected;
+        s.globalPrestige = prestige;
+        s.syncConflict = null;
+        s.isHydrated = true;
+      });
+      void get()._persist();
+    },
+
+    unlockFantasyDlc: (method) => {
+      const char = get().character;
+      if (!char) return { ok: false, message: "No active character." };
+      if (char.unlockedDlcIds?.includes("dlc_fantasy")) {
+        return { ok: false, message: "Fantasy DLC already unlocked!" };
+      }
+
+      let success = false;
+      let costMsg = "";
+
+      if (method === "gems") {
+        if (char.gems >= 100) {
+          set((s) => {
+            if (s.character) {
+              s.character.gems -= 100;
+              s.character.unlockedDlcIds = [
+                ...(s.character.unlockedDlcIds ?? []),
+                "dlc_fantasy",
+              ];
+            }
+          });
+          success = true;
+        } else {
+          costMsg = "Not enough gems (needs 100).";
+        }
+      } else if (method === "coins") {
+        if (char.coins >= 1000) {
+          set((s) => {
+            if (s.character) {
+              s.character.coins -= 1000;
+              s.character.unlockedDlcIds = [
+                ...(s.character.unlockedDlcIds ?? []),
+                "dlc_fantasy",
+              ];
+            }
+          });
+          success = true;
+        } else {
+          costMsg = "Not enough coins (needs 1,000).";
+        }
+      } else if (method === "prestige") {
+        const globalPrestige = get().globalPrestige;
+        if (globalPrestige.prestigeLevel >= 3) {
+          set((s) => {
+            if (s.character) {
+              s.character.unlockedDlcIds = [
+                ...(s.character.unlockedDlcIds ?? []),
+                "dlc_fantasy",
+              ];
+            }
+          });
+          success = true;
+        } else {
+          costMsg = "Requires Prestige Level 3 or higher.";
+        }
+      }
+
+      if (success) {
+        void get()._persist();
+        return { ok: true, message: "Fantasy DLC Unlocked Successfully!" };
+      }
+      return { ok: false, message: costMsg };
+    },
+
+    addLuckBoost: (n) =>
+      set((s) => {
+        if (s.character) s.character.luckBoostsRemaining += n;
+      }),
+
+    useReincarnationScroll: () =>
+      set((s) => {
+        if (s.character) s.character.hasReincarnationScroll = true;
+      }),
 
     purchaseAsset: (assetData) => {
       const { character } = get();
       if (!character) return false;
-      const downPayment = assetData.debt !== undefined ? assetData.value - assetData.debt : assetData.value;
+      const downPayment =
+        assetData.debt !== undefined
+          ? assetData.value - assetData.debt
+          : assetData.value;
       if (character.bankBalance < downPayment) return false;
 
-      set(s => {
+      set((s) => {
         if (!s.character) return;
-        s.character.assets.push({ ...assetData, id: generateId(), purchasedAge: s.character.age });
-        s.character.bankBalance = Math.max(0, s.character.bankBalance - downPayment);
+        s.character.assets.push({
+          ...assetData,
+          id: generateId(),
+          purchasedAge: s.character.age,
+        });
+        s.character.bankBalance = Math.max(
+          0,
+          s.character.bankBalance - downPayment,
+        );
         s.character.stats.wealth = clamp(computeNetWorth(s.character) / 10000);
       });
       void get()._persist();
@@ -1393,13 +1953,13 @@ export const useGameStore = create<GameStore>()(
     sellAsset: (assetId) => {
       const { character } = get();
       if (!character) return false;
-      const asset = character.assets.find(a => a.id === assetId);
+      const asset = character.assets.find((a) => a.id === assetId);
       if (!asset) return false;
       const proceeds = Math.max(0, asset.value - (asset.debt ?? 0));
 
-      set(s => {
+      set((s) => {
         if (!s.character) return;
-        s.character.assets = s.character.assets.filter(a => a.id !== assetId);
+        s.character.assets = s.character.assets.filter((a) => a.id !== assetId);
         s.character.bankBalance += proceeds;
         s.character.stats.wealth = clamp(computeNetWorth(s.character) / 10000);
       });
@@ -1407,25 +1967,39 @@ export const useGameStore = create<GameStore>()(
       return true;
     },
 
-    addCoins: (n) => { set(s => { if (s.character) s.character.coins += n; }); void get()._persist(); },
+    addCoins: (n) => {
+      set((s) => {
+        if (s.character) s.character.coins += n;
+      });
+      void get()._persist();
+    },
     spendCoins: (n) => {
       const { character } = get();
       if (!character || character.coins < n) return false;
-      set(s => { if (s.character) s.character.coins -= n; });
+      set((s) => {
+        if (s.character) s.character.coins -= n;
+      });
       void get()._persist();
       return true;
     },
-    addGems: (n) => { set(s => { if (s.character) s.character.gems += n; }); void get()._persist(); },
+    addGems: (n) => {
+      set((s) => {
+        if (s.character) s.character.gems += n;
+      });
+      void get()._persist();
+    },
     spendGems: (n) => {
       const { character } = get();
       if (!character || character.gems < n) return false;
-      set(s => { if (s.character) s.character.gems -= n; });
+      set((s) => {
+        if (s.character) s.character.gems -= n;
+      });
       void get()._persist();
       return true;
     },
 
     setPremium: (v) => {
-      set(s => {
+      set((s) => {
         if (!s.character) return;
         s.character.isPremium = v;
         if (v) {
@@ -1436,11 +2010,15 @@ export const useGameStore = create<GameStore>()(
       void get()._persist();
     },
     setNoAds: (v) => {
-      set(s => { if (s.character) s.character.hasNoAds = v; });
+      set((s) => {
+        if (s.character) s.character.hasNoAds = v;
+      });
       void get()._persist();
     },
 
-    saveGame: async () => { await get()._persist(); },
+    saveGame: async () => {
+      await get()._persist();
+    },
 
     loadGame: async (slotId?: string) => {
       const gen = ++loadGeneration;
@@ -1453,37 +2031,70 @@ export const useGameStore = create<GameStore>()(
         if (char) char = normalizeCharacter(char);
 
         const { user } = get();
+        let cloudChar: Character | null = null;
         if (isCloudUser(user?.uid)) {
           try {
-            const localUpdatedAt = char?.updatedAt ?? 0;
-            const cloudChar = await pullCloudSaveIfNewer(user!.uid, id, localUpdatedAt);
-            if (cloudChar) {
-              char = normalizeCharacter(cloudChar);
-              saveCharacterLocal(char, id);
+            const payload = await loadSaveFromCloud(user!.uid, id);
+            if (payload) {
+              cloudChar = normalizeCharacter(payload.character);
             }
           } catch (e) {
-            console.warn('[cloudSave] pull failed', e);
+            console.warn("[cloudSave] loadSaveFromCloud failed", e);
           }
         }
 
         if (gen !== loadGeneration) return;
 
-        const current = get().character;
-        if (current) {
-          if (!char || current.updatedAt > (char.updatedAt ?? 0)) {
-            set(s => { s.isHydrated = true; });
+        // Conflict Resolution Check
+        if (char && cloudChar) {
+          const localUpdatedAt = char.updatedAt ?? 0;
+          const cloudUpdatedAt = cloudChar.updatedAt ?? 0;
+          if (Math.abs(localUpdatedAt - cloudUpdatedAt) > 60 * 1000) {
+            // Suspends load and triggers comparison modal
+            set((s) => {
+              s.activeSlotId = id;
+              s.syncConflict = {
+                local: char!,
+                cloud: cloudChar!,
+                resolve: (choice) => get().resolveConflictChoice(choice),
+              };
+            });
             return;
           }
         }
 
-        set(s => {
+        // Standard conflict resolution if drift is small or only one save exists
+        if (cloudChar) {
+          const localUpdatedAt = char?.updatedAt ?? 0;
+          if (cloudChar.updatedAt > localUpdatedAt) {
+            char = cloudChar;
+            saveCharacterLocal(char, id);
+          }
+        }
+
+        const current = get().character;
+        if (current) {
+          if (!char || current.updatedAt > (char.updatedAt ?? 0)) {
+            set((s) => {
+              s.isHydrated = true;
+            });
+            return;
+          }
+        }
+
+        const prestige = loadGlobalPrestige();
+        set((s) => {
           s.character = char;
           s.activeSlotId = id;
+          s.globalPrestige = prestige;
+          s.syncConflict = null;
           s.isHydrated = true;
         });
       } catch {
         if (gen === loadGeneration) {
-          set(s => { s.isHydrated = true; });
+          set((s) => {
+            s.isHydrated = true;
+          });
         }
       }
     },
@@ -1503,14 +2114,14 @@ export const useGameStore = create<GameStore>()(
       loadGeneration += 1;
       deleteCharacterLocal(slotId);
       const { user, activeSlotId } = get();
-      if (user && !user.uid.startsWith('local_guest_')) {
+      if (user && !user.uid.startsWith("local_guest_")) {
         try {
           await deleteCloudSave(user.uid, slotId);
         } catch {
           /* cloud delete is best-effort */
         }
       }
-      set(s => {
+      set((s) => {
         if (activeSlotId === slotId) {
           s.character = null;
           s.pendingDecision = null;
@@ -1518,7 +2129,7 @@ export const useGameStore = create<GameStore>()(
         }
         s.slotList = buildLocalSlotList();
       });
-      if (user && !user.uid.startsWith('local_guest_')) {
+      if (user && !user.uid.startsWith("local_guest_")) {
         await get().refreshSlotList();
       }
     },
@@ -1527,7 +2138,7 @@ export const useGameStore = create<GameStore>()(
       loadGeneration += 1;
       const slotId = get().activeSlotId;
       deleteCharacterLocal(slotId);
-      set(s => {
+      set((s) => {
         s.character = null;
         s.pendingDecision = null;
         s.isProcessing = false;
@@ -1544,13 +2155,13 @@ export const useGameStore = create<GameStore>()(
       const previous = [...character.achievements];
       const earned = evaluateAchievements(character);
       let coinReward = 0;
-      getNewAchievementIds(previous, earned).forEach(id => {
+      getNewAchievementIds(previous, earned).forEach((id) => {
         coinReward += ACHIEVEMENT_COIN_REWARDS[id] ?? 50;
       });
 
       const newCount = earned.size - previous.length;
       if (earned.size !== character.achievements.length || coinReward > 0) {
-        set(s => {
+        set((s) => {
           if (!s.character) return;
           s.character.achievements = Array.from(earned);
           if (coinReward > 0) s.character.coins += coinReward;
@@ -1558,7 +2169,7 @@ export const useGameStore = create<GameStore>()(
         if (coinReward > 0) void get()._persist();
         if (newCount > 0) {
           hapticAchievement();
-          void playSound('achievement_unlock');
+          void playSound("achievement_unlock");
         }
       }
     },

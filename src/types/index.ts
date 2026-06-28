@@ -368,6 +368,7 @@ export interface WillDetails {
 export interface Character {
   id: string;
   name: string;
+  activeChallengeId?: string;
   gender: Gender;
   avatarSeed: string;
   avatarId: AvatarId; // kept for backward compat
@@ -446,6 +447,7 @@ export interface Character {
   familyLineage?: FamilyLineageEntry[];
   activeWorldEvents?: string[];
   will?: WillDetails;
+  unlockedDlcIds?: string[];
 }
 
 // ─── Life Events ─────────────────────────────────────────────────────────────
@@ -566,7 +568,16 @@ export type RootStackParamList = {
   WillEditor: undefined;
   LifeMuseum: undefined;
   WorldEvents: undefined;
+  ChallengeMode: undefined;
+  Prestige: undefined;
+  LiveOps: undefined;
 };
+
+export interface SyncConflict {
+  local: Character;
+  cloud: Character;
+  resolve: (choice: 'local' | 'cloud') => void;
+}
 
 export type MainTabParamList = {
   Life: undefined;
@@ -658,4 +669,29 @@ export interface SeasonProgress {
   seasonId: string;
   xp: number;
   claimedTiers: number[];
+}
+
+// ─── Challenge & Prestige ───────────────────────────────────────────────────
+
+export type ChallengeId =
+  | 'rags_to_riches'
+  | 'zero_crime_saint'
+  | 'long_life'
+  | 'no_relationships'
+  | 'speedrun_millionaire';
+
+export interface Challenge {
+  id: ChallengeId;
+  title: string;
+  description: string;
+  rules: string[];
+  pointsReward: number;
+}
+
+export interface GlobalPrestigeState {
+  prestigePoints: number;
+  prestigeLevel: number;
+  totalLivesLived: number;
+  completedChallengeIds: ChallengeId[];
+  unlockedTraitIds: string[];
 }

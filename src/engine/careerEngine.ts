@@ -197,7 +197,7 @@ export function computeHireProbability(
   const eduBonus    = Math.min(20, Math.max(0, (charEduRank - reqEduRank) * 5));
   const socialBonus = Math.min(10, (character.stats.social / 100) * 10);
   const ambitionBonus = Math.min(5, (character.stats.ambition / 100) * 5);
-  const luckyBonus = character.traits.includes('lucky') ? 8 : 0;
+  const luckyBonus = (character.traits.includes('lucky') || character.traits.includes('prestige_lucky_star')) ? 8 : 0;
   const seniorityPenalty = (career.seniorityLevel - 1) * 5;
   const gpaBonus = character.gpa ? Math.min(10, (character.gpa / 4) * 10) : 0;
   const creditBonus = character.creditScore

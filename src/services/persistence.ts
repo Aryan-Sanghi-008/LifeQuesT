@@ -1,13 +1,22 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Character, MAX_SAVE_SLOTS, EducationLevel, BusinessEmployee } from '../types';
-import { generateRandomDNA, generateRandomPersonality } from '../utils/genetics';
-import { getLifeStage } from '../utils/lifeStage';
-import { isMmkvAvailable } from '../utils/nativeAvailability';
-import { stageToLegacyEducationLevel } from '../data/educationDegrees';
-import type { EducationStage } from '../data/educationDegrees';
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  Character,
+  MAX_SAVE_SLOTS,
+  EducationLevel,
+  BusinessEmployee,
+  GlobalPrestigeState,
+} from "../types";
+import {
+  generateRandomDNA,
+  generateRandomPersonality,
+} from "../utils/genetics";
+import { getLifeStage } from "../utils/lifeStage";
+import { isMmkvAvailable } from "../utils/nativeAvailability";
+import { stageToLegacyEducationLevel } from "../data/educationDegrees";
+import type { EducationStage } from "../data/educationDegrees";
 
-const LEGACY_KEY = 'lifequest_v3_save';
-const LEGACY_V2_KEY = 'lifequest_v2_save';
+const LEGACY_KEY = "lifequest_v3_save";
+const LEGACY_V2_KEY = "lifequest_v2_save";
 
 type MmkvStorage = {
   getString: (key: string) => string | undefined;
@@ -22,9 +31,9 @@ let asyncHydrated = false;
 
 function getMmkvStorage(): MmkvStorage {
   if (mmkvStorage) return mmkvStorage;
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { MMKV } = require('react-native-mmkv') as typeof import('react-native-mmkv');
-  const instance = new MMKV({ id: 'lifequest' });
+  const { MMKV } =
+    require("react-native-mmkv") as typeof import("react-native-mmkv");
+  const instance = new MMKV({ id: "lifequest" });
   mmkvStorage = {
     getString: (key) => instance.getString(key),
     set: (key, value) => instance.set(key, value),
@@ -41,7 +50,7 @@ function canUseMmkvStorage(): boolean {
   } catch (e) {
     mmkvDisabled = true;
     mmkvStorage = null;
-    console.warn('[persistence] MMKV init failed — using AsyncStorage', e);
+    console.warn("[persistence] MMKV init failed — using AsyncStorage", e);
     return false;
   }
 }
@@ -91,18 +100,21 @@ function slotKey(slotId: string) {
 }
 
 function activeSlotKey() {
-  return 'active_slot_id';
+  return "active_slot_id";
 }
 
 export function getActiveSlotId(): string {
-  return getString(activeSlotKey()) ?? '0';
+  return getString(activeSlotKey()) ?? "0";
 }
 
 export function setActiveSlotId(slotId: string) {
   setString(activeSlotKey(), slotId);
 }
 
-export function saveCharacterLocal(character: Character, slotId = getActiveSlotId()) {
+export function saveCharacterLocal(
+  character: Character,
+  slotId = getActiveSlotId(),
+) {
   setString(slotKey(slotId), JSON.stringify(character));
 }
 
@@ -128,21 +140,21 @@ export function listLocalSlots(): string[] {
 export async function migrateLegacySaves(): Promise<Character | null> {
   await hydrateAsyncCache();
 
-  if (loadCharacterLocal('0')) return null;
+  if (loadCharacterLocal("0")) return null;
 
   let raw = await AsyncStorage.getItem(LEGACY_KEY);
   if (!raw) raw = await AsyncStorage.getItem(LEGACY_V2_KEY);
   if (!raw) return null;
 
   const char = JSON.parse(raw) as Character;
-  saveCharacterLocal(char, '0');
-  setActiveSlotId('0');
+  saveCharacterLocal(char, "0");
+  setActiveSlotId("0");
   await AsyncStorage.removeItem(LEGACY_KEY);
   await AsyncStorage.removeItem(LEGACY_V2_KEY);
   return char;
 }
 
-const DAILY_BONUS_KEY = 'daily_bonus_last_claim';
+const DAILY_BONUS_KEY = "daily_bonus_last_claim";
 
 export function getDailyBonusLastClaim(): string | null {
   return getString(DAILY_BONUS_KEY) ?? null;
@@ -156,34 +168,50 @@ function migrateBusinessEmployees(
   employees: BusinessEmployee[] | number | undefined,
 ): BusinessEmployee[] {
   if (Array.isArray(employees)) return employees;
-  if (typeof employees === 'number' && employees > 0) {
+  if (typeof employees === "number" && employees > 0) {
     return Array.from({ length: employees }, (_, i) => ({
       id: `emp_migrated_${i}`,
-      name: i === 0 ? 'Founder' : `Employee ${i}`,
-      role: i === 0 ? 'CEO' : 'Staff',
+      name: i === 0 ? "Founder" : `Employee ${i}`,
+      role: i === 0 ? "CEO" : "Staff",
       salary: i === 0 ? 0 : 30000,
       performance: 60,
     }));
   }
-  return [{ id: 'emp_founder', name: 'Founder', role: 'CEO', salary: 0, performance: 80 }];
+  return [
+    {
+      id: "emp_founder",
+      name: "Founder",
+      role: "CEO",
+      salary: 0,
+      performance: 80,
+    },
+  ];
 }
 
 export function normalizeCharacter(char: Character): Character {
-  if (!char.gender) char.gender = 'male';
+  if (!char.gender) char.gender = "male";
   if (!char.avatarSeed) char.avatarSeed = char.name + char.id;
   if (!char.lifeStage) char.lifeStage = getLifeStage(char.age);
   if (!char.bankBalance) char.bankBalance = char.stats.wealth * 100;
   if (char.debt === undefined) char.debt = 0;
-  if (!char.educationLevel) char.educationLevel = 'none';
+  if (!char.educationLevel) char.educationLevel = "none";
   if (!char.people) char.people = [];
   if (!char.career) char.career = null;
   if (!char.assets) char.assets = [];
   if (!char.businesses) char.businesses = [];
   if (char.socialFollowers === undefined) char.socialFollowers = 0;
-  if (!char.avatarStyle || char.avatarStyle === ('pixel_art' as string)) {
-    char.avatarStyle = char.gender === 'female' ? 'lorelei' : char.gender === 'other' ? 'notionists' : 'adventurer';
+  if (!char.avatarStyle || char.avatarStyle === ("pixel_art" as string)) {
+    char.avatarStyle =
+      char.gender === "female"
+        ? "lorelei"
+        : char.gender === "other"
+          ? "notionists"
+          : "adventurer";
   }
-  if (!char.unlockedAvatarStyles || (char.unlockedAvatarStyles as string[]).includes('pixel_art')) {
+  if (
+    !char.unlockedAvatarStyles ||
+    (char.unlockedAvatarStyles as string[]).includes("pixel_art")
+  ) {
     char.unlockedAvatarStyles = [char.avatarStyle];
   }
   if (char.seasonXp === undefined) char.seasonXp = 0;
@@ -193,23 +221,37 @@ export function normalizeCharacter(char: Character): Character {
   if (!char.certificationIds) char.certificationIds = [];
   if (char.totalCareerYears === undefined) char.totalCareerYears = 0;
   if (!char.eventCooldowns) char.eventCooldowns = {};
-  if (!char.educationStage) char.educationStage = 'none';
-  if (!char.educationBranch) char.educationBranch = 'none';
-  if (char.educationStage && char.educationStage !== 'none') {
-    const fromStage = stageToLegacyEducationLevel(char.educationStage as EducationStage);
-    const levels: EducationLevel[] = ['none', 'elementary', 'secondary', 'university', 'graduate'];
+  if (!char.educationStage) char.educationStage = "none";
+  if (!char.educationBranch) char.educationBranch = "none";
+  if (char.educationStage && char.educationStage !== "none") {
+    const fromStage = stageToLegacyEducationLevel(
+      char.educationStage as EducationStage,
+    );
+    const levels: EducationLevel[] = [
+      "none",
+      "elementary",
+      "secondary",
+      "university",
+      "graduate",
+    ];
     const stageIdx = levels.indexOf(fromStage);
-    const levelIdx = levels.indexOf(char.educationLevel ?? 'none');
+    const levelIdx = levels.indexOf(char.educationLevel ?? "none");
     if (stageIdx > levelIdx) {
       char.educationLevel = fromStage;
     }
   }
-  if (!char.stats.mentalHealth) char.stats.mentalHealth = char.stats.happiness ?? 70;
+  if (!char.stats.mentalHealth)
+    char.stats.mentalHealth = char.stats.happiness ?? 70;
   if (!char.criminalRecord) {
-    char.criminalRecord = { crimes: [], jailYearsRemaining: 0, onProbation: false };
+    char.criminalRecord = {
+      crimes: [],
+      jailYearsRemaining: 0,
+      onProbation: false,
+    };
   }
   if (char.luckBoostsRemaining === undefined) char.luckBoostsRemaining = 0;
-  if (char.hasReincarnationScroll === undefined) char.hasReincarnationScroll = false;
+  if (char.hasReincarnationScroll === undefined)
+    char.hasReincarnationScroll = false;
   if (!char.updatedAt) char.updatedAt = char.createdAt ?? Date.now();
   if (!char.dna) char.dna = generateRandomDNA();
   if (!char.personality) char.personality = generateRandomPersonality();
@@ -221,44 +263,45 @@ export function normalizeCharacter(char: Character): Character {
   if (!char.focusDomainsUsed) char.focusDomainsUsed = [];
   if (!char.focusPointsSpent) char.focusPointsSpent = {};
   if (char.focusConfirmedForAge === undefined) char.focusConfirmedForAge = -1;
-  if (!char.lifePhase) char.lifePhase = 'planning';
+  if (!char.lifePhase) char.lifePhase = "planning";
   if (char.creditScore === undefined) char.creditScore = 650;
-  if (char.heatLevel === undefined) char.heatLevel = char.criminalRecord?.heatLevel ?? 0;
+  if (char.heatLevel === undefined)
+    char.heatLevel = char.criminalRecord?.heatLevel ?? 0;
   if (!char.hobbyProgress) char.hobbyProgress = {};
   if (!char.socialPosts) char.socialPosts = [];
-  char.businesses = (char.businesses ?? []).map(b => ({
+  char.businesses = (char.businesses ?? []).map((b) => ({
     ...b,
     employees: migrateBusinessEmployees(b.employees),
     payrollMonthly: b.payrollMonthly ?? 0,
   }));
 
   // Ensure all people have the interactionCooldowns record (added in v4+ fix)
-  char.people = char.people.map(p => ({
+  char.people = char.people.map((p) => ({
     ...p,
     interactionCooldowns: p.interactionCooldowns ?? {},
     dna: p.dna ?? generateRandomDNA(),
     personality: p.personality ?? generateRandomPersonality(),
-    goals: p.goals ?? ['Career success'],
-    mood: p.mood ?? 'Neutral',
+    goals: p.goals ?? ["Career success"],
+    mood: p.mood ?? "Neutral",
     memoriesOfPlayer: p.memoriesOfPlayer ?? [],
-    secrets: p.secrets ?? ['Unspoken dream'],
+    secrets: p.secrets ?? ["Unspoken dream"],
     discoveredSecrets: p.discoveredSecrets ?? [],
   }));
   return char;
 }
 
-const NOTIFICATIONS_KEY = 'notifications_enabled';
-const DAILY_QUESTS_PREFIX = 'daily_quests_';
+const NOTIFICATIONS_KEY = "notifications_enabled";
+const DAILY_QUESTS_PREFIX = "daily_quests_";
 
 export function getNotificationsEnabled(): boolean {
   const v = getString(NOTIFICATIONS_KEY);
   // Default to true on first install so users get daily reminders.
   // Only returns false when explicitly set to 'false'.
-  return v !== 'false';
+  return v !== "false";
 }
 
 export function setNotificationsEnabled(enabled: boolean): void {
-  setString(NOTIFICATIONS_KEY, enabled ? 'true' : 'false');
+  setString(NOTIFICATIONS_KEY, enabled ? "true" : "false");
 }
 
 export function getDailyQuestsProgress(dateKey: string): string | null {
@@ -269,7 +312,7 @@ export function setDailyQuestsProgress(dateKey: string, json: string): void {
   setString(`${DAILY_QUESTS_PREFIX}${dateKey}`, json);
 }
 
-const WIDGET_SNAPSHOT_KEY = 'widget_character_snapshot';
+const WIDGET_SNAPSHOT_KEY = "widget_character_snapshot";
 
 export function saveWidgetSnapshot(snapshot: string): void {
   setString(WIDGET_SNAPSHOT_KEY, snapshot);
@@ -279,13 +322,13 @@ export function getWidgetSnapshot(): string | null {
   return getString(WIDGET_SNAPSHOT_KEY) ?? null;
 }
 
-const HAPTICS_KEY = 'haptics_enabled';
-const SOUND_KEY = 'sound_enabled';
-const LEADERBOARD_CACHE_KEY = 'leaderboard_cache';
+const HAPTICS_KEY = "haptics_enabled";
+const SOUND_KEY = "sound_enabled";
+const LEADERBOARD_CACHE_KEY = "leaderboard_cache";
 
 export function getHapticsEnabled(): boolean {
   const v = getString(HAPTICS_KEY);
-  return v === null || v === 'true';
+  return v === null || v === "true";
 }
 
 export function hasExplicitHapticsSetting(): boolean {
@@ -293,12 +336,12 @@ export function hasExplicitHapticsSetting(): boolean {
 }
 
 export function setHapticsEnabled(enabled: boolean): void {
-  setString(HAPTICS_KEY, enabled ? 'true' : 'false');
+  setString(HAPTICS_KEY, enabled ? "true" : "false");
 }
 
 export function getSoundEnabled(): boolean {
   const v = getString(SOUND_KEY);
-  return v === null || v === 'true';
+  return v === null || v === "true";
 }
 
 export function hasExplicitSoundSetting(): boolean {
@@ -306,7 +349,7 @@ export function hasExplicitSoundSetting(): boolean {
 }
 
 export function setSoundEnabled(enabled: boolean): void {
-  setString(SOUND_KEY, enabled ? 'true' : 'false');
+  setString(SOUND_KEY, enabled ? "true" : "false");
 }
 
 export function getLeaderboardCache(): string | null {
@@ -315,4 +358,35 @@ export function getLeaderboardCache(): string | null {
 
 export function setLeaderboardCache(json: string): void {
   setString(LEADERBOARD_CACHE_KEY, json);
+}
+
+const PRESTIGE_KEY = "global_prestige_state";
+
+const DEFAULT_PRESTIGE: GlobalPrestigeState = {
+  prestigePoints: 0,
+  prestigeLevel: 1,
+  totalLivesLived: 0,
+  completedChallengeIds: [],
+  unlockedTraitIds: [],
+};
+
+export function loadGlobalPrestige(): GlobalPrestigeState {
+  const raw = getString(PRESTIGE_KEY);
+  if (!raw) return DEFAULT_PRESTIGE;
+  try {
+    const parsed = JSON.parse(raw);
+    return {
+      prestigePoints: parsed.prestigePoints ?? 0,
+      prestigeLevel: parsed.prestigeLevel ?? 1,
+      totalLivesLived: parsed.totalLivesLived ?? 0,
+      completedChallengeIds: parsed.completedChallengeIds ?? [],
+      unlockedTraitIds: parsed.unlockedTraitIds ?? [],
+    };
+  } catch {
+    return DEFAULT_PRESTIGE;
+  }
+}
+
+export function saveGlobalPrestige(state: GlobalPrestigeState): void {
+  setString(PRESTIGE_KEY, JSON.stringify(state));
 }
