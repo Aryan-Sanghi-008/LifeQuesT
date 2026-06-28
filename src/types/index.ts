@@ -351,6 +351,20 @@ export type AvatarStyleId =
   | 'big-smile';          // Fun cheerful style
 export type Gender = 'male' | 'female' | 'other' | 'animal'; // 'animal' for pets
 
+export interface FamilyLineageEntry {
+  generation: number;
+  name: string;
+  lifespan: number;
+  netWorth: number;
+  deathCause: string;
+  birthYear: number;
+}
+
+export interface WillDetails {
+  type: 'equal' | 'spouse' | 'charity' | 'heir';
+  targetHeirId?: string;
+}
+
 export interface Character {
   id: string;
   name: string;
@@ -427,6 +441,11 @@ export interface Character {
   legalCase?: LegalCase;
   createdAt: number;
   updatedAt: number;
+  generation?: number;
+  dynastyScore?: number;
+  familyLineage?: FamilyLineageEntry[];
+  activeWorldEvents?: string[];
+  will?: WillDetails;
 }
 
 // ─── Life Events ─────────────────────────────────────────────────────────────
@@ -543,6 +562,10 @@ export type RootStackParamList = {
   PetCare: { personId: string };
   HobbyDetail: { hobbyId: string };
   Mortgage: { propertyDefId: string };
+  FamilyTree: undefined;
+  WillEditor: undefined;
+  LifeMuseum: undefined;
+  WorldEvents: undefined;
 };
 
 export type MainTabParamList = {
@@ -594,6 +617,8 @@ export interface SaveSlot {
   age: number;
   isAlive: boolean;
   updatedAt: number;
+  generation?: number;
+  heirTransitionsCount?: number;
 }
 
 export const MAX_SAVE_SLOTS = 3;

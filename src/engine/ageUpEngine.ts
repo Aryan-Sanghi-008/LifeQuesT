@@ -23,7 +23,7 @@ import { tickMentalHealth } from './mentalHealthEngine';
 import { recordCrime, tickJail, isInJail, tickProbation, decayHeat } from './crimeEngine';
 import { advanceRelationship, applyRelationshipDecay } from './relationshipEngine';
 import { tickAllBusinesses } from './businessEngine';
-import { tickAllProperties, getAnnualMortgagePayments, getPropertyMaintenanceCost } from './housingEngine';
+import { getAnnualMortgagePayments, getPropertyMaintenanceCost, tickPropertyYear } from './housingEngine';
 import { tickAllPets } from './petEngine';
 import { tickSocialYear } from './socialMediaEngine';
 import { tickHobbyDecay } from './hobbyEngine';
@@ -31,6 +31,11 @@ import { advanceToTrial } from './legalEngine';
 import { runAnnualSimulation } from './simulationEngine';
 import { computeDeathChance } from './mortalityEngine';
 import { inferContextualCertification } from './certificationEngine';
+import { crossoverDNA, crossoverPersonality, generateRandomDNA, generateRandomPersonality } from '../utils/genetics';
+import { tickWorldEvents, getWorldEventModifiers } from './worldEngine';
+import { tickNpcAutonomy } from './npcAutonomyEngine';
+import { PROPERTY_MAP } from '../data/properties';
+
 
 function generateId(): string {
   return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -174,6 +179,12 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
   }
 
   const newAge = character.age + 1;
+
+  // Phase C: Tick world events
+  const worldResult = tickWorldEvents(character.activeWorldEvents ?? []);
+  const activeWorldEvents = worldResult.nextEvents;
+  const worldModifiers = getWorldEventModifiers(activeWorldEvents);
+
   const luckBoosts = character.luckBoostsRemaining;
   let memories = [...(character.memories ?? [])];
   let memoryTags = [...(character.memoryTags ?? [])];
@@ -191,8 +202,8 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
   };
 
   const agingEffect: StatEffect = {
-    health: getDecline('health', 40, 1),
-    happiness: -1,
+    health: getDecline('health', 40, 1) + worldModifiers.healthDelta,
+    happiness: -1 + worldModifiers.happinessDelta,
     fitness: getDecline('fitness', 30, 1),
     looks: getDecline('looks', 35, 1),
   };
@@ -232,7 +243,31 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
   bankBalance = economy.bankBalance;
   debt = economy.debt;
 
-  let assets = tickAllProperties(character.assets);
+  // Apply world event tax modifiers
+  if (worldModifiers.taxRateDelta !== 0 && salary > 0) {
+    const extraTax = Math.round(salary * worldModifiers.taxRateDelta);
+    economy.taxPaid += extraTax;
+    economy.salaryNet = Math.max(0, economy.salaryNet - extraTax);
+    const cashRes = applyCashDelta(bankBalance, debt, -extraTax);
+    bankBalance = cashRes.bankBalance;
+    debt = cashRes.debt;
+    economy.bankBalance = bankBalance;
+    economy.debt = debt;
+  }
+
+  // Tick properties with world appreciation multiplier
+  let assets = character.assets.map(a => {
+    if (a.type !== 'property') return a;
+    const nextAsset = tickPropertyYear(a);
+    if (worldModifiers.propertyAppreciationMultiplier !== 1.0) {
+      const def = a.propertyDefId ? PROPERTY_MAP[a.propertyDefId] : undefined;
+      const baseAppreciation = def?.appreciationPct ?? 0.02;
+      const extraAppreciation = baseAppreciation * (worldModifiers.propertyAppreciationMultiplier - 1.0);
+      nextAsset.value = Math.max(0, Math.round(nextAsset.value * (1 + extraAppreciation)));
+    }
+    return nextAsset;
+  });
+
   const housingCosts = getAnnualMortgagePayments(assets) + getPropertyMaintenanceCost(assets);
   if (housingCosts > 0) {
     const housingCash = applyCashDelta(bankBalance, debt, -housingCosts);
@@ -347,6 +382,21 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
   const autoEvents = chosenEvents.filter(e => !e.choices?.length);
 
   const newRecords: LifeEventRecord[] = [...economyRecords, ...stressRecords, ...eduMilestoneRecords];
+  
+  // Push world event logs into newRecords
+  worldResult.logs.forEach(log => {
+    newRecords.push({
+      id: `world_event_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
+      age: newAge,
+      title: 'World Event',
+      description: log,
+      statEffect: {},
+      category: 'random',
+      color: '#3B82F6',
+      timestamp: Date.now(),
+    });
+  });
+
   let updatedJob = character.job;
   let certificationIds = [...(character.certificationIds ?? [])];
 
@@ -354,6 +404,32 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
   const decayResult = applyRelationshipDecay(agedPeople, newAge);
   let updatedPeople = decayResult.people;
   newRecords.push(...decayResult.records);
+
+  // Phase C: tick NPC autonomy and background inheritance
+  const autonomyResult = tickNpcAutonomy(
+    updatedPeople,
+    newAge,
+    stats.wealth,
+    character.familyBackground,
+  );
+  updatedPeople = autonomyResult.people;
+  autonomyResult.logs.forEach(log => {
+    newRecords.push({
+      id: `npc_autonomy_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
+      age: newAge,
+      title: 'Family Update',
+      description: log,
+      statEffect: {},
+      category: 'family',
+      color: '#EC4899',
+      timestamp: Date.now(),
+    });
+  });
+  if (autonomyResult.bankDelta !== 0) {
+    const cashRes = applyCashDelta(bankBalance, debt, autonomyResult.bankDelta);
+    bankBalance = cashRes.bankBalance;
+    debt = cashRes.debt;
+  }
 
   if (newAge >= 5 && newAge <= 18) {
     updatedPeople = ensureTeachers(updatedPeople, character.name);
@@ -420,6 +496,11 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
     if (event.incrementsChildren) {
       updatedChildren += 1;
       const childName = `${character.name.split(' ')[0]} Jr.`;
+      const partner = updatedPeople.find(p => p.relationType === 'partner' || p.relationType === 'spouse');
+      const partnerDNA = partner?.dna || generateRandomDNA();
+      const partnerPers = partner?.personality || generateRandomPersonality();
+      const childDNA = crossoverDNA(character.dna, partnerDNA);
+      const childPers = crossoverPersonality(character.personality, partnerPers);
       updatedPeople.push({
         id: generateId(),
         name: childName,
@@ -429,6 +510,8 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
         relationshipScore: 80,
         avatarSeed: childName,
         isAlive: true,
+        dna: childDNA,
+        personality: childPers,
       });
     }
     if (event.addsPerson?.relationType === 'pet') updatedPeople.push(generatePet('dog'));
@@ -523,6 +606,11 @@ export function runAgeUp(character: Character, options?: AgeUpOptions): AgeUpOut
       focusAllocation,
       statDeltas,
     },
+    activeWorldEvents,
+    generation: character.generation ?? 1,
+    dynastyScore: character.dynastyScore ?? 0,
+    familyLineage: character.familyLineage ?? [],
+    will: character.will,
     ...probationPatch,
   };
 

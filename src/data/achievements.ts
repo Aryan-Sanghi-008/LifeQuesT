@@ -60,6 +60,12 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   { id: 'memory_hoarder', label: 'Living History', description: 'Collect 25 memory tags', color: COLORS.gold },
   { id: 'decade_life', label: 'Decade Survivor', description: 'Live to age 10', color: COLORS.teal },
   { id: 'half_century', label: 'Half Century', description: 'Live to age 50', color: COLORS.emerald },
+  { id: 'dynasty_3', label: 'Dynasty III', description: 'Reach Generation 3', color: COLORS.orchid },
+  { id: 'dynasty_5', label: 'Dynasty V', description: 'Reach Generation 5', color: COLORS.gold },
+  { id: 'will_charity', label: 'Saintly Departure', description: 'Leave everything to charity in your will', color: COLORS.teal },
+  { id: 'will_heir', label: 'Chosen Successor', description: 'Pass all wealth to a single chosen heir', color: COLORS.gold2 },
+  { id: 'dynasty_millionaire', label: 'Golden Spoon', description: 'Inherit over $1,000,000 as heir', color: COLORS.gold },
+  { id: 'world_crisis_survivor', label: 'Crisis Survivor', description: 'Survive a recession and a pandemic in a single life', color: COLORS.crimson },
 ];
 
 const ACHIEVEMENT_LEGACY_REWARDS: Record<string, number> = {
@@ -75,6 +81,12 @@ const ACHIEVEMENT_LEGACY_REWARDS: Record<string, number> = {
   globetrotter: 175,
   rich_kid: 350,
   fitness_buff: 200,
+  dynasty_3: 400,
+  dynasty_5: 600,
+  will_charity: 300,
+  will_heir: 300,
+  dynasty_millionaire: 500,
+  world_crisis_survivor: 400,
 };
 
 export const ACHIEVEMENT_COIN_REWARDS: Record<string, number> = Object.fromEntries(

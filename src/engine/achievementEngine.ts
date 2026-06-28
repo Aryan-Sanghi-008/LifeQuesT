@@ -85,6 +85,18 @@ export function evaluateAchievements(character: Character): Set<string> {
   if (age >= 10) earned.add('decade_life');
   if (age >= 50) earned.add('half_century');
 
+  // Phase C Achievements
+  const gen = character.generation ?? 1;
+  if (gen >= 3) earned.add('dynasty_3');
+  if (gen >= 5) earned.add('dynasty_5');
+  if (character.will?.type === 'charity') earned.add('will_charity');
+  if (character.will?.type === 'heir') earned.add('will_heir');
+  if (character.bankBalance >= 1000000 && gen > 1) earned.add('dynasty_millionaire');
+  
+  const hasRecession = character.eventHistory.some(e => e.description.toLowerCase().includes('recession'));
+  const hasPandemic = character.eventHistory.some(e => e.description.toLowerCase().includes('pandemic'));
+  if (hasRecession && hasPandemic) earned.add('world_crisis_survivor');
+
   return earned;
 }
 

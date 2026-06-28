@@ -71,7 +71,9 @@ export function SaveSlotScreen({ navigation }: Props) {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.slotName}>{empty ? 'Empty Slot' : slot.name}</Text>
                   <Text style={styles.slotMeta}>
-                    {empty ? 'Start a new life' : `Age ${slot.age} · ${slot.isAlive ? 'Alive' : 'Deceased'}`}
+                    {empty 
+                      ? 'Start a new life' 
+                      : `Age ${slot.age} · ${slot.isAlive ? 'Alive' : 'Deceased'}${slot.generation && slot.generation > 1 ? ` · Gen ${slot.generation} (${slot.heirTransitionsCount} Heirs)` : ''}`}
                   </Text>
                 </View>
                 {!empty && (

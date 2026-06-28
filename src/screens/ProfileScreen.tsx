@@ -416,6 +416,80 @@ export function ProfileScreen() {
             </Card>
           </View>
 
+          {/* ── Legacy & Generations ── */}
+          <View style={styles.section}>
+            <SectionLabel label="Legacy & Bloodline" />
+            <Card style={{ gap: 0 }}>
+              <Pressable
+                style={styles.menuItemRow}
+                onPress={() => navigation.navigate('FamilyTree')}
+              >
+                <View style={styles.menuItemLeft}>
+                  <View style={[styles.menuItemIcon, { backgroundColor: `${COLORS.catRelationship}15` }]}>
+                    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                      <Circle stroke={COLORS.catRelationship} strokeWidth={2} cx="12" cy="5" r="3"/>
+                      <Path stroke={COLORS.catRelationship} strokeWidth={2} d="M6 12h12M12 8v8"/>
+                      <Circle stroke={COLORS.catRelationship} strokeWidth={2} cx="6" cy="19" r="3"/>
+                      <Circle stroke={COLORS.catRelationship} strokeWidth={2} cx="18" cy="19" r="3"/>
+                    </Svg>
+                  </View>
+                  <View>
+                    <Text style={styles.menuItemLabel}>Family Tree & Lineage</Text>
+                    <Text style={styles.menuItemSub}>View generations and living relatives</Text>
+                  </View>
+                </View>
+                <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                  <Path stroke={COLORS.t4} strokeWidth={2} strokeLinecap="round" d="M9 18l6-6-6-6"/>
+                </Svg>
+              </Pressable>
+              
+              <Divider />
+              
+              <Pressable
+                style={styles.menuItemRow}
+                onPress={() => navigation.navigate('WillEditor')}
+              >
+                <View style={styles.menuItemLeft}>
+                  <View style={[styles.menuItemIcon, { backgroundColor: `${COLORS.teal}15` }]}>
+                    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                      <Path stroke={COLORS.teal} strokeWidth={2} d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+                      <Path stroke={COLORS.teal} strokeWidth={2} d="M14 2v6h6M16 13H8M16 17H8"/>
+                    </Svg>
+                  </View>
+                  <View>
+                    <Text style={styles.menuItemLabel}>Last Will & Testament</Text>
+                    <Text style={styles.menuItemSub}>Configure inheritance settings</Text>
+                  </View>
+                </View>
+                <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                  <Path stroke={COLORS.t4} strokeWidth={2} strokeLinecap="round" d="M9 18l6-6-6-6"/>
+                </Svg>
+              </Pressable>
+
+              <Divider />
+
+              <Pressable
+                style={styles.menuItemRow}
+                onPress={() => navigation.navigate('LifeMuseum')}
+              >
+                <View style={styles.menuItemLeft}>
+                  <View style={[styles.menuItemIcon, { backgroundColor: `${COLORS.gold}15` }]}>
+                    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                      <Path stroke={COLORS.gold} strokeWidth={2} d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                    </Svg>
+                  </View>
+                  <View>
+                    <Text style={styles.menuItemLabel}>Family Museum</Text>
+                    <Text style={styles.menuItemSub}>Show collectibles and trophies</Text>
+                  </View>
+                </View>
+                <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                  <Path stroke={COLORS.t4} strokeWidth={2} strokeLinecap="round" d="M9 18l6-6-6-6"/>
+                </Svg>
+              </Pressable>
+            </Card>
+          </View>
+
           {/* ── Settings ── */}
           <View style={styles.section}>
             <SectionLabel label="Settings" />
@@ -621,4 +695,9 @@ const styles = StyleSheet.create({
   dailyBonusText: { fontFamily: FONTS.bodySemiBold, fontSize: 13, color: COLORS.gold3 },
 
   footer: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4, textAlign: 'center', paddingTop: SPACING.xl },
+  menuItemRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: SPACING.md, backgroundColor: COLORS.bgCard },
+  menuItemLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
+  menuItemIcon: { width: 36, height: 36, borderRadius: RADII.sm, alignItems: 'center', justifyContent: 'center' },
+  menuItemLabel: { fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.t1 },
+  menuItemSub: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4, marginTop: 2 },
 });

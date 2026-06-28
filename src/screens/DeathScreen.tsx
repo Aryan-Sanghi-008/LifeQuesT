@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import {
   View, Text, StyleSheet, Animated, Pressable, ScrollView, Dimensions, Share, Alert,
 } from 'react-native';
@@ -10,6 +10,7 @@ import { COLORS, FONTS, RADII, SPACING, SHADOWS } from '../constants/theme';
 import { useGameStore } from '../store/gameStore';
 import { StatBar, Card, GradientButton } from '../components/index';
 import { ACHIEVEMENTS } from '../data/gameData';
+import { calculateDynastyScore } from '../engine/legacyEngine';
 import Svg, { Path, Circle, Rect as SvgRect, Line, Defs, LinearGradient as SvgGrad, Stop } from 'react-native-svg';
 
 // ─── Tombstone SVG ────────────────────────────────────────────────────────────
@@ -161,6 +162,13 @@ export default function DeathScreen() {
           achievements, eventHistory, birthYear, country, countryFlag,
           netWorthPeak, relationships, children } = character;
 
+  const playAsHeirAction = useGameStore(s => s.playAsHeir);
+  const livingHeirs = character.people.filter(
+    p => (p.relationType === 'child' || p.relationType === 'sibling') && p.isAlive
+  );
+
+  const [selectedHeirId, setSelectedHeirId] = useState<string | null>(null);
+
   const finalAge = deathAge ?? age;
   const lifeSpan = finalAge;
   const lifeRating =
@@ -168,6 +176,8 @@ export default function DeathScreen() {
     lifeSpan >= 80  ? 'Long Life'  :
     lifeSpan >= 60  ? 'Full Life'  :
     lifeSpan >= 40  ? 'Mid-Life'   : 'Short Life';
+
+  const dynastyScore = calculateDynastyScore(character);
 
   const particles = [
     { x: width * 0.1, color: COLORS.gold,    delay: 0    },
@@ -183,6 +193,16 @@ export default function DeathScreen() {
     if (carried) {
       Alert.alert('Reincarnation', 'Your top stats carry over at 50% strength. Continue to create your next life.');
       void logEvent('reincarnate', { stats: Object.keys(carried).length });
+    }
+  };
+
+  const handleContinueAsHeir = () => {
+    if (!selectedHeirId) return;
+    const res = playAsHeirAction(selectedHeirId);
+    if (res.ok) {
+      Alert.alert('Heir Transition', 'Successfully transitioned to your chosen heir. Continue their life!');
+    } else {
+      Alert.alert('Error', res.message ?? 'Failed to transition to heir.');
     }
   };
 
@@ -287,6 +307,7 @@ export default function DeathScreen() {
                   { label: 'Peak Wealth', value: netWorthPeak, color: COLORS.teal },
                   { label: 'Karma', value: karma, color: karma > 100 ? COLORS.teal : COLORS.t3 },
                   { label: 'Achievements', value: achievements.length, color: COLORS.orchid },
+                  { label: 'Dynasty Score', value: dynastyScore, color: COLORS.gold },
                 ].map(h => (
                   <View key={h.label} style={styles.highlightItem}>
                     <Text style={[styles.highlightVal, { color: h.color }]}>{h.value}</Text>
@@ -316,19 +337,68 @@ export default function DeathScreen() {
                 </View>
               </Card>
             )}
+
+            {/* Heirs selection */}
+            {livingHeirs.length > 0 && (
+              <Card style={styles.achCard}>
+                <Text style={styles.cardTitle}>CHOOSE YOUR SUCCESSOR</Text>
+                <Text style={styles.heirHint}>Select a child or sibling to continue your family line</Text>
+                <View style={{ gap: SPACING.sm, width: '100%', marginTop: SPACING.xs }}>
+                  {livingHeirs.map(h => {
+                    const active = selectedHeirId === h.id;
+                    return (
+                      <Pressable
+                        key={h.id}
+                        onPress={() => setSelectedHeirId(h.id)}
+                        style={[styles.heirRow, active && styles.heirRowActive]}
+                      >
+                        <View style={{ gap: 2 }}>
+                          <Text style={[styles.heirName, active && { color: COLORS.teal }]}>{h.name}</Text>
+                          <Text style={styles.heirRel}>
+                            {h.relationType.toUpperCase()} · Age {h.age}
+                          </Text>
+                          {h.occupation && <Text style={styles.heirOcc}>{h.occupation}</Text>}
+                        </View>
+                        {active && (
+                          <View style={styles.checkmark}>
+                            <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+                              <Path stroke={COLORS.teal} strokeWidth={3} strokeLinecap="round" d="M20 6L9 17l-5-5"/>
+                            </Svg>
+                          </View>
+                        )}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </Card>
+            )}
           </Animated.View>
 
           {/* ── CTA ────────────────────────────────────────────── */}
           <Animated.View style={[styles.cta, { opacity: ctaAnim }]}>
             <Text style={styles.ctaHint}>Continue your journey with a new life</Text>
-            <GradientButton
-              label="Reincarnate"
-              onPress={handleReincarnate}
-              colors={[COLORS.gold, COLORS.gold3]}
-              textColor="#160D00"
-              style={{ width: '100%' }}
-            />
-            <Text style={styles.ctaSub}>Top stats carry over at 50% when eligible</Text>
+            {selectedHeirId ? (
+              <GradientButton
+                label="Continue as Heir"
+                onPress={handleContinueAsHeir}
+                colors={[COLORS.teal, COLORS.emerald]}
+                textColor="#FFFFFF"
+                style={{ width: '100%' }}
+              />
+            ) : (
+              <GradientButton
+                label="Reincarnate"
+                onPress={handleReincarnate}
+                colors={[COLORS.gold, COLORS.gold3]}
+                textColor="#160D00"
+                style={{ width: '100%' }}
+              />
+            )}
+            <Text style={styles.ctaSub}>
+              {selectedHeirId 
+                ? 'Inherited wealth is distributed according to your will' 
+                : 'Top stats carry over at 50% when eligible'}
+            </Text>
             <Pressable style={styles.shareBtn} onPress={handleShare}>
               <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
                 <Circle stroke={COLORS.t3} strokeWidth={2} cx="18" cy="5" r="3"/>
@@ -397,6 +467,15 @@ const styles = StyleSheet.create({
   achRow:     { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
   achChip:    { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: SPACING.md, paddingVertical: 6, borderRadius: RADII.full, borderWidth: 1 },
   achChipText:{ fontFamily: FONTS.bodySemiBold, fontSize: 11 },
+
+  // Heirs
+  heirHint: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4, marginBottom: SPACING.xs },
+  heirRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: SPACING.md, backgroundColor: COLORS.bgCard2, borderRadius: RADII.sm, borderWidth: 1, borderColor: COLORS.border },
+  heirRowActive: { borderColor: COLORS.teal, backgroundColor: `${COLORS.teal}08` },
+  heirName: { fontFamily: FONTS.bodySemiBold, fontSize: 13, color: COLORS.t1 },
+  heirRel: { fontFamily: FONTS.body, fontSize: 10, color: COLORS.t4 },
+  heirOcc: { fontFamily: FONTS.body, fontSize: 10, color: COLORS.t3, marginTop: 2 },
+  checkmark: { padding: 4, borderRadius: 10, backgroundColor: `${COLORS.teal}12` },
 
   // CTA
   cta:          { width: '100%', gap: SPACING.sm, marginTop: SPACING.lg },

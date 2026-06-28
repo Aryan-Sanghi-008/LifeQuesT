@@ -5,12 +5,13 @@ import {
   PendingDecision, AppUser, AvatarId, FamilyBackground,
   Gender, Asset, SaveSlot,
   DailyQuest, Person, CharacterDNA, BigFivePersonality,
-  FocusAllocation, AspirationId,
+  FocusAllocation, AspirationId, WillDetails,
 } from '../types';
 import {
   generateRandomDNA, generateRandomPersonality, determineTraitsFromPersonality,
   crossoverDNA, crossoverPersonality,
 } from '../utils/genetics';
+import { continueAsHeir } from '../engine/legacyEngine';
 import {
   TRAITS, COUNTRIES, ACTIVITIES,
 } from '../data/gameData';
@@ -250,12 +251,15 @@ function buildLocalSlotList(): SaveSlot[] {
       return { slotId, name: 'Empty Slot', age: 0, isAlive: false, updatedAt: 0 };
     }
     const normalized = normalizeCharacter(char);
+    const gen = normalized.generation ?? 1;
     return {
       slotId,
       name: normalized.name,
       age: normalized.age,
       isAlive: normalized.isAlive,
       updatedAt: normalized.updatedAt,
+      generation: gen,
+      heirTransitionsCount: gen > 1 ? gen - 1 : 0,
     };
   });
 }
@@ -316,6 +320,8 @@ interface GameStore {
   purchaseProperty: (propertyDefId: string) => { ok: boolean; message: string };
   resolveCourt: (lawyerQuality: number, lawyerCost?: number) => { ok: boolean; message: string };
   clearPendingCourt: () => void;
+  setWill: (will: WillDetails) => { ok: boolean; message?: string };
+  playAsHeir: (heirId: string) => { ok: boolean; message?: string };
   createSocialPost: (content: string) => { ok: boolean; message: string };
   practiceHobby: (hobbyId: string) => { ok: boolean; message: string };
   careForPet: (personId: string, action: 'feed' | 'train' | 'vet' | 'play') => { ok: boolean; message: string };
@@ -876,6 +882,39 @@ export const useGameStore = create<GameStore>()(
     },
 
     clearPendingAspirationPicker: () => set(s => { s.pendingAspirationPicker = false; }),
+
+    setWill: (will) => {
+      const { character } = get();
+      if (!character) return { ok: false, message: 'No character.' };
+      set(s => {
+        if (s.character) s.character.will = will;
+      });
+      void get()._persist();
+      return { ok: true };
+    },
+
+    playAsHeir: (heirId) => {
+      const { character } = get();
+      if (!character) return { ok: false, message: 'No character.' };
+      try {
+        const newChar = continueAsHeir(character, heirId);
+        set(s => {
+          s.character = newChar;
+          s.pendingDecision = null;
+          s.sessionAges = 0;
+          s.slotList = buildLocalSlotList();
+        });
+        
+        loadGeneration += 1;
+        
+        const slotId = get().activeSlotId;
+        saveCharacterLocal(newChar, slotId);
+        void get()._persist();
+        return { ok: true };
+      } catch (e: any) {
+        return { ok: false, message: e.message ?? 'Failed to continue as heir.' };
+      }
+    },
 
     purchaseProperty: (propertyDefId) => {
       const { character } = get();

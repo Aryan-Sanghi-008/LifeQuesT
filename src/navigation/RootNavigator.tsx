@@ -17,6 +17,9 @@ import { MortgageScreen } from '../screens/MortgageScreen';
 import { SocialMediaScreen } from '../screens/SocialMediaScreen';
 import { PetCareScreen } from '../screens/PetCareScreen';
 import { HobbyDetailScreen } from '../screens/HobbyDetailScreen';
+import { FamilyTreeScreen } from '../screens/FamilyTreeScreen';
+import { WillEditorScreen } from '../screens/WillEditorScreen';
+import { LifeMuseumScreen } from '../screens/LifeMuseumScreen';
 import { useGameStore } from '../store/gameStore';
 import { resolveRootRoute } from './gamePhase';
 
@@ -58,6 +61,9 @@ export default function RootNavigator() {
       <Stack.Screen name="SocialMedia" component={SocialMediaScreen} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="PetCare" component={PetCareScreen} options={{ animation: 'slide_from_right' }} />
       <Stack.Screen name="HobbyDetail" component={HobbyDetailScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="FamilyTree" component={FamilyTreeScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="WillEditor" component={WillEditorScreen} options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="LifeMuseum" component={LifeMuseumScreen} options={{ animation: 'slide_from_right' }} />
     </Stack.Navigator>
   );
 }
