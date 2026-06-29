@@ -117,3 +117,6 @@ tmp/
 temp/
 *.tmp
 .watchmanconfig
+
+# ─── Compiled JS files in src ───────────────────────────────────────────────
+src/**/*.js
