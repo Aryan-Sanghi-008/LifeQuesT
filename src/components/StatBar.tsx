@@ -1,6 +1,6 @@
 import { useRef, useEffect } from 'react';
 import { View, Animated, StyleSheet } from 'react-native';
-import { COLORS } from '@constants/theme';
+import { COLORS } from '@theme';
 
 export interface StatBarProps {
   value: number;

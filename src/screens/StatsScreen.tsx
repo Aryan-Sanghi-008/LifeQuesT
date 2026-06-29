@@ -2,7 +2,7 @@ import { useRef, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, FONTS, RADII, SPACING, SHADOWS } from '../constants/theme';
+import { COLORS, FONTS, RADII, SPACING, SHADOWS } from '@theme';
 import { useGameStore } from '../store/gameStore';
 import { AvatarByCharacter } from '../components/Avatars';
 import { StatBar, SectionLabel, Card, ScaleInView, ScreenHeader } from '../components/index';

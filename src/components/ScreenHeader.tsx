@@ -1,6 +1,6 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { COLORS, FONTS, RADII, SPACING } from '@constants/theme';
+import { COLORS, FONTS, RADII, SPACING } from '@theme';
 import Svg, { Path } from 'react-native-svg';
 
 interface ScreenHeaderProps {

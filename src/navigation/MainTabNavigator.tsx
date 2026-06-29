@@ -3,7 +3,7 @@ import { View, Text, Pressable, Animated, StyleSheet } from 'react-native';
 import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MainTabParamList } from '../types';
-import { COLORS, FONTS, RADII, SHADOWS } from '../constants/theme';
+import { COLORS, FONTS, RADII, SHADOWS } from '@theme';
 import { LifeScreen }    from '../screens/LifeScreen';
 import { PeopleScreen }  from '../screens/PeopleScreen';
 import { CareerScreen }  from '../screens/CareerScreen';

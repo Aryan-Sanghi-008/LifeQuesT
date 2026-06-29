@@ -12,7 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { LinearGradient } from "expo-linear-gradient";
-import { COLORS, FONTS, RADII, SPACING, SHADOWS } from "../constants/theme";
+import { COLORS, FONTS, RADII, SPACING, SHADOWS } from '@theme';
 import { RootStackParamList, AvatarStyleId } from "../types";
 import { useGameStore } from "../store/gameStore";
 import { AvatarByCharacter } from "../components/Avatars";

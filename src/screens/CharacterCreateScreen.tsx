@@ -7,7 +7,7 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { RouteProp, StackActions } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList, FamilyBackground, Gender } from '../types';
-import { COLORS, FONTS, RADII, SPACING, SHADOWS } from '../constants/theme';
+import { COLORS, FONTS, RADII, SPACING, SHADOWS } from '@theme';
 import { DiceBearAvatar } from '../components/Avatars';
 import { GradientButton, FadeInView } from '../components/index';
 import { useGameStore } from '../store/gameStore';

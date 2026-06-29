@@ -1,5 +1,5 @@
 import { LifeEvent, EventCategory } from '../../types';
-import { COLORS } from '../../theme/themes';
+import { COLORS } from '@theme';
 
 const CATEGORY_COLORS: Record<EventCategory, string> = {
   education: COLORS.sapphire,

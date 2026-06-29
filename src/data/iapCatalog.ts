@@ -1,6 +1,6 @@
 /** Client IAP catalog — keep grant amounts in sync with functions/src/entitlements.ts */
 import { IAPProductId } from '../types';
-import { COLORS } from '../constants/theme';
+import { COLORS } from '@theme';
 
 export interface IAPCatalogEntry {
   productId: IAPProductId;

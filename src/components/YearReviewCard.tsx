@@ -1,5 +1,5 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { COLORS, FONTS, RADII, SPACING } from '@constants/theme';
+import { COLORS, FONTS, RADII, SPACING } from '@theme';
 import type { YearReviewSnapshot } from '@/types';
 import { FOCUS_DOMAIN_MAP } from '@data/focusDomains';
 

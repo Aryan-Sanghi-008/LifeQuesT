@@ -6,7 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/types';
-import { COLORS, FONTS, RADII, SPACING } from '@constants/theme';
+import { COLORS, FONTS, RADII, SPACING } from '@theme';
 import LifeGlyph from '@components/LifeGlyph';
 import { GradientButton } from '@components/index';
 import { DiceBearAvatar } from '@components/Avatars';

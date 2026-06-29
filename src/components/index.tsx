@@ -11,7 +11,7 @@ import {
   StyleProp,
 } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, FONTS, RADII, SPACING, SHADOWS, ANIM } from "../theme/colors";
+import { COLORS, FONTS, RADII, SPACING, SHADOWS, ANIM } from '@theme';
 import { hapticButtonPress } from "@services/haptics";
 import { playSound } from "@services/audio";
 

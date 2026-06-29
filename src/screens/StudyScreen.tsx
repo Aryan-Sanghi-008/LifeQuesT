@@ -6,7 +6,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { useGameStore } from '../store/gameStore';
 import { GradientButton, Card, SectionLabel } from '../components/index';
-import { COLORS, FONTS, RADII, SPACING } from '../constants/theme';
+import { COLORS, FONTS, RADII, SPACING } from '@theme';
 import { getEnrollableDegrees, getEarnedDegrees } from '../engine/educationEngine';
 import { formatCurrency } from '../utils/currency';
 

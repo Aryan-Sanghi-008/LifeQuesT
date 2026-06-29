@@ -1,7 +1,7 @@
 import { useRef, useEffect } from 'react';
 import { View, Text, Animated, StyleSheet } from 'react-native';
 import { LifeEventRecord, EventCategory } from '../types';
-import { COLORS, FONTS, SPACING, RADII, SHADOWS } from '../constants/theme';
+import { COLORS, FONTS, SPACING, RADII, SHADOWS } from '@theme';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 
 // ─── Category Config ─────────────────────────────────────────────────────────

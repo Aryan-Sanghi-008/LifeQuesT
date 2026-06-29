@@ -7,7 +7,7 @@ import { useNavigation } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, FONTS, RADII, SPACING, ANIM } from '@constants/theme';
+import { COLORS, FONTS, RADII, SPACING, ANIM } from '@theme';
 import { RootStackParamList, MainTabParamList } from '@/types';
 import { useGameStore } from '@store/gameStore';
 import { AvatarByCharacter } from '@components/Avatars';

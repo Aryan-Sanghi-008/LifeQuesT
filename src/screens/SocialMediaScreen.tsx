@@ -3,7 +3,7 @@ import {
   View, Text, TextInput, Pressable, ScrollView, StyleSheet, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS, FONTS, RADII, SPACING } from '@constants/theme';
+import { COLORS, FONTS, RADII, SPACING } from '@theme';
 import { ScreenHeader } from '@components/ScreenHeader';
 import { useGameStore } from '@store/gameStore';
 

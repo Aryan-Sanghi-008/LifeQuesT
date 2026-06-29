@@ -1,5 +1,5 @@
 import { LifeEvent } from '../../types';
-import { COLORS } from '../../theme/themes';
+import { COLORS } from '@theme';
 
 export const BUSINESS_EVENTS: LifeEvent[] = [
   {

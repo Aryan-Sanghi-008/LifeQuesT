@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, Modal, Pressable } from 'react-native';
 import { useGameStore } from '../store/gameStore';
-import { FONTS, SPACING, SHADOWS, RADII } from '../constants/theme';
+import { FONTS, SPACING, SHADOWS, RADII } from '@theme';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export function SyncConflictModal() {

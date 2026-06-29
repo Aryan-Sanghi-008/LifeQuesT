@@ -1,5 +1,5 @@
 import { LifeEvent } from '../../types';
-import { COLORS } from '../../theme/themes';
+import { COLORS } from '@theme';
 
 /** Hand-authored expansion events — replaces procedural generateExpansionEvents batch. */
 export const EXPANSION_AUTHORED_EVENTS: LifeEvent[] = [

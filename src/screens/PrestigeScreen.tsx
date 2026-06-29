@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, Pressable, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS, FONTS, RADII, SPACING } from '../constants/theme';
+import { COLORS, FONTS, RADII, SPACING } from '@theme';
 import { useGameStore } from '../store/gameStore';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Card, SectionLabel, Divider } from '../components/index';

@@ -19,7 +19,7 @@ import {
   computeLeaderboardScore,
 } from "../services/leaderboard";
 import { LinearGradient } from "expo-linear-gradient";
-import { COLORS, FONTS, RADII, SPACING, SHADOWS } from "../constants/theme";
+import { COLORS, FONTS, RADII, SPACING, SHADOWS } from '@theme';
 import { useGameStore } from "../store/gameStore";
 import { StatBar, Card, GradientButton } from "../components/index";
 import { ACHIEVEMENTS } from "../data/gameData";

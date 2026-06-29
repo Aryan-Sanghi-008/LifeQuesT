@@ -8,7 +8,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, FONTS, SPACING, SHADOWS } from '../constants/theme';
+import { COLORS, FONTS, SPACING, SHADOWS } from '@theme';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 

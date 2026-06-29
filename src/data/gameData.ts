@@ -1,5 +1,5 @@
 import { LifeEvent, AvatarId, Activity, ActivityCategory } from '../types';
-import { COLORS } from '../theme/themes';
+import { COLORS } from '@theme';
 import { EXPANSION_AUTHORED_EVENTS } from './events/expansionAuthored';
 import { CRIME_EVENTS } from './events/crime';
 import { SOCIAL_VIRALITY_EVENTS } from './events/social';

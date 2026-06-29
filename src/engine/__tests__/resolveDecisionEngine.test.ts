@@ -64,7 +64,7 @@ describe('runResolveDecision', () => {
         successChance: 0,
       }],
     };
-    const result = runResolveDecision(baseCharacter(), risky, 'fail');
+    const result = runResolveDecision(baseCharacter({ luckBoostsRemaining: 0 }), risky, 'fail');
     expect(result!.patch.stats?.happiness).toBe(65);
     expect(result!.patch.stats?.intelligence).toBe(60);
   });

@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useGameStore } from "../store/gameStore";
-import { COLORS, FONTS, SPACING, RADII, SHADOWS } from "../constants/theme";
+import { COLORS, FONTS, SPACING, RADII, SHADOWS } from '@theme';
 import { LinearGradient } from "expo-linear-gradient";
 import { getCurrentSeason } from "../engine/liveOpsEngine";
 import { computeNetWorth } from "../engine/economyEngine";

@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
-import { COLORS, FONTS, RADII, SPACING } from "../constants/theme";
+import { COLORS, FONTS, RADII, SPACING } from '@theme';
 import { useGameStore } from "../store/gameStore";
 import { FadeInView } from "../components/index";
 import {

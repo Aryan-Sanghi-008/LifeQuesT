@@ -1,4 +1,4 @@
-import { COLORS } from '../constants/theme';
+import { COLORS } from '@theme';
 
 export interface AchievementDef {
   id: string;

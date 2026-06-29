@@ -1,5 +1,5 @@
 import type { LifeEvent } from '@/types';
-import { COLORS } from '@constants/theme';
+import { COLORS } from '@theme';
 
 const phaseATags = (slug: string): string[] => [`phase_a_${slug}_memory`];
 

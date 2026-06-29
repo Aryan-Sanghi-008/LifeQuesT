@@ -3,7 +3,7 @@ import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { COLORS, FONTS, RADII, SPACING } from '@constants/theme';
+import { COLORS, FONTS, RADII, SPACING } from '@theme';
 import { ASPIRATIONS } from '@data/aspirations';
 import type { AspirationId, RootStackParamList } from '@/types';
 import { useGameStore } from '@store/gameStore';

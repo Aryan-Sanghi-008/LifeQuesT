@@ -1,5 +1,5 @@
 import { LifeEvent } from '../../types';
-import { COLORS } from '../../theme/themes';
+import { COLORS } from '@theme';
 
 const COUNTRY_CODES = ['IN', 'US', 'GB', 'JP', 'BR', 'NG', 'DE', 'AU', 'SG', 'AE'] as const;
 const COUNTRY_NAMES: Record<string, string> = {

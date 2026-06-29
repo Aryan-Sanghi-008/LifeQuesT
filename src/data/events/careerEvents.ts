@@ -2,7 +2,7 @@
 // Career-specific events covering all career stages and categories.
 
 import { LifeEvent } from '../../types';
-import { COLORS } from '../../theme/themes';
+import { COLORS } from '@theme';
 
 export const CAREER_EVENTS: LifeEvent[] = [
   { id: 'ce_internship_offer', minAge: 18, maxAge: 24, title: 'Internship Offer', description: "A company offered you a paid internship with potential to go full-time.", statEffect: { ambition: 6, happiness: 5, wealth: 2 }, category: 'career', color: COLORS.orchid },

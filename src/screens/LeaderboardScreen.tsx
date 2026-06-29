@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { fetchLeaderboard } from '../services/leaderboard';
 import { LeaderboardEntry } from '../types';
 import { Card, ScreenHeader } from '../components/index';
-import { COLORS, FONTS, SPACING } from '../constants/theme';
+import { COLORS, FONTS, SPACING } from '@theme';
 
 export default function LeaderboardScreen() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);

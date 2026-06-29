@@ -1,5 +1,5 @@
 import type { EventCategory, EventChoice, LifeEvent } from '../../types';
-import { COLORS } from '../../constants/theme';
+import { COLORS } from '@theme';
 import { MEMORY_CHAINS } from '../memoryChains';
 
 const CATEGORY_COLORS: Record<EventCategory, string> = {

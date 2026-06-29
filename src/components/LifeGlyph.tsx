@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { View, Animated, StyleSheet } from 'react-native';
-import { COLORS } from '../constants/theme';
+import { COLORS } from '@theme';
 
 interface LifeGlyphProps {
   size?: number;

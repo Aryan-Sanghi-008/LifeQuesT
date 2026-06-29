@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
-import { COLORS, FONTS, RADII, SPACING } from '@constants/theme';
+import { COLORS, FONTS, RADII, SPACING } from '@theme';
 import { BottomSheet } from '@components/BottomSheet';
 import { FOCUS_DOMAINS } from '@data/focusDomains';
 import type { FocusAllocation, FocusDomain } from '@/types';

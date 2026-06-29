@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { CharacterStats } from '../types';
-import { COLORS, FONTS } from '../constants/theme';
+import { COLORS, FONTS } from '@theme';
 import { StatBar } from './index';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
 

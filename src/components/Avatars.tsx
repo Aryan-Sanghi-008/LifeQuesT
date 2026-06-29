@@ -8,7 +8,7 @@ import { SvgXml } from 'react-native-svg';
 import { Style, Avatar } from '@dicebear/core';
 import { LifeStage, Gender, Character, AvatarStyleId } from '../types';
 import { getAvatarOptionsForStage, getDefaultAvatarStyle, getStyleFileName } from '../utils/lifeStage';
-import { COLORS } from '../theme/themes';
+import { COLORS } from '@theme';
 
 // ─── Load all modern DiceBear style JSON defs ─────────────────────────────────
 // Only illustration / character styles — no pixel art

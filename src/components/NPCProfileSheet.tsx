@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet } from 'react-native';
-import { COLORS, FONTS, SPACING } from '@constants/theme';
+import { COLORS, FONTS, SPACING } from '@theme';
 import { StatBar } from '@components/StatBar';
 import type { Person } from '@/types';
 import { getRelationshipStageLabel } from '@utils/relationshipLabels';

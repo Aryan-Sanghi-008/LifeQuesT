@@ -17,6 +17,7 @@
       "@engine/*": ["./src/engine/*"],
       "@services/*": ["./src/services/*"],
       "@config/*": ["./src/config/*"],
+      "@theme": ["./src/theme/index.ts"],
       "@theme/*": ["./src/theme/*"],
       "@data/*": ["./src/data/*"]
     }

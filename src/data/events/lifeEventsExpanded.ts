@@ -3,7 +3,7 @@
 // All descriptions use double-quoted strings to avoid apostrophe issues.
 
 import { LifeEvent } from '../../types';
-import { COLORS } from '../../theme/themes';
+import { COLORS } from '@theme';
 
 export const LIFE_EVENTS_EXPANDED: LifeEvent[] = [
 

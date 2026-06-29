@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { BottomSheet } from './BottomSheet';
 import { LifeEvent, EventChoice } from '../types';
-import { COLORS, FONTS, RADII, SPACING } from '../constants/theme';
+import { COLORS, FONTS, RADII, SPACING } from '@theme';
 import Svg, { Path } from 'react-native-svg';
 import { hapticDecision, hapticButtonPress } from '../services/haptics';
 import { playSound } from '../services/audio';

@@ -1,6 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
-import { COLORS } from '../constants/theme';
+import { COLORS } from '@theme';
 import AuthScreen from '../screens/AuthScreen';
 import { CharacterCreateScreen } from '../screens/CharacterCreateScreen';
 import { SaveSlotScreen } from '../screens/SaveSlotScreen';
