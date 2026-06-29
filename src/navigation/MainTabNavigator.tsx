@@ -9,6 +9,7 @@ import { PeopleScreen }  from '../screens/PeopleScreen';
 import { CareerScreen }  from '../screens/CareerScreen';
 import { AssetsScreen }  from '../screens/AssetsScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
+import { GameErrorBoundary } from '../components/GameErrorBoundary';
 import Svg, { Path, Circle, Polyline, Rect } from 'react-native-svg';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -164,17 +165,27 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
 
 // ─── Navigator ───────────────────────────────────────────────────────────────
 
+const wrap = (Component: React.ComponentType<any>) => {
+  return function WrappedScreen(props: any) {
+    return (
+      <GameErrorBoundary>
+        <Component {...props} />
+      </GameErrorBoundary>
+    );
+  };
+};
+
 export default function MainTabNavigator() {
   return (
     <Tab.Navigator
       screenOptions={{ headerShown: false }}
       tabBar={(props) => <CustomTabBar {...props} />}
     >
-      <Tab.Screen name="Life"    component={LifeScreen}    />
-      <Tab.Screen name="People"  component={PeopleScreen}  />
-      <Tab.Screen name="Career"  component={CareerScreen}  />
-      <Tab.Screen name="Assets"  component={AssetsScreen}  />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Life"    component={wrap(LifeScreen)}    />
+      <Tab.Screen name="People"  component={wrap(PeopleScreen)}  />
+      <Tab.Screen name="Career"  component={wrap(CareerScreen)}  />
+      <Tab.Screen name="Assets"  component={wrap(AssetsScreen)}  />
+      <Tab.Screen name="Profile" component={wrap(ProfileScreen)} />
     </Tab.Navigator>
   );
 }
