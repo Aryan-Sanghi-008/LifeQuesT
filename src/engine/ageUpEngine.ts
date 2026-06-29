@@ -855,7 +855,11 @@ export function runAgeUp(
     memoryTags,
     focusConfirmedForAge: -1,
     focusAllocation: undefined,
-    lifePhase: "review",
+    lifePhase: [10, 18, 25, 40, 65, 80].includes(newAge)
+      ? "review"
+      : newAge < 13
+      ? "acting"
+      : "planning",
     focusDomainsUsed: trackFocusDomainsUsed(
       character.focusDomainsUsed,
       focusAllocation,

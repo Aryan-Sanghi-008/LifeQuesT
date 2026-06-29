@@ -185,9 +185,10 @@ const STAT_LABELS: Record<string, string> = {
 interface EventCardProps {
   event: LifeEventRecord;
   isNew?: boolean;
+  staggerIndex?: number;
 }
 
-export default function EventCard({ event, isNew = false }: EventCardProps) {
+export default function EventCard({ event, isNew = false, staggerIndex = 0 }: EventCardProps) {
   const { colors, fonts, radii } = useTheme();
 
   const opacity = useRef(new Animated.Value(isNew ? 0 : 1)).current;
@@ -196,10 +197,12 @@ export default function EventCard({ event, isNew = false }: EventCardProps) {
 
   useEffect(() => {
     if (isNew) {
+      const delay = staggerIndex * 350;
       Animated.parallel([
         Animated.timing(opacity, {
           toValue: 1,
           duration: 300,
+          delay,
           useNativeDriver: true,
         }),
         Animated.spring(translateY, {
@@ -207,16 +210,18 @@ export default function EventCard({ event, isNew = false }: EventCardProps) {
           useNativeDriver: true,
           damping: 18,
           stiffness: 200,
+          delay,
         }),
         Animated.spring(scale, {
           toValue: 1,
           useNativeDriver: true,
           damping: 18,
           stiffness: 200,
+          delay,
         }),
       ]).start();
     }
-  }, [isNew, opacity, translateY, scale]);
+  }, [isNew, opacity, translateY, scale, staggerIndex]);
 
   const shimmerAnim = useRef(new Animated.Value(0)).current;
 

@@ -122,9 +122,9 @@ describe('runAgeUp', () => {
 
   it('applies focus phase patch after age-up for teens', () => {
     const character = baseCharacter({
-      age: 25,
+      age: 24,
       lifePhase: 'acting',
-      focusConfirmedForAge: 25,
+      focusConfirmedForAge: 24,
       focusAllocation: { career: 2, education: 1 },
       focusPointsSpent: { career: 5 },
     });

@@ -419,6 +419,7 @@ export const createProgressionSlice: StateCreator<
         if (!s.character) return;
         s.character.achievements = Array.from(earned);
         if (coinReward > 0) s.character.coins += coinReward;
+        if (newCount > 0) s.showConfetti = true;
       });
       if (coinReward > 0) void get()._persist();
       if (newCount > 0) {

@@ -11,12 +11,16 @@ import {
   StyleProp,
 } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, FONTS, RADII, SPACING, SHADOWS, ANIM } from '@theme';
+import { COLORS, FONTS, RADII, SPACING, SHADOWS, ANIM, useTheme } from '@theme';
 import { hapticButtonPress } from "@services/haptics";
 import { playSound } from "@services/audio";
 
 export { BottomSheet } from "./BottomSheet";
 export { ScreenHeader } from "./ScreenHeader";
+export { ScreenShell } from "./ScreenShell";
+export { GlassCard } from "./GlassCard";
+export { TabScreenHeader } from "./TabScreenHeader";
+export { YearReviewBanner } from "./YearReviewBanner";
 export { AvatarById } from "./Avatars";
 export { FocusPhaseSheet } from "./FocusPhaseSheet";
 export { YearReviewCard } from "./YearReviewCard";
@@ -172,10 +176,20 @@ interface CardProps {
 }
 
 export function Card({ children, style, onPress, accentColor, glow }: CardProps) {
+  const { colors, radii, shadows, spacing } = useTheme();
+  const cardStyle = {
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    ...shadows.card,
+  };
+
   const content = (
     <View
       style={[
-        styles.card,
+        cardStyle,
         accentColor ? { borderColor: accentColor + "30", borderWidth: 1.5 } : undefined,
         glow && accentColor
           ? { shadowColor: accentColor, shadowOpacity: 0.18, shadowRadius: 12, elevation: 6 }
@@ -268,7 +282,23 @@ export function Badge({ label, color, style, textStyle }: BadgeProps) {
 // ─── SectionLabel ────────────────────────────────────────────────────────────
 
 export function SectionLabel({ label, style }: { label: string; style?: ViewStyle }) {
-  return <Text style={[styles.sectionLabel, style]}>{label.toUpperCase()}</Text>;
+  const { colors, fonts, spacing } = useTheme();
+  return (
+    <Text
+      style={[
+        {
+          fontFamily: fonts.bodySemiBold,
+          fontSize: 11,
+          color: colors.t4,
+          letterSpacing: 1.5,
+          marginBottom: spacing.md,
+        },
+        style,
+      ]}
+    >
+      {label.toUpperCase()}
+    </Text>
+  );
 }
 
 // ─── FadeInView ──────────────────────────────────────────────────────────────

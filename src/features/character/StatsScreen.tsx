@@ -1,11 +1,10 @@
 import { useRef, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, Animated } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, FONTS, RADII, SPACING, SHADOWS } from '@theme';
+import { COLORS, FONTS, RADII, SPACING, SHADOWS, useTheme } from '@theme';
 import { useGameStore } from '../../store/gameStore';
 import { AvatarByCharacter } from '../../components/Avatars';
-import { StatBar, SectionLabel, Card, ScaleInView, ScreenHeader } from '../../components/index';
+import { StatBar, SectionLabel, Card, ScaleInView, ScreenHeader, ScreenShell } from '../../components/index';
 import { CharacterStats, LifeEventRecord } from '../../types';
 import { ACHIEVEMENTS } from '../../data/gameData';
 import Svg, { Path, Circle } from 'react-native-svg';
@@ -39,15 +38,16 @@ const ALL_STATS: Array<{ key: keyof CharacterStats; label: string; color: string
 // ─── Karma Meter ──────────────────────────────────────────────────────────────
 
 function KarmaMeter({ karma }: { karma: number }) {
+  const { colors } = useTheme();
   const pct = Math.max(0, Math.min(100, (karma / 300) * 100));
   const label  = karma < 0 ? 'Villain' : karma < 50 ? 'Neutral' : karma < 150 ? 'Decent' : karma < 250 ? 'Virtuous' : 'Saint';
-  const kColor = karma < 0 ? COLORS.health : karma < 100 ? COLORS.t3 : karma < 200 ? COLORS.emerald : COLORS.gold;
+  const kColor = karma < 0 ? colors.health : karma < 100 ? colors.t3 : karma < 200 ? colors.emerald : colors.gold;
 
   return (
     <Card style={styles.karmaCard}>
       <View style={styles.karmaHeader}>
         <View>
-          <Text style={styles.karmaTitle}>Karma Score</Text>
+          <Text style={[styles.karmaTitle, { color: colors.t2 }]}>Karma Score</Text>
           <Text style={[styles.karmaLabel, { color: kColor }]}>{label}</Text>
         </View>
         <View style={[styles.karmaBadge, { borderColor: `${kColor}40`, backgroundColor: `${kColor}10` }]}>
@@ -55,23 +55,21 @@ function KarmaMeter({ karma }: { karma: number }) {
         </View>
       </View>
 
-      <View style={styles.karmaTrack}>
+      <View style={[styles.karmaTrack, { backgroundColor: colors.bg2 }]}>
         <LinearGradient
-          colors={[COLORS.health, COLORS.gold, COLORS.emerald]}
+          colors={[colors.health, colors.gold, colors.emerald]}
           start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
           style={[StyleSheet.absoluteFill, { borderRadius: 5 }]}
         />
-        {/* Mask to clip based on pct */}
         <View style={[StyleSheet.absoluteFill, {
-          left: `${pct}%`, backgroundColor: COLORS.bg2, borderRadius: 5,
+          left: `${pct}%`, backgroundColor: colors.bg2, borderRadius: 5,
         }]} />
-        {/* Indicator line */}
         <View style={[styles.karmaIndicator, { left: `${pct}%`, backgroundColor: kColor }]} />
       </View>
 
       <View style={styles.karmaLegend}>
         {(['Villain', 'Neutral', 'Decent', 'Virtuous', 'Saint'] as const).map(l => (
-          <Text key={l} style={[styles.karmaLegendText, l === label && { color: kColor, fontFamily: FONTS.bodyBold }]}>{l}</Text>
+          <Text key={l} style={[styles.karmaLegendText, { color: colors.t4 }, l === label && { color: kColor, fontFamily: FONTS.bodyBold }]}>{l}</Text>
         ))}
       </View>
     </Card>
@@ -83,6 +81,7 @@ function KarmaMeter({ karma }: { karma: number }) {
 function AchievementBadge({ label, desc, color, unlocked }: {
   label: string; desc: string; color: string; unlocked: boolean;
 }) {
+  const { colors } = useTheme();
   const glowAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -101,29 +100,30 @@ function AchievementBadge({ label, desc, color, unlocked }: {
   return (
     <View style={[
       ach.card,
-      unlocked && { borderColor: `${color}40`, backgroundColor: COLORS.bgCard },
+      { borderColor: colors.border, backgroundColor: colors.bg2 },
+      unlocked && { borderColor: `${color}40`, backgroundColor: colors.bgCard },
       !unlocked && ach.locked,
     ]}>
       {unlocked && (
         <Animated.View style={[StyleSheet.absoluteFill, { borderRadius: RADII.md, backgroundColor: color, opacity: glowOpacity }]}/>
       )}
 
-      <View style={[ach.icon, { backgroundColor: unlocked ? `${color}18` : COLORS.bg2 }]}>
+      <View style={[ach.icon, { backgroundColor: unlocked ? `${color}18` : colors.bg2 }]}>
         <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
           {unlocked
             ? <Path fill={color} d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-            : <Path stroke={COLORS.t4} strokeWidth={1.8} strokeLinecap="round" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+            : <Path stroke={colors.t4} strokeWidth={1.8} strokeLinecap="round" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
           }
         </Svg>
       </View>
 
-      <Text style={[ach.label, unlocked ? { color } : { color: COLORS.t4 }]}>{label}</Text>
-      <Text style={ach.desc} numberOfLines={2}>{desc}</Text>
+      <Text style={[ach.label, unlocked ? { color } : { color: colors.t4 }]}>{label}</Text>
+      <Text style={[ach.desc, { color: colors.t4 }]} numberOfLines={2}>{desc}</Text>
 
       {!unlocked && (
         <View style={ach.lockBadge}>
           <Svg width={9} height={9} viewBox="0 0 24 24" fill="none">
-            <Path stroke={COLORS.t4} strokeWidth={2.5} strokeLinecap="round" d="M17 11H7a2 2 0 00-2 2v7a2 2 0 002 2h10a2 2 0 002-2v-7a2 2 0 00-2-2zM7 11V7a5 5 0 0110 0v4"/>
+            <Path stroke={colors.t4} strokeWidth={2.5} strokeLinecap="round" d="M17 11H7a2 2 0 00-2 2v7a2 2 0 002 2h10a2 2 0 002-2v-7a2 2 0 00-2-2zM7 11V7a5 5 0 0110 0v4"/>
           </Svg>
         </View>
       )}
@@ -185,6 +185,7 @@ const tl = StyleSheet.create({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export function StatsScreen() {
+  const { colors } = useTheme();
   const character = useGameStore(s => s.character);
   if (!character) return null;
   const { stats, karma, achievements, eventHistory, name, age, birthYear, countryCode } = character;
@@ -195,22 +196,20 @@ export function StatsScreen() {
   const lePercent = Math.min(100, (age / lifeExpectancy) * 100);
 
   return (
-    <View style={styles.root}>
-      <SafeAreaView style={styles.safe} edges={['top']}>
+    <ScreenShell>
         <View style={{ paddingHorizontal: SPACING.lg, paddingTop: SPACING.sm }}>
           <ScreenHeader title="Life Stats" subtitle={`${name} · Age ${age}`} />
         </View>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={[styles.avatarFrame, { borderColor: `${COLORS.gold}50` }]}>
+        <View style={[styles.header, { backgroundColor: colors.bgCard, borderBottomColor: colors.border }]}>
+          <View style={[styles.avatarFrame, { borderColor: `${colors.gold}50` }]}>
             <AvatarByCharacter character={character} size={48} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.headerName}>{name}</Text>
-            <Text style={styles.headerSub}>Age {age} · Born {birthYear}</Text>
+            <Text style={[styles.headerName, { color: colors.t1 }]}>{name}</Text>
+            <Text style={[styles.headerSub, { color: colors.t3 }]}>Age {age} · Born {birthYear}</Text>
           </View>
-          <View style={[styles.agePill, { backgroundColor: `${COLORS.gold}12`, borderColor: `${COLORS.gold}30` }]}>
-            <Text style={[styles.ageNum, { color: COLORS.gold3 }]}>{age}</Text>
+          <View style={[styles.agePill, { backgroundColor: `${colors.gold}12`, borderColor: `${colors.gold}30` }]}>
+            <Text style={[styles.ageNum, { color: colors.gold3 }]}>{age}</Text>
           </View>
         </View>
 
@@ -223,13 +222,13 @@ export function StatsScreen() {
               const val = stats[cfg.key] as number ?? 0;
               const tier = val >= 80 ? 'Elite' : val >= 60 ? 'Good' : val >= 40 ? 'Average' : 'Low';
               return (
-                <ScaleInView key={cfg.key} delay={i * 50} style={styles.statCard}>
+                <ScaleInView key={cfg.key} delay={i * 50} style={[styles.statCard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
                   <View style={[styles.statIcon, { backgroundColor: `${cfg.color}14` }]}>
                     {cfg.icon(cfg.color)}
                   </View>
-                  <Text style={styles.statLabel}>{cfg.label}</Text>
+                  <Text style={[styles.statLabel, { color: colors.t2 }]}>{cfg.label}</Text>
                   {cfg.key === 'wealth' && (
-                    <Text style={styles.statSublabel}>Based on net worth · {netWorthLabel}</Text>
+                    <Text style={[styles.statSublabel, { color: colors.t4 }]}>Based on net worth · {netWorthLabel}</Text>
                   )}
                   <Text style={[styles.statVal, { color: cfg.color }]}>{val}</Text>
                   <StatBar value={val} color={cfg.color} height={5} delay={i * 60} />
@@ -246,20 +245,20 @@ export function StatsScreen() {
           <Card style={{ gap: SPACING.md }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <View>
-                <Text style={{ fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.t2 }}>Estimated Lifespan</Text>
-                <Text style={{ fontFamily: FONTS.body, fontSize: 12, color: COLORS.t4, marginTop: 2 }}>Based on your health, fitness & country</Text>
+                <Text style={{ fontFamily: FONTS.bodySemiBold, fontSize: 14, color: colors.t2 }}>Estimated Lifespan</Text>
+                <Text style={{ fontFamily: FONTS.body, fontSize: 12, color: colors.t4, marginTop: 2 }}>Based on your health, fitness & country</Text>
               </View>
-              <View style={[styles.agePill, { backgroundColor: `${COLORS.health}10`, borderColor: `${COLORS.health}30` }]}>
-                <Text style={[styles.ageNum, { color: COLORS.health, fontSize: 18 }]}>{lifeExpectancy}y</Text>
+              <View style={[styles.agePill, { backgroundColor: `${colors.health}10`, borderColor: `${colors.health}30` }]}>
+                <Text style={[styles.ageNum, { color: colors.health, fontSize: 18 }]}>{lifeExpectancy}y</Text>
               </View>
             </View>
-            <View style={{ height: 8, backgroundColor: COLORS.bg2, borderRadius: 4, overflow: 'hidden' }}>
-              <View style={{ width: `${lePercent}%` as `${number}%`, height: '100%', backgroundColor: lePercent > 80 ? COLORS.crimson : lePercent > 60 ? COLORS.gold : COLORS.emerald, borderRadius: 4 }} />
+            <View style={{ height: 8, backgroundColor: colors.bg2, borderRadius: 4, overflow: 'hidden' }}>
+              <View style={{ width: `${lePercent}%` as `${number}%`, height: '100%', backgroundColor: lePercent > 80 ? colors.crimson : lePercent > 60 ? colors.gold : colors.emerald, borderRadius: 4 }} />
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4 }}>Age {age}</Text>
-              <Text style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4 }}>~{yearsLeft} years remaining</Text>
-              <Text style={{ fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4 }}>{lifeExpectancy}y est.</Text>
+              <Text style={{ fontFamily: FONTS.body, fontSize: 11, color: colors.t4 }}>Age {age}</Text>
+              <Text style={{ fontFamily: FONTS.body, fontSize: 11, color: colors.t4 }}>~{yearsLeft} years remaining</Text>
+              <Text style={{ fontFamily: FONTS.body, fontSize: 11, color: colors.t4 }}>{lifeExpectancy}y est.</Text>
             </View>
           </Card>
 
@@ -293,8 +292,7 @@ export function StatsScreen() {
 
           <View style={{ height: SPACING.xxxl }} />
         </ScrollView>
-      </SafeAreaView>
-    </View>
+    </ScreenShell>
   );
 }
 

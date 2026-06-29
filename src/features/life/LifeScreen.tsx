@@ -1,174 +1,387 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from "react";
 import {
-  View, Text, SectionList, Pressable, StyleSheet, Animated,
-} from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { LinearGradient } from 'expo-linear-gradient';
-import { COLORS, FONTS, RADII, SPACING, ANIM } from '@theme';
-import { RootStackParamList, MainTabParamList } from '@/types';
-import { useGameStore } from '@store/gameStore';
-import { AvatarByCharacter } from '@components/Avatars';
-import EventCard from '@components/EventCard';
-import DecisionSheet from '@components/DecisionSheet';
-import { FocusPhaseSheet } from '@components/FocusPhaseSheet';
-import { YearReviewCard } from '@components/YearReviewCard';
-import { StatBar } from '@components/StatBar';
-import { isFocusConfirmedForAge } from '@engine/focusEngine';
-import { LifeEventRecord, CharacterStats } from '@/types';
-import { maybeShowInterstitial } from '@services/ads';
-import { INTERSTITIAL_EVERY_N_AGEUPS } from '@config/ads';
-import { logEvent } from '@services/analytics';
-import { formatCurrency } from '@utils/currency';
-import { getFinanceSummary } from '@utils/financeSummary';
-import { getEducationLabel } from '@engine/educationEngine';
-import { triggerLightImpact } from '@services/haptics';
-import { isInJail } from '@engine/crimeEngine';
-import Svg, { Path, Circle } from 'react-native-svg';
+  View,
+  Text,
+  SectionList,
+  Pressable,
+  StyleSheet,
+  Animated,
+  Modal,
+} from "react-native";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
+import { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { LinearGradient } from "expo-linear-gradient";
+import { RootStackParamList, MainTabParamList } from "@/types";
+import { useGameStore } from "@store/gameStore";
+import { AvatarByCharacter } from "@components/Avatars";
+import EventCard from "@components/EventCard";
+import DecisionSheet from "@components/DecisionSheet";
+import { FocusPhaseSheet } from "@components/FocusPhaseSheet";
+import { YearReviewCard } from "@components/YearReviewCard";
+import { YearReviewBanner } from "@components/YearReviewBanner";
+import { ScreenShell, GlassCard, ConfettiOverlay } from "@components/index";
+import { isFocusConfirmedForAge } from "@engine/focusEngine";
+import { LifeEventRecord, CharacterStats } from "@/types";
+import { maybeShowInterstitial } from "@services/ads";
+import { INTERSTITIAL_EVERY_N_AGEUPS } from "@config/ads";
+import { logEvent } from "@services/analytics";
+import { formatCurrency } from "@utils/currency";
+import { getFinanceSummary } from "@utils/financeSummary";
+import { getEducationLabel } from "@engine/educationEngine";
+import { hapticAgeUp } from "@services/haptics";
+import { isInJail } from "@engine/crimeEngine";
+import Svg, { Path } from "react-native-svg";
+import { useTheme } from "@theme";
 
-// ─── Stat config ──────────────────────────────────────────────────────────────
+// ─── Mini vitals strip (tap for full stats modal) ─────────────────────────────
 
-const MINI_STATS = [
-  { key: 'health'        as const, label: 'Health', color: COLORS.health,        icon: (c: string) => <Svg width={12} height={12} viewBox="0 0 24 24" fill={c}><Path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></Svg> },
-  { key: 'happiness'     as const, label: 'Joy',    color: COLORS.gold,          icon: (c: string) => <Svg width={12} height={12} viewBox="0 0 24 24" fill="none"><Circle stroke={c} strokeWidth={2} cx="12" cy="12" r="10"/><Path stroke={c} strokeWidth={2} strokeLinecap="round" d="M8 14s1.5 2 4 2 4-2 4-2"/><Circle cx="9" cy="9" r="1" fill={c}/><Circle cx="15" cy="9" r="1" fill={c}/></Svg> },
-  { key: 'intelligence'  as const, label: 'Mind',   color: COLORS.intelligence,  icon: (c: string) => <Svg width={12} height={12} viewBox="0 0 24 24" fill="none"><Path stroke={c} strokeWidth={2} strokeLinecap="round" d="M12 14l9-5-9-5-9 5 9 5z"/></Svg> },
-  { key: 'fitness'       as const, label: 'Fit',    color: COLORS.fitness,       icon: (c: string) => <Svg width={12} height={12} viewBox="0 0 24 24" fill="none"><Path stroke={c} strokeWidth={2.5} strokeLinecap="round" d="M6 4v16M18 4v16M2 9h4M18 9h4M2 15h4M18 15h4"/></Svg> },
-  { key: 'mentalHealth'  as const, label: 'Calm',   color: COLORS.orchid,        icon: (c: string) => <Svg width={12} height={12} viewBox="0 0 24 24" fill="none"><Circle stroke={c} strokeWidth={2} cx="12" cy="12" r="10"/><Path stroke={c} strokeWidth={2} strokeLinecap="round" d="M12 8v4"/></Svg> },
+const MINI_STATS: Array<{ key: keyof CharacterStats; label: string; colorKey: string }> = [
+  { key: "health", label: "Health", colorKey: "health" },
+  { key: "happiness", label: "Happy", colorKey: "happiness" },
+  { key: "wealth", label: "Wealth", colorKey: "wealth" },
 ];
 
-// ─── Stats Strip ──────────────────────────────────────────────────────────────
+function MiniVitalsStrip({
+  stats,
+  onPress,
+}: {
+  stats: CharacterStats;
+  onPress: () => void;
+}) {
+  const { colors, fonts, spacing, radii } = useTheme();
+  const colorMap: Record<string, string> = {
+    health: colors.health,
+    happiness: colors.happiness,
+    wealth: colors.wealth,
+  };
 
-function StatsStrip({ stats }: { stats: Pick<CharacterStats, 'health' | 'happiness' | 'intelligence' | 'fitness' | 'mentalHealth'> }) {
   return (
-    <View style={ls.strip}>
-      {MINI_STATS.map((s, i) => (
-        <View key={s.key} style={ls.col}>
-          <View style={ls.statRow}>
-            <View style={[ls.iconWrap, { backgroundColor: `${s.color}15` }]}>
-              {s.icon(s.color)}
-            </View>
-            <Text style={ls.statLabel}>{s.label}</Text>
-            <Text style={[ls.statVal, { color: s.color }]}>{stats[s.key]}</Text>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel="Open full stats"
+      style={{ marginHorizontal: spacing.lg, marginBottom: spacing.sm }}
+    >
+      <GlassCard
+        style={{
+          flexDirection: "row",
+          paddingVertical: spacing.sm,
+          paddingHorizontal: spacing.md,
+          gap: spacing.sm,
+        }}
+      >
+        {MINI_STATS.map((s) => (
+          <View key={s.key} style={mini.vital}>
+            <Text style={[mini.label, { color: colors.t4, fontFamily: fonts.body }]}>
+              {s.label}
+            </Text>
+            <Text
+              style={[
+                mini.value,
+                { color: colorMap[s.colorKey], fontFamily: fonts.monoSemiBold },
+              ]}
+            >
+              {stats[s.key]}
+            </Text>
           </View>
-          <StatBar value={stats[s.key] as number} color={s.color} height={4} delay={i * 40} />
+        ))}
+        <View style={[mini.more, { borderColor: colors.border, borderRadius: radii.sm }]}>
+          <Text style={[mini.moreText, { color: colors.t3, fontFamily: fonts.bodySemiBold }]}>
+            All Stats ›
+          </Text>
         </View>
+      </GlassCard>
+    </Pressable>
+  );
+}
+
+const mini = StyleSheet.create({
+  vital: { flex: 1, alignItems: "center", gap: 2 },
+  label: { fontSize: 9, letterSpacing: 0.6, textTransform: "uppercase" },
+  value: { fontSize: 16 },
+  more: {
+    justifyContent: "center",
+    paddingHorizontal: 10,
+    borderLeftWidth: 1,
+    marginLeft: 4,
+  },
+  moreText: { fontSize: 10 },
+});
+
+// ─── Explore shortcuts (non-tab destinations only) ───────────────────────────
+
+function ExploreShortcuts({
+  onActivities,
+  onSocial,
+}: {
+  onActivities: () => void;
+  onSocial: () => void;
+}) {
+  const { colors, fonts, spacing, radii } = useTheme();
+
+  const chips = [
+    { label: "Activities", onPress: onActivities, color: colors.emerald },
+    { label: "Social", onPress: onSocial, color: colors.orchid },
+  ];
+
+  return (
+    <View
+      style={{
+        flexDirection: "row",
+        gap: spacing.sm,
+        marginHorizontal: spacing.lg,
+        marginBottom: spacing.md,
+      }}
+    >
+      {chips.map((chip) => (
+        <Pressable
+          key={chip.label}
+          onPress={chip.onPress}
+          style={[
+            explore.chip,
+            {
+              borderColor: `${chip.color}40`,
+              backgroundColor: `${chip.color}10`,
+              borderRadius: radii.full,
+            },
+          ]}
+        >
+          <Text style={[explore.text, { color: chip.color, fontFamily: fonts.bodySemiBold }]}>
+            {chip.label}
+          </Text>
+        </Pressable>
       ))}
     </View>
   );
 }
 
-const ls = StyleSheet.create({
-  strip: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    backgroundColor: COLORS.bgCard,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+const explore = StyleSheet.create({
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: 1,
   },
-  col: { flex: 1, gap: 5 },
-  statRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  iconWrap: {
-    width: 18,
-    height: 18,
-    borderRadius: 5,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statLabel: {
-    fontFamily: FONTS.body,
-    fontSize: 9,
-    color: COLORS.t3,
-    flex: 1,
-    letterSpacing: 0.5,
-  },
-  statVal: {
-    fontFamily: FONTS.monoSemiBold,
-    fontSize: 10,
-    fontWeight: '700',
-  },
+  text: { fontSize: 12 },
 });
+
+// ─── Empty Life Log ───────────────────────────────────────────────────────────
+
+function EmptyLifeLog() {
+  const { colors, fonts } = useTheme();
+  return (
+    <View style={styles.empty}>
+      <Text
+        style={[styles.emptyText, { color: colors.t3, fontFamily: fonts.body }]}
+      >
+        No events recorded yet. Tap Age Up to begin!
+      </Text>
+    </View>
+  );
+}
 
 // ─── Age Up Button ────────────────────────────────────────────────────────────
 
-function AgeUpButton({ onPress, loading, disabled }: { onPress: () => void; loading: boolean; disabled?: boolean }) {
-  const shimmer    = useRef(new Animated.Value(-1)).current;
-  const scale      = useRef(new Animated.Value(1)).current;
+function AgeUpButton({
+  onPress,
+  loading,
+  disabled,
+}: {
+  onPress: () => void;
+  loading: boolean;
+  disabled?: boolean;
+}) {
+  const { colors, fonts, radii } = useTheme();
+  const shimmer = useRef(new Animated.Value(-1)).current;
+  const scale = useRef(new Animated.Value(1)).current;
   const pulseScale = useRef(new Animated.Value(1)).current;
-  const pulseOp    = useRef(new Animated.Value(0)).current;
+  const pulseOp = useRef(new Animated.Value(0)).current;
+
+  // Hourglass flip animation values
+  const flipAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     // Shimmer sweep
     Animated.loop(
       Animated.sequence([
-        Animated.timing(shimmer, { toValue: 1, duration: 2200, useNativeDriver: true, delay: 1000 }),
-        Animated.timing(shimmer, { toValue: -1, duration: 0, useNativeDriver: true }),
-      ])
+        Animated.timing(shimmer, {
+          toValue: 1,
+          duration: 2200,
+          useNativeDriver: true,
+          delay: 1000,
+        }),
+        Animated.timing(shimmer, {
+          toValue: -1,
+          duration: 0,
+          useNativeDriver: true,
+        }),
+      ]),
     ).start();
+
     // Pulse ring
     Animated.loop(
       Animated.sequence([
         Animated.parallel([
-          Animated.timing(pulseScale, { toValue: 1.18, duration: 900, useNativeDriver: true }),
-          Animated.timing(pulseOp,   { toValue: 0.5,  duration: 900, useNativeDriver: true }),
+          Animated.timing(pulseScale, {
+            toValue: 1.18,
+            duration: 900,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseOp, {
+            toValue: 0.5,
+            duration: 900,
+            useNativeDriver: true,
+          }),
         ]),
         Animated.parallel([
-          Animated.timing(pulseScale, { toValue: 1, duration: 900, useNativeDriver: true }),
-          Animated.timing(pulseOp,   { toValue: 0, duration: 900, useNativeDriver: true }),
+          Animated.timing(pulseScale, {
+            toValue: 1,
+            duration: 900,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseOp, {
+            toValue: 0,
+            duration: 900,
+            useNativeDriver: true,
+          }),
         ]),
-      ])
+      ]),
     ).start();
-  }, []);
+  }, [shimmer, pulseScale, pulseOp]);
 
-  const shimX = shimmer.interpolate({ inputRange: [-1, 1], outputRange: [-220, 220] });
+  useEffect(() => {
+    if (loading) {
+      const runFlip = () => {
+        flipAnim.setValue(0);
+        Animated.timing(flipAnim, {
+          toValue: 1,
+          duration: 750,
+          useNativeDriver: true,
+        }).start(() => {
+          setTimeout(() => {
+            if (loading) {
+              runFlip();
+            }
+          }, 300);
+        });
+      };
+      runFlip();
+    } else {
+      flipAnim.setValue(0);
+    }
+  }, [loading, flipAnim]);
+
+  const shimX = shimmer.interpolate({
+    inputRange: [-1, 1],
+    outputRange: [-220, 220],
+  });
+
+  const rotateInterpolation = flipAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0deg", "180deg"],
+  });
 
   return (
     <View style={ageBtn.wrap}>
       {/* Pulse ring */}
-      <Animated.View style={[
-        ageBtn.ring,
-        { transform: [{ scale: pulseScale }], opacity: pulseOp },
-      ]} />
+      <Animated.View
+        style={[
+          ageBtn.ring,
+          {
+            transform: [{ scale: pulseScale }],
+            opacity: pulseOp,
+            borderColor: colors.emerald,
+            shadowColor: colors.emerald,
+            borderRadius: radii.xl || 24,
+          },
+        ]}
+      />
 
-      <Animated.View style={{ transform: [{ scale }], width: '100%' }}>
+      <Animated.View style={{ transform: [{ scale }], width: "100%" }}>
         <Pressable
           onPress={onPress}
           disabled={loading || disabled}
           accessibilityRole="button"
-          accessibilityLabel={loading ? 'Age up, loading' : disabled ? 'Confirm focus first' : 'Age up one year'}
+          accessibilityLabel={
+            loading
+              ? "Age up, loading"
+              : disabled
+              ? "Confirm focus first"
+              : "Age up one year"
+          }
           onPressIn={() =>
-            Animated.spring(scale, { toValue: 0.94, useNativeDriver: true, ...ANIM.spring }).start()
+            Animated.spring(scale, {
+              toValue: 0.94,
+              useNativeDriver: true,
+              damping: 15,
+              stiffness: 200,
+            }).start()
           }
           onPressOut={() =>
-            Animated.spring(scale, { toValue: 1, useNativeDriver: true, ...ANIM.spring }).start()
+            Animated.spring(scale, {
+              toValue: 1,
+              useNativeDriver: true,
+              damping: 15,
+              stiffness: 200,
+            }).start()
           }
-          android_ripple={{ color: 'rgba(255,255,255,0.30)' }}
-          style={{ borderRadius: RADII.lg, overflow: 'hidden' }}
+          android_ripple={{ color: "rgba(255,255,255,0.30)" }}
+          style={{ borderRadius: radii.lg || 14, overflow: "hidden" }}
         >
           <LinearGradient
-            colors={['#22C55E', '#16A34A']}
-            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            colors={[colors.emerald, colors.emerald2 || "#16A34A"]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
             style={ageBtn.btn}
           >
             {/* Shimmer */}
             <Animated.View
-              style={[StyleSheet.absoluteFill, { transform: [{ translateX: shimX }] }]}
+              style={[
+                StyleSheet.absoluteFill,
+                { transform: [{ translateX: shimX }] },
+              ]}
               pointerEvents="none"
             >
               <LinearGradient
-                colors={['transparent', 'rgba(255,255,255,0.28)', 'transparent']}
-                start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+                colors={[
+                  "transparent",
+                  "rgba(255,255,255,0.28)",
+                  "transparent",
+                ]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
                 style={StyleSheet.absoluteFill}
               />
             </Animated.View>
             <View style={ageBtn.inner}>
-              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-                <Path fill="#FFFFFF" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-              </Svg>
-              <Text style={ageBtn.label}>{loading ? 'Living...' : 'AGE UP'}</Text>
+              {loading ? (
+                <Animated.View
+                  style={{ transform: [{ rotate: rotateInterpolation }] }}
+                >
+                  <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+                    <Path
+                      fill="#FFFFFF"
+                      d="M6 2h12v6l-4 4 4 4v6H6v-6l4-4-4-4V2zm10 2H8v3.5l4 4 4-4V4zm-4 7.5l-4-4V18h8v-6.5l-4-4z"
+                    />
+                  </Svg>
+                </Animated.View>
+              ) : (
+                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+                  <Path fill="#FFFFFF" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </Svg>
+              )}
+              <Text
+                style={[
+                  ageBtn.label,
+                  { color: "#FFFFFF", fontFamily: fonts.bodyBold },
+                ]}
+              >
+                {loading ? "LIVING..." : "AGE UP"}
+              </Text>
             </View>
           </LinearGradient>
         </Pressable>
@@ -178,106 +391,142 @@ function AgeUpButton({ onPress, loading, disabled }: { onPress: () => void; load
 }
 
 const ageBtn = StyleSheet.create({
-  wrap:  { position: 'relative', alignItems: 'center', paddingVertical: SPACING.sm },
-  ring:  { position: 'absolute', left: -10, right: -10, top: 0, bottom: 0, borderRadius: RADII.xl, borderWidth: 2.5, borderColor: '#22C55E', shadowColor: '#22C55E', shadowOpacity: 0.40, shadowRadius: 16, elevation: 0 },
-  btn:   { paddingVertical: 17, borderRadius: RADII.lg, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', shadowColor: '#22C55E', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.40, shadowRadius: 18, elevation: 10 },
-  inner: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
-  label: { fontFamily: FONTS.bodyBold, fontSize: 18, color: '#FFFFFF', letterSpacing: 2 },
+  wrap: { position: "relative", alignItems: "center", paddingVertical: 8 },
+  ring: {
+    position: "absolute",
+    left: -10,
+    right: -10,
+    top: 0,
+    bottom: 0,
+    borderWidth: 2.5,
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 0,
+  },
+  btn: {
+    paddingVertical: 17,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#22C55E",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 18,
+    elevation: 10,
+  },
+  inner: { flexDirection: "row", alignItems: "center", gap: 8 },
+  label: { fontSize: 18, letterSpacing: 2 },
 });
 
 // ─── Age Section Header ───────────────────────────────────────────────────────
 
 function AgeSectionHeader({ age }: { age: number }) {
-  const lifeStageColor = age < 13 ? COLORS.emerald : age < 18 ? COLORS.sapphire : age < 30 ? COLORS.catCareer : age < 60 ? COLORS.gold : COLORS.orchid;
+  const { colors, fonts } = useTheme();
+  const lifeStageColor =
+    age < 13
+      ? colors.emerald
+      : age < 18
+      ? colors.sapphire
+      : age < 30
+      ? colors.catCareer
+      : age < 60
+      ? colors.gold
+      : colors.orchid;
 
   return (
     <View style={ash.wrap}>
-      <View style={[ash.line, { backgroundColor: COLORS.border }]} />
-      <View style={[ash.badge, { backgroundColor: `${lifeStageColor}12`, borderColor: `${lifeStageColor}30` }]}>
-        <Text style={[ash.text, { color: lifeStageColor }]}>AGE {age}</Text>
+      <View style={[ash.line, { backgroundColor: colors.border }]} />
+      <View
+        style={[
+          ash.badge,
+          {
+            backgroundColor: `${lifeStageColor}12`,
+            borderColor: `${lifeStageColor}30`,
+          },
+        ]}
+      >
+        <Text
+          style={[
+            ash.text,
+            { color: lifeStageColor, fontFamily: fonts.bodyBold },
+          ]}
+        >
+          AGE {age}
+        </Text>
       </View>
-      <View style={[ash.line, { backgroundColor: COLORS.border }]} />
+      <View style={[ash.line, { backgroundColor: colors.border }]} />
     </View>
   );
 }
 
 const ash = StyleSheet.create({
-  wrap:  { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginVertical: SPACING.sm, paddingHorizontal: SPACING.lg },
-  line:  { flex: 1, height: 1 },
-  badge: { paddingHorizontal: SPACING.md, paddingVertical: 3, borderRadius: RADII.full, borderWidth: 1 },
-  text:  { fontFamily: FONTS.monoSemiBold, fontSize: 9, letterSpacing: 2.5 },
+  wrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginVertical: 8,
+    paddingHorizontal: 16,
+  },
+  line: { flex: 1, height: 1 },
+  badge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  text: { fontSize: 10.5, letterSpacing: 1 },
 });
 
-// ─── Header Currency/Badge Pills ──────────────────────────────────────────────
-
-function CurrencyPill({ icon, value, color, bgColor }: { icon: React.ReactNode; value: string; color: string; bgColor: string }) {
-  return (
-    <View style={[pill.wrap, { backgroundColor: bgColor, borderColor: `${color}25` }]}>
-      {icon}
-      <Text style={[pill.text, { color }]}>{value}</Text>
-    </View>
-  );
-}
-
-const pill = StyleSheet.create({
-  wrap: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 9, paddingVertical: 5, borderRadius: RADII.full, borderWidth: 1 },
-  text: { fontFamily: FONTS.monoSemiBold, fontSize: 11 },
-});
-
-// ─── Empty State ──────────────────────────────────────────────────────────────
-
-function EmptyLifeLog() {
-  return (
-    <View style={{ alignItems: 'center', paddingVertical: SPACING.xxxl, gap: SPACING.lg }}>
-      <View style={{ width: 72, height: 72, borderRadius: 22, backgroundColor: COLORS.bg2, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' }}>
-        <Svg width={30} height={30} viewBox="0 0 24 24" fill="none">
-          <Path stroke={COLORS.t4} strokeWidth={1.5} strokeLinecap="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-        </Svg>
-      </View>
-      <View style={{ alignItems: 'center', gap: 6 }}>
-        <Text style={{ fontFamily: FONTS.bodyBold, fontSize: 16, color: COLORS.t2 }}>Your story begins now</Text>
-        <Text style={{ fontFamily: FONTS.body, fontSize: 13, color: COLORS.t4, textAlign: 'center' }}>
-          Tap Age Up to write your first chapter.
-        </Text>
-      </View>
-    </View>
-  );
-}
-
-// ─── Group events by age ──────────────────────────────────────────────────────
+// ─── Helper: Group Event History by Age ──────────────────────────────────────
 
 function groupByAge(events: LifeEventRecord[]) {
   const map = new Map<number, LifeEventRecord[]>();
-  for (const e of events) {
-    if (!map.has(e.age)) map.set(e.age, []);
-    map.get(e.age)!.push(e);
-  }
-  return Array.from(map.entries())
-    .sort((a, b) => b[0] - a[0])
-    .map(([age, data]) => ({ title: String(age), data }));
+  events.forEach((e) => {
+    const list = map.get(e.age) || [];
+    list.push(e);
+    map.set(e.age, list);
+  });
+  // Sort events by timestamp descending, and return ages in descending order
+  const sortedAges = Array.from(map.keys()).sort((a, b) => b - a);
+  return sortedAges.map((age) => {
+    const data = map.get(age) || [];
+    data.sort((a, b) => b.timestamp - a.timestamp);
+    return { title: String(age), data };
+  });
 }
 
-// ─── Main Screen ──────────────────────────────────────────────────────────────
+// ─── Main Screen Component ────────────────────────────────────────────────────
 
 export function LifeScreen() {
-  const navigation    = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const tabNavigation = useNavigation<BottomTabNavigationProp<MainTabParamList>>();
-  const insets        = useSafeAreaInsets();
-  const character     = useGameStore(s => s.character);
-  const pendingDecision = useGameStore(s => s.pendingDecision);
-  const isProcessing  = useGameStore(s => s.isProcessing);
-  const lastAgeUpNotice = useGameStore(s => s.lastAgeUpNotice);
-  const clearAgeUpNotice = useGameStore(s => s.clearAgeUpNotice);
-  const ageUp         = useGameStore(s => s.ageUp);
-  const resolveDecision = useGameStore(s => s.resolveDecision);
-  const dismissDecision = useGameStore(s => s.dismissDecision);
-  const dismissYearReview = useGameStore(s => s.dismissYearReview);
-  const pendingAspirationPicker = useGameStore(s => s.pendingAspirationPicker);
-  const lifePhase = character?.lifePhase ?? 'planning';
+  const { colors, fonts, spacing, radii } = useTheme();
+
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const tabNavigation =
+    useNavigation<BottomTabNavigationProp<MainTabParamList>>();
+  const insets = useSafeAreaInsets();
+  const character = useGameStore((s) => s.character);
+  const pendingDecision = useGameStore((s) => s.pendingDecision);
+  const isProcessing = useGameStore((s) => s.isProcessing);
+  const lastAgeUpNotice = useGameStore((s) => s.lastAgeUpNotice);
+  const clearAgeUpNotice = useGameStore((s) => s.clearAgeUpNotice);
+  const ageUp = useGameStore((s) => s.ageUp);
+  const resolveDecision = useGameStore((s) => s.resolveDecision);
+  const dismissDecision = useGameStore((s) => s.dismissDecision);
+  const dismissYearReview = useGameStore((s) => s.dismissYearReview);
+  const pendingAspirationPicker = useGameStore(
+    (s) => s.pendingAspirationPicker,
+  );
+  const lifePhase = character?.lifePhase ?? "planning";
+
+  const [isAgeUpCeremony, setIsAgeUpCeremony] = useState(false);
+  const [yearReviewOpen, setYearReviewOpen] = useState(false);
+  const showConfetti = useGameStore((s) => s.showConfetti);
+  const setShowConfetti = useGameStore((s) => s.setShowConfetti);
 
   useEffect(() => {
     if (pendingAspirationPicker) {
-      navigation.navigate('AspirationPicker');
+      navigation.navigate("AspirationPicker");
     }
   }, [pendingAspirationPicker, navigation]);
 
@@ -289,174 +538,396 @@ export function LifeScreen() {
 
   const handleAgeUp = useCallback(async () => {
     const wasAlive = useGameStore.getState().character?.isAlive;
-    void triggerLightImpact();
-    ageUp();
-    const after = useGameStore.getState().character;
-    void logEvent('age_up', { age: after?.age ?? 0 });
-    if (!after?.isAlive && wasAlive) void logEvent('death', { age: after?.deathAge ?? 0 });
-    const { ageUpsSinceAd: count, character: c } = useGameStore.getState();
-    if (c && !c.hasNoAds && !c.isPremium && count > 0 && count % INTERSTITIAL_EVERY_N_AGEUPS === 0) {
-      await maybeShowInterstitial();
-    }
+    void hapticAgeUp();
+    setIsAgeUpCeremony(true);
+    setTimeout(async () => {
+      ageUp();
+      setIsAgeUpCeremony(false);
+      const after = useGameStore.getState().character;
+      void logEvent("age_up", { age: after?.age ?? 0 });
+      if (!after?.isAlive && wasAlive)
+        void logEvent("death", { age: after?.deathAge ?? 0 });
+      const { ageUpsSinceAd: count, character: c } = useGameStore.getState();
+      if (
+        c &&
+        !c.hasNoAds &&
+        !c.isPremium &&
+        count > 0 &&
+        count % INTERSTITIAL_EVERY_N_AGEUPS === 0
+      ) {
+        await maybeShowInterstitial();
+      }
+    }, 1000);
   }, [ageUp]);
 
   if (!character) return null;
 
   const sections = groupByAge(character.eventHistory);
-  const countryCode = character.countryCode ?? 'IN';
+  const countryCode = character.countryCode ?? "IN";
   const bankStr = formatCurrency(character.bankBalance, countryCode);
   const finance = getFinanceSummary(character);
-  const debtStr = finance.totalDebt > 0 ? formatCurrency(finance.totalDebt, countryCode) : null;
+  const debtStr =
+    finance.totalDebt > 0
+      ? formatCurrency(finance.totalDebt, countryCode)
+      : null;
   const netWorthStr = formatCurrency(finance.netWorth, countryCode);
-  const educationLabel = getEducationLabel(character.educationStage, character.educationLevel);
-  const lifeStage = character.age < 13 ? 'Childhood' : character.age < 18 ? 'Teenager' : character.age < 30 ? 'Young Adult' : character.age < 60 ? 'Adult' : 'Golden Years';
+  const educationLabel = getEducationLabel(
+    character.educationStage,
+    character.educationLevel,
+  );
+  const lifeStage =
+    character.age < 13
+      ? "Childhood"
+      : character.age < 18
+      ? "Teenager"
+      : character.age < 30
+      ? "Young Adult"
+      : character.age < 60
+      ? "Adult"
+      : "Golden Years";
   const jailed = isInJail(character);
   const jailYears = character.criminalRecord?.jailYearsRemaining ?? 0;
-  const onProbation = !jailed && (character.criminalRecord?.onProbation ?? false);
-  const jailBannerText = lastAgeUpNotice ?? (jailed ? `Serving time — ${jailYears} year${jailYears === 1 ? '' : 's'} left` : null);
-  const probationBannerText = !lastAgeUpNotice && onProbation
-    ? 'On probation — career opportunities limited'
-    : null;
-  const canAgeUp = (character.age <= 12 || lifePhase === 'acting')
-    && lifePhase !== 'review'
-    && !pendingDecision
-    && !isProcessing;
-  const showFocusSheet = lifePhase === 'planning' && character.age >= 13 && !isFocusConfirmedForAge(character);
-  const showYearReview = lifePhase === 'review' && character.lastYearReview;
+  const onProbation =
+    !jailed && (character.criminalRecord?.onProbation ?? false);
+  const jailBannerText =
+    lastAgeUpNotice ??
+    (jailed
+      ? `Serving time — ${jailYears} year${jailYears === 1 ? "" : "s"} left`
+      : null);
+  const probationBannerText =
+    !lastAgeUpNotice && onProbation
+      ? "On probation — career opportunities limited"
+      : null;
+  const canAgeUp =
+    (character.age <= 12 || lifePhase === "acting") &&
+    lifePhase !== "review" &&
+    !pendingDecision &&
+    !isProcessing &&
+    !isAgeUpCeremony;
+  const showFocusSheet =
+    lifePhase === "planning" &&
+    character.age >= 13 &&
+    !isFocusConfirmedForAge(character);
+  const showYearReview = lifePhase === "review" && character.lastYearReview;
 
-  return (
-    <View style={styles.root}>
-      <SafeAreaView style={styles.safe} edges={['top']}>
+  useEffect(() => {
+    if (showYearReview) setYearReviewOpen(true);
+  }, [showYearReview, character.lastYearReview?.age]);
 
-        {/* ── Header ── */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <View style={styles.avatarWrap}>
-              <View style={styles.avatarRing}>
-                <AvatarByCharacter character={character} size={46} />
-              </View>
-              <View style={styles.onlineDot} />
+  const lifeDashboard = (
+    <>
+      {/* ── Header ── */}
+      <View
+        style={[
+          styles.header,
+          {
+            backgroundColor: colors.bgCard,
+            borderBottomColor: colors.border,
+          },
+        ]}
+      >
+        <View style={styles.headerLeft}>
+          <Pressable
+            onPress={() => tabNavigation.navigate("Profile")}
+            style={styles.avatarWrap}
+          >
+            <View style={[styles.avatarRing, { borderColor: colors.gold }]}>
+              <AvatarByCharacter character={character} size={48} />
             </View>
-
-            <View style={styles.headerMeta}>
-              <Text style={styles.name} numberOfLines={1}>{character.name}</Text>
-              <View style={styles.jobRow}>
-                <View style={[styles.jobPill, { backgroundColor: `${COLORS.sapphire}12`, borderColor: `${COLORS.sapphire}25` }]}>
-                  <Text style={styles.jobText}>{character.job}</Text>
-                </View>
-                <View style={[styles.jobPill, { backgroundColor: `${COLORS.catEducation}12`, borderColor: `${COLORS.catEducation}25` }]}>
-                  <Text style={[styles.jobText, { color: COLORS.catEducation }]}>{educationLabel}</Text>
-                </View>
-                <Text style={styles.flag}>{character.countryFlag}</Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.ageBadge}>
-            <Text style={styles.ageNum}>{character.age}</Text>
-            <Text style={styles.ageLbl}>yrs</Text>
-          </View>
-        </View>
-
-        {/* ── Currency row ── */}
-        <View style={styles.currencyRow}>
-          <CurrencyPill
-            icon={<Svg width={12} height={12} viewBox="0 0 24 24" fill="none"><Path stroke={COLORS.catFinancial} strokeWidth={2} strokeLinecap="round" d="M3 22h18M3 10h18M5 6l7-4 7 4"/></Svg>}
-            value={bankStr}
-            color={COLORS.catFinancial}
-            bgColor={`${COLORS.catFinancial}10`}
-          />
-          {debtStr && (
-            <CurrencyPill
-              icon={<Svg width={12} height={12} viewBox="0 0 24 24" fill="none"><Path stroke={COLORS.crimson} strokeWidth={2} strokeLinecap="round" d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></Svg>}
-              value={`-${debtStr}`}
-              color={COLORS.crimson}
-              bgColor={`${COLORS.crimson}10`}
-            />
-          )}
-          <Pressable onPress={() => tabNavigation.navigate('Assets')}>
-            <CurrencyPill
-              icon={<Svg width={12} height={12} viewBox="0 0 24 24" fill="none"><Path stroke={COLORS.teal} strokeWidth={2} strokeLinecap="round" d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></Svg>}
-              value={netWorthStr}
-              color={COLORS.teal}
-              bgColor={`${COLORS.teal}10`}
+            <View
+              style={[
+                styles.onlineDot,
+                {
+                  backgroundColor: colors.emerald,
+                  borderColor: colors.bgCard,
+                },
+              ]}
             />
           </Pressable>
-          <CurrencyPill
-            icon={<Svg width={12} height={12} viewBox="0 0 24 24" fill={COLORS.gold}><Circle cx="12" cy="12" r="10" fill={`${COLORS.gold}20`} stroke={COLORS.gold} strokeWidth={2}/></Svg>}
-            value={character.coins >= 1000 ? `${(character.coins / 1000).toFixed(0)}K` : String(character.coins)}
-            color={COLORS.gold3}
-            bgColor={`${COLORS.gold}10`}
-          />
-          <Pressable
-            onPress={() => navigation.navigate('Activities')}
-            style={styles.actBtn}
-          >
-            <Svg width={12} height={12} viewBox="0 0 24 24" fill="none">
-              <Path stroke={COLORS.orchid} strokeWidth={2} strokeLinecap="round" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-            </Svg>
-            <Text style={styles.actBtnText}>Activities</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => navigation.navigate('SocialMedia')}
-            style={styles.actBtn}
-          >
-            <Svg width={12} height={12} viewBox="0 0 24 24" fill="none">
-              <Path stroke={COLORS.sapphire} strokeWidth={2} strokeLinecap="round" d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13"/>
-            </Svg>
-            <Text style={styles.actBtnText}>Social</Text>
-          </Pressable>
-        </View>
-
-        {jailBannerText ? (
-          <Pressable onPress={clearAgeUpNotice} style={styles.jailBanner}>
-            <Text style={styles.jailBannerText}>{jailBannerText}</Text>
-          </Pressable>
-        ) : probationBannerText ? (
-          <View style={styles.probationBanner}>
-            <Text style={styles.probationBannerText}>{probationBannerText}</Text>
+          <View style={styles.headerMeta}>
+            <Text
+              style={[
+                styles.name,
+                { color: colors.t1, fontFamily: fonts.bodyBold },
+              ]}
+            >
+              {character.name}
+            </Text>
+            <View style={styles.jobRow}>
+              {character.job ? (
+                <View
+                  style={[
+                    styles.jobPill,
+                    {
+                      borderColor: `${colors.sapphire}30`,
+                      backgroundColor: `${colors.sapphire}08`,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.jobText,
+                      {
+                        color: colors.sapphire,
+                        fontFamily: fonts.bodySemiBold,
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {character.job}
+                  </Text>
+                </View>
+              ) : (
+                <View
+                  style={[
+                    styles.jobPill,
+                    {
+                      borderColor: `${colors.t3}30`,
+                      backgroundColor: `${colors.t3}08`,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.jobText,
+                      {
+                        color: colors.t3,
+                        fontFamily: fonts.bodySemiBold,
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {educationLabel}
+                  </Text>
+                </View>
+              )}
+              <Text
+                style={[
+                  styles.flag,
+                  { color: colors.t3, fontFamily: fonts.body },
+                ]}
+              >
+                {character.gender === "male" ? "♂" : "♀"} · {countryCode}
+              </Text>
+            </View>
           </View>
-        ) : null}
-
-        {/* ── Life Log ── */}
-        {sections.length === 0 ? (
-          <EmptyLifeLog />
-        ) : (
-          <SectionList
-            sections={sections}
-            keyExtractor={(item) => `${item.id}_${item.timestamp}`}
-            renderItem={({ item, index }) => (
-              <View style={{ paddingHorizontal: SPACING.lg }}>
-                <EventCard event={item} isNew={index === 0 && !isProcessing} />
-              </View>
-            )}
-            renderSectionHeader={({ section }) => (
-              <AgeSectionHeader age={Number(section.title)} />
-            )}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ paddingBottom: SPACING.sm }}
-            stickySectionHeadersEnabled={false}
-          />
-        )}
-
-        {/* ── Stats Strip ── */}
-        <StatsStrip stats={character.stats} />
-
-        {showYearReview && (
-          <YearReviewCard review={character.lastYearReview!} onDismiss={dismissYearReview} />
-        )}
-
-        {/* ── Age Up area ── */}
-        <View style={[styles.footer, { paddingBottom: insets.bottom > 0 ? 0 : SPACING.sm }]}>
-          <AgeUpButton onPress={handleAgeUp} loading={isProcessing} disabled={!canAgeUp} />
-          <Text style={styles.footerMeta}>
-            {lifeStage}{' · '}Born {character.birthYear}
+        </View>
+        <View style={[styles.agePill, { borderColor: colors.border }]}>
+          <Text
+            style={[
+              styles.ageValue,
+              { color: colors.t1, fontFamily: fonts.monoSemiBold },
+            ]}
+          >
+            Age {character.age}
+          </Text>
+          <Text
+            style={[
+              styles.ageLabel,
+              { color: colors.t3, fontFamily: fonts.bodyBold },
+            ]}
+          >
+            {lifeStage.toUpperCase()}
           </Text>
         </View>
-      </SafeAreaView>
+      </View>
+
+      {/* ── Finances ── */}
+      <GlassCard
+        style={{
+          flexDirection: "row",
+          justifyContent: "space-around",
+          alignItems: "center",
+          marginHorizontal: spacing.lg,
+          marginTop: spacing.md,
+          marginBottom: spacing.sm,
+          padding: spacing.md,
+        }}
+      >
+        <View style={styles.finCol}>
+          <Text style={[styles.finLabel, { color: colors.t3, fontFamily: fonts.body }]}>
+            BANK
+          </Text>
+          <Text
+            style={[
+              styles.finVal,
+              {
+                color: character.bankBalance >= 0 ? colors.emerald : colors.crimson,
+                fontFamily: fonts.monoSemiBold,
+              },
+            ]}
+          >
+            {bankStr}
+          </Text>
+        </View>
+        <View style={[styles.finDivider, { backgroundColor: colors.border }]} />
+        <View style={styles.finCol}>
+          <Text style={[styles.finLabel, { color: colors.t3, fontFamily: fonts.body }]}>
+            NET WORTH
+          </Text>
+          <Text style={[styles.finVal, { color: colors.t1, fontFamily: fonts.monoSemiBold }]}>
+            {netWorthStr}
+          </Text>
+        </View>
+        {debtStr ? (
+          <>
+            <View style={[styles.finDivider, { backgroundColor: colors.border }]} />
+            <View style={styles.finCol}>
+              <Text style={[styles.finLabel, { color: colors.t3, fontFamily: fonts.body }]}>
+                DEBT
+              </Text>
+              <Text style={[styles.finVal, { color: colors.crimson, fontFamily: fonts.monoSemiBold }]}>
+                {debtStr}
+              </Text>
+            </View>
+          </>
+        ) : null}
+      </GlassCard>
+
+      <MiniVitalsStrip
+        stats={character.stats}
+        onPress={() => navigation.navigate("Stats")}
+      />
+
+      <ExploreShortcuts
+        onActivities={() => navigation.navigate("Activities")}
+        onSocial={() => navigation.navigate("SocialMedia")}
+      />
+
+      {showYearReview ? (
+        <YearReviewBanner
+          review={character.lastYearReview!}
+          onPress={() => setYearReviewOpen(true)}
+        />
+      ) : null}
+
+      {jailBannerText ? (
+        <Pressable
+          onPress={clearAgeUpNotice}
+          style={[
+            styles.jailBanner,
+            { backgroundColor: colors.crimson, borderRadius: radii.sm },
+          ]}
+        >
+          <Text style={[styles.jailBannerText, { fontFamily: fonts.bodySemiBold }]}>
+            {jailBannerText}
+          </Text>
+        </Pressable>
+      ) : probationBannerText ? (
+        <View
+          style={[
+            styles.probationBanner,
+            { backgroundColor: colors.gold, borderRadius: radii.sm },
+          ]}
+        >
+          <Text style={[styles.probationBannerText, { fontFamily: fonts.bodySemiBold }]}>
+            {probationBannerText}
+          </Text>
+        </View>
+      ) : null}
+
+      {sections.length > 0 ? (
+        <Text
+          style={[
+            styles.logLabel,
+            {
+              color: colors.t4,
+              fontFamily: fonts.bodyBold,
+              marginHorizontal: spacing.lg,
+              marginBottom: spacing.xs,
+            },
+          ]}
+        >
+          LIFE LOG
+        </Text>
+      ) : null}
+    </>
+  );
+
+  const stickyFooter = (
+    <View
+      style={[
+        styles.stickyFooter,
+        {
+          backgroundColor: colors.bgCard,
+          borderTopColor: colors.border,
+          paddingBottom: Math.max(insets.bottom, spacing.sm),
+        },
+      ]}
+    >
+      <LinearGradient
+        colors={[`${colors.bgCard}00`, colors.bgCard]}
+        style={styles.footerFade}
+        pointerEvents="none"
+      />
+      <AgeUpButton
+        onPress={handleAgeUp}
+        loading={isProcessing || isAgeUpCeremony}
+        disabled={!canAgeUp}
+      />
+      <Text style={[styles.footerMeta, { color: colors.t3, fontFamily: fonts.body }]}>
+        Born {character.birthYear}
+      </Text>
+    </View>
+  );
+
+  return (
+    <>
+      <ScreenShell footer={stickyFooter}>
+        <SectionList
+          sections={sections}
+          keyExtractor={(item) => `${item.id}_${item.timestamp}`}
+          ListHeaderComponent={lifeDashboard}
+          ListEmptyComponent={<EmptyLifeLog />}
+          renderItem={({ item, section }) => {
+            const isNewestAge = item.age === character.age;
+            const itemIndexInAge = section.data.indexOf(item);
+            return (
+              <View style={{ paddingHorizontal: spacing.lg }}>
+                <EventCard
+                  event={item}
+                  isNew={isNewestAge && !isProcessing}
+                  staggerIndex={itemIndexInAge}
+                />
+              </View>
+            );
+          }}
+          renderSectionHeader={({ section }) => (
+            <AgeSectionHeader age={Number(section.title)} />
+          )}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: spacing.md, flexGrow: 1 }}
+          stickySectionHeadersEnabled={false}
+          style={{ flex: 1 }}
+        />
+      </ScreenShell>
+
+      <Modal
+        visible={yearReviewOpen && !!character.lastYearReview}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => {
+          setYearReviewOpen(false);
+          dismissYearReview();
+        }}
+      >
+        <View style={[styles.modalRoot, { backgroundColor: colors.bg }]}>
+          <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
+            {character.lastYearReview ? (
+              <YearReviewCard
+                review={character.lastYearReview}
+                onDismiss={() => {
+                  setYearReviewOpen(false);
+                  dismissYearReview();
+                }}
+              />
+            ) : null}
+          </SafeAreaView>
+        </View>
+      </Modal>
 
       <DecisionSheet
-        event={pendingDecision?.event ?? null}
+        event={pendingDecision ? pendingDecision.event : null}
         onChoice={resolveDecision}
         onClose={dismissDecision}
       />
@@ -466,125 +937,112 @@ export function LifeScreen() {
         age={character.age}
         familyBackground={character.familyBackground}
       />
-    </View>
+
+      <ConfettiOverlay
+        active={showConfetti}
+        onAnimationEnd={() => setShowConfetti(false)}
+      />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
+  root: { flex: 1 },
   safe: { flex: 1 },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    backgroundColor: COLORS.bgCard,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, flex: 1 },
-  avatarWrap: { position: 'relative' },
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
+  },
+  avatarWrap: { position: "relative" },
   avatarRing: {
     borderRadius: 27,
     borderWidth: 2.5,
-    borderColor: COLORS.gold,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   onlineDot: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     right: 0,
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: COLORS.emerald,
     borderWidth: 2,
-    borderColor: COLORS.bgCard,
   },
   headerMeta: { flex: 1, gap: 5 },
-  name: { fontFamily: FONTS.bodyBold, fontSize: 17, color: COLORS.t1 },
-  jobRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  name: { fontSize: 17 },
+  jobRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   jobPill: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: RADII.full,
     borderWidth: 1,
+    borderRadius: 99,
   },
-  jobText: { fontFamily: FONTS.bodySemiBold, fontSize: 10, color: COLORS.sapphire },
-  flag: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.t3 },
-  ageBadge: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: COLORS.sapphire,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ageNum: { fontFamily: FONTS.bodyBold, fontSize: 20, color: '#FFFFFF', lineHeight: 24 },
-  ageLbl: { fontFamily: FONTS.body, fontSize: 9, color: 'rgba(255,255,255,0.8)', lineHeight: 11 },
-  currencyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: 8,
-    backgroundColor: COLORS.bg2,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
-  },
-  jailBanner: {
-    marginHorizontal: SPACING.lg,
-    marginTop: 8,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 8,
-    borderRadius: RADII.md,
+  jobText: { fontSize: 10 },
+  flag: { fontSize: 13 },
+  agePill: {
     borderWidth: 1,
-    borderColor: `${COLORS.crimson}40`,
-    backgroundColor: `${COLORS.crimson}1A`,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    alignItems: "center",
   },
-  jailBannerText: {
-    fontFamily: FONTS.bodySemiBold,
-    fontSize: 13,
-    color: COLORS.crimson,
-    textAlign: 'center',
-  },
-  probationBanner: {
-    marginHorizontal: SPACING.lg,
-    marginTop: 8,
-    paddingHorizontal: SPACING.md,
-    paddingVertical: 8,
-    borderRadius: RADII.md,
+  ageValue: { fontSize: 15 },
+  ageLabel: { fontSize: 8, letterSpacing: 0.5, marginTop: 1 },
+  finCard: {
+    flexDirection: "row",
+    justifyContent: "space-around",
     borderWidth: 1,
-    borderColor: `${COLORS.gold}40`,
-    backgroundColor: `${COLORS.gold}1A`,
+    alignItems: "center",
   },
-  probationBannerText: {
-    fontFamily: FONTS.bodySemiBold,
-    fontSize: 13,
-    color: COLORS.gold,
-    textAlign: 'center',
+  finCol: { alignItems: "center", flex: 1 },
+  finLabel: { fontSize: 8, letterSpacing: 0.8, marginBottom: 4 },
+  finVal: { fontSize: 14 },
+  finDivider: {
+    width: 1,
+    height: 30,
   },
-  footer: {
-    paddingHorizontal: SPACING.lg,
-    paddingTop: 8,
-    backgroundColor: COLORS.bgCard,
+  logLabel: { fontSize: 9, letterSpacing: 1.2 },
+  stickyFooter: {
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    gap: 4,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    position: "relative",
   },
-  footerMeta: {
-    fontFamily: FONTS.body,
-    fontSize: 11,
-    color: COLORS.t4,
-    textAlign: 'center',
-    paddingBottom: 8,
+  footerFade: {
+    position: "absolute",
+    top: -24,
+    left: 0,
+    right: 0,
+    height: 24,
   },
-  actBtn: {
-    marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 10, paddingVertical: 5,
-    backgroundColor: `${COLORS.orchid}10`,
-    borderRadius: RADII.full, borderWidth: 1, borderColor: `${COLORS.orchid}25`,
+  modalRoot: { flex: 1 },
+  jailBanner: {
+    marginHorizontal: 16,
+    marginVertical: 6,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  actBtnText: { fontFamily: FONTS.bodySemiBold, fontSize: 11, color: COLORS.orchid },
+  jailBannerText: { color: "#FFFFFF", fontSize: 13 },
+  probationBanner: {
+    marginHorizontal: 16,
+    marginVertical: 6,
+    paddingVertical: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  probationBannerText: { color: "#FFFFFF", fontSize: 13 },
+  empty: { paddingVertical: 32, alignItems: "center", justifyContent: "center" },
+  emptyText: { fontSize: 14, textAlign: "center" },
+  footerMeta: { fontSize: 11, marginTop: 4 },
 });

@@ -94,12 +94,12 @@ describe('gameStore focus flow', () => {
   });
 
   it('allows ageUp after focus is confirmed', () => {
-    const character = readyToAgeUp({ age: 25 });
+    const character = readyToAgeUp({ age: 24 });
     expect(runAgeUp(character).type).not.toBe('jail_tick');
 
     useGameStore.setState({ character });
     useGameStore.getState().ageUp();
-    expect(useGameStore.getState().character?.age).toBe(26);
+    expect(useGameStore.getState().character?.age).toBe(25);
     expect(useGameStore.getState().character?.lifePhase).toBe('review');
   });
 

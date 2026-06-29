@@ -261,10 +261,12 @@ export interface CharacterSlice {
   pendingReincarnation: boolean;
   pendingAspirationPicker: boolean;
   pendingCourt: boolean;
+  showConfetti: boolean;
 
   createCharacter: (payload: CreateCharacterPayload) => void;
   ageUp: () => void;
   clearAgeUpNotice: () => void;
+  setShowConfetti: (val: boolean) => void;
   clearPendingReincarnation: () => void;
   resolveDecision: (choiceId: string) => void;
   dismissDecision: () => void;
@@ -301,6 +303,7 @@ export const createCharacterSlice: StateCreator<
   pendingReincarnation: false,
   pendingAspirationPicker: false,
   pendingCourt: false,
+  showConfetti: false,
 
   createCharacter: (payload) => {
     incrementLoadGeneration();
@@ -427,6 +430,11 @@ export const createCharacterSlice: StateCreator<
   clearAgeUpNotice: () =>
     set((s) => {
       s.lastAgeUpNotice = null;
+    }),
+
+  setShowConfetti: (val) =>
+    set((s) => {
+      s.showConfetti = val;
     }),
 
   clearPendingReincarnation: () =>

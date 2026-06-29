@@ -1,6 +1,6 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { COLORS, FONTS, RADII, SPACING } from '@theme';
+import { useTheme } from '@theme';
 import Svg, { Path } from 'react-native-svg';
 
 interface ScreenHeaderProps {
@@ -11,6 +11,8 @@ interface ScreenHeaderProps {
 
 export function ScreenHeader({ title, subtitle, showClose = true }: ScreenHeaderProps) {
   const navigation = useNavigation();
+  const { colors, fonts, radii, spacing } = useTheme();
+  const styles = getStyles(colors, fonts, radii, spacing);
 
   return (
     <View style={styles.row}>
@@ -26,7 +28,7 @@ export function ScreenHeader({ title, subtitle, showClose = true }: ScreenHeader
           accessibilityLabel="Close"
         >
           <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
-            <Path stroke={COLORS.t2} strokeWidth={2} strokeLinecap="round" d="M18 6L6 18M6 6l12 12" />
+            <Path stroke={colors.t2} strokeWidth={2} strokeLinecap="round" d="M18 6L6 18M6 6l12 12" />
           </Svg>
         </Pressable>
       ) : null}
@@ -34,36 +36,42 @@ export function ScreenHeader({ title, subtitle, showClose = true }: ScreenHeader
   );
 }
 
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: SPACING.md,
-  },
-  textCol: {
-    flex: 1,
-    paddingRight: SPACING.md,
-  },
-  title: {
-    fontFamily: FONTS.displayBold,
-    fontSize: 28,
-    color: COLORS.t1,
-  },
-  subtitle: {
-    fontFamily: FONTS.body,
-    fontSize: 13,
-    color: COLORS.t3,
-    marginTop: 4,
-  },
-  closeBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: RADII.md,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: COLORS.bgCard,
-  },
-});
+const getStyles = (
+  colors: ReturnType<typeof useTheme>['colors'],
+  fonts: ReturnType<typeof useTheme>['fonts'],
+  radii: ReturnType<typeof useTheme>['radii'],
+  spacing: ReturnType<typeof useTheme>['spacing'],
+) =>
+  StyleSheet.create({
+    row: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      marginBottom: spacing.md,
+    },
+    textCol: {
+      flex: 1,
+      paddingRight: spacing.md,
+    },
+    title: {
+      fontFamily: fonts.displayBold,
+      fontSize: 28,
+      color: colors.t1,
+    },
+    subtitle: {
+      fontFamily: fonts.body,
+      fontSize: 13,
+      color: colors.t3,
+      marginTop: 4,
+    },
+    closeBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.bgCard,
+    },
+  });

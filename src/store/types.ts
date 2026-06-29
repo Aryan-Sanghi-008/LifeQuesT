@@ -58,6 +58,7 @@ export interface GameStore {
   dailyQuests: DailyQuest[];
   studyQuestions: StudyQuestion[] | null;
   lastAgeUpNotice: string | null;
+  showConfetti: boolean;
   pendingReincarnation: boolean;
   pendingAspirationPicker: boolean;
   pendingCourt: boolean;
@@ -129,6 +130,7 @@ export interface GameStore {
   ) => { ok: boolean; message: string };
   ageUp: () => void;
   clearAgeUpNotice: () => void;
+  setShowConfetti: (val: boolean) => void;
   clearPendingReincarnation: () => void;
   resolveDecision: (choiceId: string) => void;
   dismissDecision: () => void;

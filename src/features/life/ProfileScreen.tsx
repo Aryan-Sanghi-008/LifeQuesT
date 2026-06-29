@@ -8,11 +8,10 @@ import {
   Switch,
   Alert,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { LinearGradient } from "expo-linear-gradient";
-import { COLORS, FONTS, RADII, SPACING, SHADOWS } from '@theme';
+import { COLORS, FONTS, RADII, SPACING, SHADOWS, useTheme } from '@theme';
 import { RootStackParamList, AvatarStyleId } from "../../types";
 import { useGameStore } from "../../store/gameStore";
 import { AvatarByCharacter } from "../../components/Avatars";
@@ -22,6 +21,8 @@ import {
   Badge,
   SectionLabel,
   Divider,
+  ScreenShell,
+  TabScreenHeader,
 } from "../../components/index";
 import { ACHIEVEMENTS } from "../../data/gameData";
 import { ASPIRATION_MAP } from "@data/aspirations";
@@ -50,10 +51,11 @@ function StatChip({
   value: number;
   color: string;
 }) {
+  const { colors, fonts } = useTheme();
   return (
     <View style={chip.wrap}>
-      <Text style={[chip.val, { color }]}>{value}</Text>
-      <Text style={chip.lbl}>{label}</Text>
+      <Text style={[chip.val, { color, fontFamily: fonts.bodyBold }]}>{value}</Text>
+      <Text style={[chip.lbl, { color: colors.t4, fontFamily: fonts.body }]}>{label}</Text>
       <StatBar value={value} color={color} height={3} />
     </View>
   );
@@ -61,11 +63,9 @@ function StatChip({
 
 const chip = StyleSheet.create({
   wrap: { flex: 1, gap: 4, alignItems: "center" },
-  val: { fontFamily: FONTS.bodyBold, fontSize: 22 },
+  val: { fontSize: 22 },
   lbl: {
-    fontFamily: FONTS.body,
     fontSize: 9,
-    color: COLORS.t4,
     letterSpacing: 0.5,
     textTransform: "uppercase",
   },
@@ -77,18 +77,20 @@ function LifeStatRow({
   icon,
   label,
   value,
-  color = COLORS.t1,
+  color,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string | number;
   color?: string;
 }) {
+  const { colors, fonts, radii, spacing } = useTheme();
+  const valueColor = color ?? colors.t1;
   return (
-    <View style={lsr.row}>
-      <View style={lsr.iconWrap}>{icon}</View>
-      <Text style={lsr.label}>{label}</Text>
-      <Text style={[lsr.value, { color }]}>{value}</Text>
+    <View style={[lsr.row, { gap: spacing.md, paddingVertical: spacing.sm + 2 }]}>
+      <View style={[lsr.iconWrap, { borderRadius: radii.xs, backgroundColor: colors.bg2 }]}>{icon}</View>
+      <Text style={[lsr.label, { color: colors.t3, fontFamily: fonts.body }]}>{label}</Text>
+      <Text style={[lsr.value, { color: valueColor, fontFamily: fonts.bodyBold }]}>{value}</Text>
     </View>
   );
 }
@@ -97,19 +99,15 @@ const lsr = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
-    gap: SPACING.md,
-    paddingVertical: SPACING.sm + 2,
   },
   iconWrap: {
     width: 32,
     height: 32,
-    borderRadius: RADII.xs,
-    backgroundColor: COLORS.bg2,
     alignItems: "center",
     justifyContent: "center",
   },
-  label: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.t3, flex: 1 },
-  value: { fontFamily: FONTS.bodyBold, fontSize: 14 },
+  label: { fontSize: 13, flex: 1 },
+  value: { fontSize: 14 },
 });
 
 // ─── Setting Row ──────────────────────────────────────────────────────────────
@@ -129,6 +127,7 @@ function SettingRow({
   onChange: (v: boolean) => void;
   iconBg?: string;
 }) {
+  const { colors } = useTheme();
   return (
     <View style={sr.row}>
       <View style={[sr.iconWrap, { backgroundColor: iconBg ?? COLORS.bg2 }]}>
@@ -141,8 +140,8 @@ function SettingRow({
       <Switch
         value={value}
         onValueChange={onChange}
-        trackColor={{ false: COLORS.bg2, true: `${COLORS.sapphire}40` }}
-        thumbColor={value ? COLORS.sapphire : COLORS.t4}
+        trackColor={{ false: COLORS.bg2, true: `${colors.sapphire}40` }}
+        thumbColor={value ? colors.sapphire : COLORS.t4}
         ios_backgroundColor={COLORS.bg2}
       />
     </View>
@@ -176,6 +175,7 @@ const sr = StyleSheet.create({
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export function ProfileScreen() {
+  const { colors } = useTheme();
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const character = useGameStore((s) => s.character);
@@ -288,12 +288,12 @@ export function ProfileScreen() {
 
   const karmaColor =
     karma < 0
-      ? COLORS.health
+      ? colors.health
       : karma < 100
-        ? COLORS.t3
+        ? colors.t3
         : karma < 200
-          ? COLORS.emerald
-          : COLORS.gold;
+          ? colors.emerald
+          : colors.gold;
 
   const lifeStage =
     age < 13
@@ -307,14 +307,14 @@ export function ProfileScreen() {
             : "Golden Years";
   const avatarRingColor =
     age < 13
-      ? COLORS.emerald
+      ? colors.emerald
       : age < 18
-        ? COLORS.sapphire
+        ? colors.sapphire
         : age < 30
-          ? COLORS.catCareer
+          ? colors.catCareer
           : age < 60
-            ? COLORS.gold
-            : COLORS.orchid;
+            ? colors.gold
+            : colors.orchid;
 
   const handleClaimDailyBonus = () => {
     const result = claimDailyBonus();
@@ -345,12 +345,16 @@ export function ProfileScreen() {
   };
 
   return (
-    <View style={styles.root}>
-      <SafeAreaView style={styles.safe} edges={["top"]}>
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          showsVerticalScrollIndicator={false}
-        >
+    <ScreenShell>
+      <TabScreenHeader
+        title="Profile"
+        subtitle={character.name}
+        accent={colors.catMilestone}
+      />
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      >
           {/* ── Hero ── */}
           <View style={styles.hero}>
             {/* Soft gradient banner */}
@@ -358,7 +362,7 @@ export function ProfileScreen() {
               colors={[
                 `${avatarRingColor}18`,
                 `${avatarRingColor}04`,
-                COLORS.bg,
+                colors.bg,
               ]}
               style={StyleSheet.absoluteFill}
             />
@@ -379,7 +383,7 @@ export function ProfileScreen() {
                     width={12}
                     height={12}
                     viewBox="0 0 24 24"
-                    fill={COLORS.gold}
+                    fill={colors.gold}
                   >
                     <Path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                   </Svg>
@@ -407,7 +411,7 @@ export function ProfileScreen() {
                     <Text
                       style={[
                         styles.avatarStyleChipText,
-                        active && { color: COLORS.gold },
+                        active && { color: colors.gold },
                       ]}
                     >
                       {AVATAR_STYLE_LABELS[style]}
@@ -417,7 +421,7 @@ export function ProfileScreen() {
               })}
             </View>
 
-            <Text style={styles.heroName}>{name}</Text>
+            <Text style={[styles.heroName, { color: colors.t1 }]}>{name}</Text>
             <Text style={styles.heroSub}>
               {job} · {countryFlag} {country}
             </Text>
@@ -447,7 +451,7 @@ export function ProfileScreen() {
               </View>
               <Badge
                 label={zodiac.charAt(0).toUpperCase() + zodiac.slice(1)}
-                color={COLORS.orchid}
+                color={colors.orchid}
               />
               <Badge label={karmaLabel} color={karmaColor} />
             </View>
@@ -455,26 +459,32 @@ export function ProfileScreen() {
             {/* Quick stat strip — tappable */}
             <Pressable
               onPress={() => navigation.navigate("Stats")}
-              style={styles.miniStats}
+              style={[
+                styles.miniStats,
+                {
+                  backgroundColor: colors.bgCard,
+                  borderColor: colors.border,
+                },
+              ]}
             >
               <StatChip
                 label="Health"
                 value={stats.health}
-                color={COLORS.health}
+                color={colors.health}
               />
-              <View style={styles.miniDivider} />
+              <View style={[styles.miniDivider, { backgroundColor: colors.border }]} />
               <StatChip
                 label="Joy"
                 value={stats.happiness}
-                color={COLORS.gold}
+                color={colors.gold}
               />
-              <View style={styles.miniDivider} />
+              <View style={[styles.miniDivider, { backgroundColor: colors.border }]} />
               <StatChip
                 label="Mind"
                 value={stats.intelligence}
                 color={COLORS.intelligence}
               />
-              <View style={styles.miniDivider} />
+              <View style={[styles.miniDivider, { backgroundColor: colors.border }]} />
               <StatChip
                 label="Wealth"
                 value={stats.wealth}
@@ -496,7 +506,7 @@ export function ProfileScreen() {
                 </View>
                 <View style={styles.financeCell}>
                   <Text style={styles.financeLabel}>Assets</Text>
-                  <Text style={[styles.financeVal, { color: COLORS.sapphire }]}>
+                  <Text style={[styles.financeVal, { color: colors.sapphire }]}>
                     {assetsStr}
                   </Text>
                 </View>
@@ -518,8 +528,8 @@ export function ProfileScreen() {
                 style={[
                   styles.shopBtn,
                   {
-                    backgroundColor: `${COLORS.gold}12`,
-                    borderColor: `${COLORS.gold}30`,
+                    backgroundColor: `${colors.gold}12`,
+                    borderColor: `${colors.gold}30`,
                     alignSelf: "flex-end",
                     marginTop: SPACING.sm,
                   },
@@ -527,13 +537,13 @@ export function ProfileScreen() {
               >
                 <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
                   <Path
-                    stroke={COLORS.gold3}
+                    stroke={colors.gold3}
                     strokeWidth={2}
                     strokeLinecap="round"
                     d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"
                   />
                   <Path
-                    stroke={COLORS.gold3}
+                    stroke={colors.gold3}
                     strokeWidth={2}
                     strokeLinecap="round"
                     d="M3 6h18M16 10a4 4 0 01-8 0"
@@ -552,14 +562,14 @@ export function ProfileScreen() {
                 icon={
                   <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
                     <Circle
-                      stroke={COLORS.sapphire}
+                      stroke={colors.sapphire}
                       strokeWidth={2}
                       cx="12"
                       cy="12"
                       r="10"
                     />
                     <Path
-                      stroke={COLORS.sapphire}
+                      stroke={colors.sapphire}
                       strokeWidth={2}
                       strokeLinecap="round"
                       d="M12 6v6l4 2"
@@ -575,7 +585,7 @@ export function ProfileScreen() {
                 icon={
                   <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
                     <Path
-                      stroke={COLORS.health}
+                      stroke={colors.health}
                       strokeWidth={2}
                       fill="none"
                       d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
@@ -584,21 +594,21 @@ export function ProfileScreen() {
                 }
                 label="Relationships"
                 value={relationships}
-                color={COLORS.health}
+                color={colors.health}
               />
               <Divider />
               <LifeStatRow
                 icon={
                   <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
                     <Circle
-                      stroke={COLORS.gold}
+                      stroke={colors.gold}
                       strokeWidth={2}
                       cx="9"
                       cy="7"
                       r="4"
                     />
                     <Path
-                      stroke={COLORS.gold}
+                      stroke={colors.gold}
                       strokeWidth={2}
                       strokeLinecap="round"
                       d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M23 21v-2a4 4 0 00-3-3.87"
@@ -607,7 +617,7 @@ export function ProfileScreen() {
                 }
                 label="Children"
                 value={children}
-                color={COLORS.gold}
+                color={colors.gold}
               />
               <Divider />
               <LifeStatRow
@@ -637,7 +647,7 @@ export function ProfileScreen() {
                 icon={
                   <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
                     <Path
-                      stroke={COLORS.orchid}
+                      stroke={colors.orchid}
                       strokeWidth={2}
                       d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
                     />
@@ -645,7 +655,7 @@ export function ProfileScreen() {
                 }
                 label="Achievements"
                 value={`${unlockedAch} / ${ACHIEVEMENTS.length}`}
-                color={COLORS.orchid}
+                color={colors.orchid}
               />
               {aspirations && (
                 <>
@@ -659,7 +669,7 @@ export function ProfileScreen() {
                         fill="none"
                       >
                         <Path
-                          stroke={COLORS.gold}
+                          stroke={colors.gold}
                           strokeWidth={2}
                           strokeLinecap="round"
                           d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"
@@ -668,7 +678,7 @@ export function ProfileScreen() {
                     }
                     label="Aspirations"
                     value={`${ASPIRATION_MAP[aspirations.primary].label} · ${ASPIRATION_MAP[aspirations.secondary].label}`}
-                    color={COLORS.gold}
+                    color={colors.gold}
                   />
                 </>
               )}
@@ -701,7 +711,7 @@ export function ProfileScreen() {
                     <View
                       style={[
                         styles.traitDot,
-                        { backgroundColor: COLORS.orchid },
+                        { backgroundColor: colors.orchid },
                       ]}
                     />
                     <Text style={styles.traitText}>
@@ -722,25 +732,25 @@ export function ProfileScreen() {
                   <View
                     style={[
                       styles.walletIcon,
-                      { backgroundColor: `${COLORS.gold}15` },
+                      { backgroundColor: `${colors.gold}15` },
                     ]}
                   >
                     <Svg
                       width={22}
                       height={22}
                       viewBox="0 0 24 24"
-                      fill={COLORS.gold}
+                      fill={colors.gold}
                     >
                       <Circle
                         cx="12"
                         cy="12"
                         r="10"
-                        fill={`${COLORS.gold}20`}
-                        stroke={COLORS.gold}
+                        fill={`${colors.gold}20`}
+                        stroke={colors.gold}
                         strokeWidth={2}
                       />
                       <Path
-                        fill={COLORS.gold}
+                        fill={colors.gold}
                         d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V8h-3v.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"
                       />
                     </Svg>
@@ -753,18 +763,18 @@ export function ProfileScreen() {
                   <View
                     style={[
                       styles.walletIcon,
-                      { backgroundColor: `${COLORS.orchid}12` },
+                      { backgroundColor: `${colors.orchid}12` },
                     ]}
                   >
                     <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
                       <Path
-                        fill={COLORS.orchid}
+                        fill={colors.orchid}
                         d="M12 2L2 9l10 13L22 9z"
                         opacity={0.9}
                       />
                     </Svg>
                   </View>
-                  <Text style={[styles.walletVal, { color: COLORS.orchid }]}>
+                  <Text style={[styles.walletVal, { color: colors.orchid }]}>
                     {gems}
                   </Text>
                   <Text style={styles.walletLbl}>Gems</Text>
@@ -926,12 +936,12 @@ export function ProfileScreen() {
                   <View
                     style={[
                       styles.menuItemIcon,
-                      { backgroundColor: `${COLORS.gold}15` },
+                      { backgroundColor: `${colors.gold}15` },
                     ]}
                   >
                     <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
                       <Path
-                        stroke={COLORS.gold}
+                        stroke={colors.gold}
                         strokeWidth={2}
                         d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
                       />
@@ -964,12 +974,12 @@ export function ProfileScreen() {
                   <View
                     style={[
                       styles.menuItemIcon,
-                      { backgroundColor: `${COLORS.gold3}15` },
+                      { backgroundColor: `${colors.gold3}15` },
                     ]}
                   >
                     <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
                       <Path
-                        stroke={COLORS.gold3}
+                        stroke={colors.gold3}
                         strokeWidth={2}
                         d="M12 2c5.523 0 10 4.477 10 10S17.523 22 12 22 2 17.523 2 12 6.477 2 12 2z"
                       />
@@ -1040,12 +1050,12 @@ export function ProfileScreen() {
                   <View
                     style={[
                       styles.menuItemIcon,
-                      { backgroundColor: `${COLORS.orchid}15` },
+                      { backgroundColor: `${colors.orchid}15` },
                     ]}
                   >
                     <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
                       <Path
-                        stroke={COLORS.orchid}
+                        stroke={colors.orchid}
                         strokeWidth={2}
                         d="M13 10V3L4 14h7v7l9-11h-7z"
                       />
@@ -1078,20 +1088,20 @@ export function ProfileScreen() {
                 icon={
                   <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
                     <Path
-                      stroke={COLORS.sapphire}
+                      stroke={colors.sapphire}
                       strokeWidth={2}
                       strokeLinecap="round"
                       d="M9 18V5l12-2v13"
                     />
                     <Circle
-                      stroke={COLORS.sapphire}
+                      stroke={colors.sapphire}
                       strokeWidth={2}
                       cx="6"
                       cy="18"
                       r="3"
                     />
                     <Circle
-                      stroke={COLORS.sapphire}
+                      stroke={colors.sapphire}
                       strokeWidth={2}
                       cx="18"
                       cy="16"
@@ -1103,14 +1113,14 @@ export function ProfileScreen() {
                 desc="In-game sounds and music"
                 value={soundEnabled}
                 onChange={setSoundEnabled}
-                iconBg={`${COLORS.sapphire}12`}
+                iconBg={`${colors.sapphire}12`}
               />
               <Divider />
               <SettingRow
                 icon={
                   <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
                     <Path
-                      stroke={COLORS.emerald}
+                      stroke={colors.emerald}
                       strokeWidth={2}
                       strokeLinecap="round"
                       d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"
@@ -1124,14 +1134,14 @@ export function ProfileScreen() {
                   setNotif(v);
                   void setNotificationsPreference(v);
                 }}
-                iconBg={`${COLORS.emerald}12`}
+                iconBg={`${colors.emerald}12`}
               />
               <Divider />
               <SettingRow
                 icon={
                   <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
                     <Path
-                      stroke={COLORS.orchid}
+                      stroke={colors.orchid}
                       strokeWidth={2}
                       strokeLinecap="round"
                       d="M13 10V3L4 14h7v7l9-11h-7z"
@@ -1142,7 +1152,7 @@ export function ProfileScreen() {
                 desc="Vibration on button press"
                 value={hapticsEnabled}
                 onChange={setHapticsEnabled}
-                iconBg={`${COLORS.orchid}12`}
+                iconBg={`${colors.orchid}12`}
               />
             </Card>
           </View>
@@ -1166,25 +1176,25 @@ export function ProfileScreen() {
                 }
               >
                 <LinearGradient
-                  colors={[`${COLORS.gold2}30`, `${COLORS.gold}18`]}
+                  colors={[`${colors.gold2}30`, `${colors.gold}18`]}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={[
                     styles.premiumCard,
-                    { borderColor: `${COLORS.gold}30` },
+                    { borderColor: `${colors.gold}30` },
                   ]}
                 >
                   <View
                     style={[
                       styles.premiumIcon,
-                      { backgroundColor: `${COLORS.gold}20` },
+                      { backgroundColor: `${colors.gold}20` },
                     ]}
                   >
                     <Svg
                       width={18}
                       height={18}
                       viewBox="0 0 24 24"
-                      fill={COLORS.gold}
+                      fill={colors.gold}
                     >
                       <Path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                     </Svg>
@@ -1198,7 +1208,7 @@ export function ProfileScreen() {
                   <View
                     style={[
                       styles.premiumPriceTag,
-                      { backgroundColor: COLORS.gold, borderRadius: RADII.sm },
+                      { backgroundColor: colors.gold, borderRadius: RADII.sm },
                     ]}
                   >
                     <Text style={styles.premiumPrice}>Premium</Text>
@@ -1240,8 +1250,8 @@ export function ProfileScreen() {
                         styles.syncDot,
                         {
                           backgroundColor: slotsSynced
-                            ? COLORS.emerald
-                            : COLORS.gold,
+                            ? colors.emerald
+                            : colors.gold,
                         },
                       ]}
                     />
@@ -1284,17 +1294,17 @@ export function ProfileScreen() {
             <Pressable
               onPress={handleReset}
               style={styles.resetBtn}
-              android_ripple={{ color: `${COLORS.health}18` }}
+              android_ripple={{ color: `${colors.health}18` }}
             >
               <View
                 style={[
                   styles.resetIcon,
-                  { backgroundColor: `${COLORS.health}12` },
+                  { backgroundColor: `${colors.health}12` },
                 ]}
               >
                 <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
                   <Path
-                    stroke={COLORS.health}
+                    stroke={colors.health}
                     strokeWidth={2}
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -1306,11 +1316,10 @@ export function ProfileScreen() {
             </Pressable>
           </View>
 
-          <Text style={styles.footer}>LifeQuesT · Built with purpose</Text>
+          <Text style={[styles.footer, { color: colors.t4 }]}>LifeQuesT · Built with purpose</Text>
           <View style={{ height: SPACING.xxxl }} />
         </ScrollView>
-      </SafeAreaView>
-    </View>
+    </ScreenShell>
   );
 }
 

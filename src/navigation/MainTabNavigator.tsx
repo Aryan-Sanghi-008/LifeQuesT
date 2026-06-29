@@ -3,7 +3,7 @@ import { View, Text, Pressable, Animated, StyleSheet } from 'react-native';
 import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MainTabParamList } from '../types';
-import { COLORS, FONTS, RADII, SHADOWS } from '@theme';
+import { useTheme } from '@theme';
 import { LifeScreen }    from '@features/life/LifeScreen';
 import { PeopleScreen }  from '@features/people/PeopleScreen';
 import { CareerScreen }  from '@features/career/CareerScreen';
@@ -14,20 +14,16 @@ import Svg, { Path, Circle, Polyline, Rect } from 'react-native-svg';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
-// ─── Tab accent colors ────────────────────────────────────────────────────────
-
-const TAB_COLORS: Record<string, string> = {
-  Life:    COLORS.sapphire,
-  People:  COLORS.catRelationship,
-  Career:  COLORS.catCareer,
-  Assets:  COLORS.catFinancial,
-  Profile: COLORS.catMilestone,
+const TAB_COLOR_KEYS: Record<string, keyof ReturnType<typeof useTheme>['colors']> = {
+  Life: 'sapphire',
+  People: 'catRelationship',
+  Career: 'catCareer',
+  Assets: 'catFinancial',
+  Profile: 'catMilestone',
 };
 
-// ─── Icons (SVG — no emojis) ──────────────────────────────────────────────────
-
-function IconLife({ active }: { active: boolean }) {
-  const c = active ? TAB_COLORS.Life : COLORS.t4;
+function IconLife({ active, color, muted }: { active: boolean; color: string; muted: string }) {
+  const c = active ? color : muted;
   return (
     <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
       <Path stroke={c} strokeWidth={active ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
@@ -36,8 +32,8 @@ function IconLife({ active }: { active: boolean }) {
   );
 }
 
-function IconPeople({ active }: { active: boolean }) {
-  const c = active ? TAB_COLORS.People : COLORS.t4;
+function IconPeople({ active, color, muted }: { active: boolean; color: string; muted: string }) {
+  const c = active ? color : muted;
   return (
     <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
       <Circle stroke={c} strokeWidth={active ? 2.2 : 1.8} cx="9" cy="7" r="4"/>
@@ -47,8 +43,8 @@ function IconPeople({ active }: { active: boolean }) {
   );
 }
 
-function IconCareer({ active }: { active: boolean }) {
-  const c = active ? TAB_COLORS.Career : COLORS.t4;
+function IconCareer({ active, color, muted }: { active: boolean; color: string; muted: string }) {
+  const c = active ? color : muted;
   return (
     <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
       <Rect stroke={c} strokeWidth={active ? 2.2 : 1.8} x="2" y="7" width="20" height="14" rx="2"/>
@@ -58,8 +54,8 @@ function IconCareer({ active }: { active: boolean }) {
   );
 }
 
-function IconAssets({ active }: { active: boolean }) {
-  const c = active ? TAB_COLORS.Assets : COLORS.t4;
+function IconAssets({ active, color, muted }: { active: boolean; color: string; muted: string }) {
+  const c = active ? color : muted;
   return (
     <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
       <Path stroke={c} strokeWidth={active ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round" d="M3 22h18M3 10h18M5 6l7-4 7 4M4 10v12M20 10v12M8 10v12M16 10v12M12 10v12"/>
@@ -67,8 +63,8 @@ function IconAssets({ active }: { active: boolean }) {
   );
 }
 
-function IconProfile({ active }: { active: boolean }) {
-  const c = active ? TAB_COLORS.Profile : COLORS.t4;
+function IconProfile({ active, color, muted }: { active: boolean; color: string; muted: string }) {
+  const c = active ? color : muted;
   return (
     <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
       <Circle stroke={c} strokeWidth={active ? 2.2 : 1.8} cx="12" cy="7" r="4"/>
@@ -77,23 +73,22 @@ function IconProfile({ active }: { active: boolean }) {
   );
 }
 
-const ICON_MAP: Record<string, (active: boolean) => React.ReactNode> = {
-  Life:    (a) => <IconLife    active={a} />,
-  People:  (a) => <IconPeople  active={a} />,
-  Career:  (a) => <IconCareer  active={a} />,
-  Assets:  (a) => <IconAssets  active={a} />,
-  Profile: (a) => <IconProfile active={a} />,
+const ICON_MAP: Record<string, (active: boolean, color: string, muted: string) => React.ReactNode> = {
+  Life:    (a, c, m) => <IconLife    active={a} color={c} muted={m} />,
+  People:  (a, c, m) => <IconPeople  active={a} color={c} muted={m} />,
+  Career:  (a, c, m) => <IconCareer  active={a} color={c} muted={m} />,
+  Assets:  (a, c, m) => <IconAssets  active={a} color={c} muted={m} />,
+  Profile: (a, c, m) => <IconProfile active={a} color={c} muted={m} />,
 };
-
-// ─── Animated Tab Button ──────────────────────────────────────────────────────
 
 function TabButton({
   routeName, isFocused, onPress,
 }: {
   routeName: string; isFocused: boolean; onPress: () => void;
 }) {
+  const { colors, fonts, radii } = useTheme();
   const scale = useRef(new Animated.Value(1)).current;
-  const accentColor = TAB_COLORS[routeName] ?? COLORS.sapphire;
+  const accentColor = colors[TAB_COLOR_KEYS[routeName] ?? 'sapphire'];
 
   const handlePress = () => {
     Animated.sequence([
@@ -110,18 +105,16 @@ function TabButton({
       android_ripple={{ color: `${accentColor}18`, borderless: true, radius: 28 }}
     >
       <Animated.View style={[styles.tabInner, { transform: [{ scale }] }]}>
-        {/* Active pill background */}
         {isFocused && (
-          <View style={[styles.activePill, { backgroundColor: `${accentColor}14` }]} />
+          <View style={[styles.activePill, { backgroundColor: `${accentColor}14`, borderRadius: radii.sm }]} />
         )}
-        {ICON_MAP[routeName]?.(isFocused)}
+        {ICON_MAP[routeName]?.(isFocused, accentColor, colors.t4)}
         <Text style={[
           styles.tabLabel,
-          { color: isFocused ? accentColor : COLORS.t4, fontFamily: isFocused ? FONTS.bodyBold : FONTS.body },
+          { color: isFocused ? accentColor : colors.t4, fontFamily: isFocused ? fonts.bodyBold : fonts.body },
         ]}>
           {routeName}
         </Text>
-        {/* Active dot indicator */}
         {isFocused && (
           <View style={[styles.activeDot, { backgroundColor: accentColor }]} />
         )}
@@ -130,15 +123,19 @@ function TabButton({
   );
 }
 
-// ─── Custom Tab Bar ───────────────────────────────────────────────────────────
-
 function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { colors, shadows } = useTheme();
 
   return (
     <View style={[
       styles.tabBar,
-      { paddingBottom: insets.bottom > 0 ? insets.bottom : 12 },
+      shadows.card,
+      {
+        backgroundColor: colors.bgCard,
+        borderTopColor: colors.border,
+        paddingBottom: insets.bottom > 0 ? insets.bottom : 12,
+      },
     ]}>
       {state.routes.map((route, index) => {
         const isFocused = state.index === index;
@@ -163,10 +160,8 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
   );
 }
 
-// ─── Navigator ───────────────────────────────────────────────────────────────
-
-const wrap = (Component: React.ComponentType<any>) => {
-  return function WrappedScreen(props: any) {
+const wrap = (Component: React.ComponentType<object>) => {
+  return function WrappedScreen(props: object) {
     return (
       <GameErrorBoundary>
         <Component {...props} />
@@ -193,11 +188,8 @@ export default function MainTabNavigator() {
 const styles = StyleSheet.create({
   tabBar: {
     flexDirection: 'row',
-    backgroundColor: COLORS.bgCard,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
     paddingTop: 8,
-    ...SHADOWS.card,
   },
   tabItem: {
     flex: 1,
@@ -216,7 +208,6 @@ const styles = StyleSheet.create({
     left: -4,
     right: -4,
     bottom: 0,
-    borderRadius: RADII.sm,
   },
   tabLabel: {
     fontSize: 9.5,
