@@ -28,6 +28,7 @@ import {
 import RootNavigator from "@navigation/RootNavigator";
 import { NavigationSync } from "@navigation/NavigationSync";
 import { navigationRef } from "@navigation/navigationRef";
+import { ToastManager } from "@components";
 import { useGameStore } from "@store/gameStore";
 import { initAuth, subscribeAuth } from "@features/auth/services/auth";
 import { initAds } from "@services/ads";
@@ -141,6 +142,7 @@ export default function App() {
           <NavigationSync />
           <RootNavigator />
         </NavigationContainer>
+        <ToastManager />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

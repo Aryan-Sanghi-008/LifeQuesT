@@ -751,6 +751,7 @@ export function runAgeUp(
       statEffect: event.statEffect,
       category: event.category,
       color: event.color,
+      rarity: event.rarity,
       timestamp: Date.now(),
     });
   }

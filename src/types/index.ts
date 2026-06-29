@@ -492,6 +492,7 @@ export interface LifeEvent {
   bankEffect?: number;
   category: EventCategory;
   color: string;
+  rarity?: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
   choices?: EventChoice[];
   requiresTrait?: string;
   requiresStat?: Partial<Record<StatKey, number>>;
@@ -525,6 +526,7 @@ export interface LifeEventRecord {
   choiceMade?: string;
   category: EventCategory;
   color: string;
+  rarity?: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
   timestamp: number;
 }
 

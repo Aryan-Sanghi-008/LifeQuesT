@@ -106,6 +106,7 @@ export function runResolveDecision(
     choiceMade: choice.text,
     category: event.category,
     color: event.color,
+    rarity: event.rarity,
     timestamp: Date.now(),
   };
 

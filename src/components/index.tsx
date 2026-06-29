@@ -21,6 +21,16 @@ export { AvatarById } from "./Avatars";
 export { FocusPhaseSheet } from "./FocusPhaseSheet";
 export { YearReviewCard } from "./YearReviewCard";
 export { NPCProfileSheet } from "./NPCProfileSheet";
+export { RarityBadge } from "./RarityBadge";
+export { CurrencyChip } from "./CurrencyChip";
+export { StreakBadge } from "./StreakBadge";
+export { BottomSheetHandle } from "./BottomSheetHandle";
+export { SkeletonCard } from "./SkeletonCard";
+export { XPBar } from "./XPBar";
+export { StatDeltaChip } from "./StatDeltaChip";
+export { ScenarioBanner } from "./ScenarioBanner";
+export { ConfettiOverlay } from "./ConfettiOverlay";
+export { ToastManager } from "./ToastManager";
 
 // ─── GradientButton ──────────────────────────────────────────────────────────
 

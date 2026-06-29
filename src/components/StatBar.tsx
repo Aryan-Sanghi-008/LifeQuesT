@@ -1,6 +1,6 @@
-import { useRef, useEffect } from 'react';
-import { View, Animated, StyleSheet } from 'react-native';
-import { COLORS } from '@theme';
+import { useRef, useEffect } from "react";
+import { View, Animated, StyleSheet, Easing } from "react-native";
+import { useTheme } from "@theme";
 
 export interface StatBarProps {
   value: number;
@@ -19,6 +19,7 @@ export function StatBar({
   delay = 0,
   rounded = true,
 }: StatBarProps) {
+  const { colors } = useTheme();
   const width = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -27,11 +28,11 @@ export function StatBar({
       return;
     }
     const timer = setTimeout(() => {
-      Animated.spring(width, {
+      Animated.timing(width, {
         toValue: value,
+        duration: 500,
+        easing: Easing.out(Easing.ease),
         useNativeDriver: false,
-        damping: 22,
-        stiffness: 160,
       }).start();
     }, delay + 50);
     return () => clearTimeout(timer);
@@ -39,19 +40,28 @@ export function StatBar({
 
   const widthPct = width.interpolate({
     inputRange: [0, 100],
-    outputRange: ['0%', '100%'],
-    extrapolate: 'clamp',
+    outputRange: ["0%", "100%"],
+    extrapolate: "clamp",
   });
 
   const r = rounded ? height / 2 : 2;
 
   return (
-    <View style={[styles.track, { height, borderRadius: r }]}>
+    <View
+      style={[
+        styles.track,
+        {
+          height,
+          borderRadius: r,
+          backgroundColor: colors.border,
+        },
+      ]}
+    >
       <Animated.View
         style={{
           width: widthPct,
           backgroundColor: color,
-          height: '100%',
+          height: "100%",
           borderRadius: r,
         }}
       />
@@ -61,8 +71,7 @@ export function StatBar({
 
 const styles = StyleSheet.create({
   track: {
-    width: '100%',
-    overflow: 'hidden',
-    backgroundColor: COLORS.border2,
+    width: "100%",
+    overflow: "hidden",
   },
 });

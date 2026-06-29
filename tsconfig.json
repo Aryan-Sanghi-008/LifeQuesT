@@ -7,6 +7,7 @@
     "paths": {
       "@/*": ["./src/*"],
       "@features/*": ["./src/features/*"],
+      "@components": ["./src/components/index.tsx"],
       "@components/*": ["./src/components/*"],
       "@store/*": ["./src/store/*"],
       "@hooks/*": ["./src/hooks/*"],

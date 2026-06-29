@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, ReactNode } from 'react';
+import { useRef, useEffect, useState, ReactNode } from "react";
 import {
   View,
   Text,
@@ -6,11 +6,12 @@ import {
   Animated,
   StyleSheet,
   Dimensions,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { COLORS, FONTS, SPACING, SHADOWS } from '@theme';
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useTheme } from "@theme";
+import { BottomSheetHandle } from "./BottomSheetHandle";
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 
 export interface BottomSheetProps {
   visible: boolean;
@@ -27,6 +28,8 @@ export function BottomSheet({
   children,
   title,
 }: BottomSheetProps) {
+  const { colors, fonts, radii, spacing, shadows } = useTheme();
+
   const [mounted, setMounted] = useState(false);
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
@@ -39,9 +42,9 @@ export function BottomSheet({
         Animated.spring(translateY, {
           toValue: 0,
           useNativeDriver: true,
-          damping: 22,
-          stiffness: 200,
-          mass: 0.9,
+          damping: 16,
+          stiffness: 180,
+          mass: 0.7,
         }),
         Animated.timing(backdropOpacity, {
           toValue: 1,
@@ -68,18 +71,22 @@ export function BottomSheet({
         }
       });
     }
-  }, [visible, mounted]);
+  }, [visible, mounted, translateY, backdropOpacity, onDismissed]);
 
   if (!mounted) return null;
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
       {/* Backdrop */}
       <Animated.View
         style={[
           StyleSheet.absoluteFill,
-          { backgroundColor: 'rgba(15,23,42,0.50)', opacity: backdropOpacity },
+          {
+            backgroundColor: "rgba(15, 23, 42, 0.50)",
+            opacity: backdropOpacity,
+          },
         ]}
+        pointerEvents="auto"
       >
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       </Animated.View>
@@ -88,12 +95,36 @@ export function BottomSheet({
       <Animated.View
         style={[
           styles.sheet,
-          { paddingBottom: insets.bottom + 20, transform: [{ translateY }] },
+          {
+            backgroundColor: colors.bgSheet,
+            borderColor: colors.border,
+            paddingHorizontal: spacing.xl,
+            paddingBottom: insets.bottom + 20,
+            borderTopLeftRadius: radii.xl || 28,
+            borderTopRightRadius: radii.xl || 28,
+            transform: [{ translateY }],
+            ...shadows.card,
+          },
         ]}
+        pointerEvents="auto"
       >
-        {/* Handle bar */}
-        <View style={styles.handle} />
-        {title && <Text style={styles.sheetTitle}>{title}</Text>}
+        {/* Unified Handle bar */}
+        <BottomSheetHandle />
+
+        {title && (
+          <Text
+            style={[
+              styles.sheetTitle,
+              {
+                color: colors.t1,
+                fontFamily: fonts.displayBold,
+                marginBottom: spacing.md,
+              },
+            ]}
+          >
+            {title}
+          </Text>
+        )}
         {children}
       </Animated.View>
     </View>
@@ -102,35 +133,18 @@ export function BottomSheet({
 
 const styles = StyleSheet.create({
   sheet: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: COLORS.bgSheet,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
     borderTopWidth: 1,
     borderLeftWidth: 1,
     borderRightWidth: 1,
-    borderColor: COLORS.border,
-    paddingHorizontal: SPACING.xl,
-    paddingTop: 10,
-    ...SHADOWS.card,
-  },
-  handle: {
-    width: 40,
-    height: 4,
-    backgroundColor: '#E2E8F0',
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: SPACING.xl,
+    paddingTop: 4,
   },
   sheetTitle: {
-    fontFamily: FONTS.displayBold,
     fontSize: 20,
-    color: COLORS.t1,
-    textAlign: 'center',
-    marginBottom: SPACING.md,
+    textAlign: "center",
     lineHeight: 28,
   },
 });
