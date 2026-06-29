@@ -74,6 +74,7 @@ export interface SettingsState {
 
   // Display
   reducedMotion: boolean;
+  colorScheme: 'light' | 'dark' | 'system';
 
   // Actions
   setMasterVolume: (v: number) => void;
@@ -83,6 +84,7 @@ export interface SettingsState {
   setHapticsEnabled: (v: boolean) => void;
   setNotificationsEnabled: (v: boolean) => void;
   setReducedMotion: (v: boolean) => void;
+  setColorScheme: (v: 'light' | 'dark' | 'system') => void;
   resetToDefaults: () => void;
 }
 
@@ -94,6 +96,7 @@ const DEFAULTS = {
   hapticsEnabled: true,
   notificationsEnabled: true,
   reducedMotion: false,
+  colorScheme: 'system' as 'light' | 'dark' | 'system',
 };
 
 function load<T>(key: string, defaultVal: T): T {
@@ -147,6 +150,7 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
   hapticsEnabled: legacyPatch.hapticsEnabled ?? load('hapticsEnabled', DEFAULTS.hapticsEnabled),
   notificationsEnabled: load('notificationsEnabled', DEFAULTS.notificationsEnabled),
   reducedMotion: load('reducedMotion', DEFAULTS.reducedMotion),
+  colorScheme: load<'light' | 'dark' | 'system'>('colorScheme', DEFAULTS.colorScheme),
 
   setMasterVolume: (v) => {
     save('masterVolume', v);
@@ -175,6 +179,10 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
   setReducedMotion: (v) => {
     save('reducedMotion', v);
     set({ reducedMotion: v });
+  },
+  setColorScheme: (v) => {
+    save('colorScheme', v);
+    set({ colorScheme: v });
   },
   resetToDefaults: () => {
     Object.entries(DEFAULTS).forEach(([k, v]) => save(k, v));
