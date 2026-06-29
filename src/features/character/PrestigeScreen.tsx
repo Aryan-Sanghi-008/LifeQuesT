@@ -1,10 +1,10 @@
 import { View, Text, StyleSheet, Pressable, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, FONTS, RADII, SPACING } from '@theme';
-import { useGameStore } from '../store/gameStore';
-import { ScreenHeader } from '../components/ScreenHeader';
-import { Card, SectionLabel, Divider } from '../components/index';
-import { PRESTIGE_TRAITS } from '../engine/prestigeEngine';
+import { useGameStore } from '../../store/gameStore';
+import { ScreenHeader } from '../../components/ScreenHeader';
+import { Card, SectionLabel, Divider } from '../../components/index';
+import { PRESTIGE_TRAITS } from '../../engine/prestigeEngine';
 
 
 export function PrestigeScreen() {

@@ -3,15 +3,15 @@ import { View, Text, ScrollView, StyleSheet, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, FONTS, RADII, SPACING, SHADOWS } from '@theme';
-import { useGameStore } from '../store/gameStore';
-import { AvatarByCharacter } from '../components/Avatars';
-import { StatBar, SectionLabel, Card, ScaleInView, ScreenHeader } from '../components/index';
-import { CharacterStats, LifeEventRecord } from '../types';
-import { ACHIEVEMENTS } from '../data/gameData';
+import { useGameStore } from '../../store/gameStore';
+import { AvatarByCharacter } from '../../components/Avatars';
+import { StatBar, SectionLabel, Card, ScaleInView, ScreenHeader } from '../../components/index';
+import { CharacterStats, LifeEventRecord } from '../../types';
+import { ACHIEVEMENTS } from '../../data/gameData';
 import Svg, { Path, Circle } from 'react-native-svg';
-import { formatCurrency } from '../utils/currency';
-import { getFinanceSummary } from '../utils/financeSummary';
-import { estimateLifeExpectancy } from '../engine/simulationEngine';
+import { formatCurrency } from '../../utils/currency';
+import { getFinanceSummary } from '../../utils/financeSummary';
+import { estimateLifeExpectancy } from '../../engine/simulationEngine';
 
 // ─── All Stats Config ─────────────────────────────────────────────────────────
 

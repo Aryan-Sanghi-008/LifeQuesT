@@ -13,29 +13,29 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, FONTS, RADII, SPACING, SHADOWS } from '@theme';
-import { RootStackParamList, AvatarStyleId } from "../types";
-import { useGameStore } from "../store/gameStore";
-import { AvatarByCharacter } from "../components/Avatars";
+import { RootStackParamList, AvatarStyleId } from "../../types";
+import { useGameStore } from "../../store/gameStore";
+import { AvatarByCharacter } from "../../components/Avatars";
 import {
   StatBar,
   Card,
   Badge,
   SectionLabel,
   Divider,
-} from "../components/index";
-import { ACHIEVEMENTS } from "../data/gameData";
+} from "../../components/index";
+import { ACHIEVEMENTS } from "../../data/gameData";
 import { ASPIRATION_MAP } from "@data/aspirations";
-import { formatCurrency } from "../utils/currency";
-import { getFinanceSummary } from "../utils/financeSummary";
-import { formatCount } from "../utils/formatCount";
+import { formatCurrency } from "../../utils/currency";
+import { getFinanceSummary } from "../../utils/financeSummary";
+import { formatCount } from "../../utils/formatCount";
 import {
   getPrivacyPolicyUrl,
   getTermsUrl,
   openLegalUrlSafe,
-} from "../config/legal";
-import { getNotificationsEnabled } from "../services/persistence";
+} from "../../config/legal";
+import { getNotificationsEnabled } from "../../services/persistence";
 import { useSettingsStore } from "@store/settingsStore";
-import { setNotificationsPreference } from "../services/notifications";
+import { setNotificationsPreference } from "../../services/notifications";
 import { FeedbackPressable } from "@components/FeedbackPressable";
 import Svg, { Path, Circle } from "react-native-svg";
 

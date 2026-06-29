@@ -12,19 +12,19 @@ import {
   Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { AvatarByCharacter } from "../components/Avatars";
-import { logEvent } from "../services/analytics";
+import { AvatarByCharacter } from "../../components/Avatars";
+import { logEvent } from "../../services/analytics";
 import {
   submitLeaderboardScore,
   computeLeaderboardScore,
-} from "../services/leaderboard";
+} from "../../services/leaderboard";
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, FONTS, RADII, SPACING, SHADOWS } from '@theme';
-import { useGameStore } from "../store/gameStore";
-import { StatBar, Card, GradientButton } from "../components/index";
-import { ACHIEVEMENTS } from "../data/gameData";
-import { calculateDynastyScore } from "../engine/legacyEngine";
-import { evaluateChallenge } from "../engine/challengeEngine";
+import { useGameStore } from "../../store/gameStore";
+import { StatBar, Card, GradientButton } from "../../components/index";
+import { ACHIEVEMENTS } from "../../data/gameData";
+import { calculateDynastyScore } from "../../engine/legacyEngine";
+import { evaluateChallenge } from "../../engine/challengeEngine";
 import Svg, {
   Path,
   Circle,

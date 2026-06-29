@@ -4,11 +4,11 @@ import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/b
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MainTabParamList } from '../types';
 import { COLORS, FONTS, RADII, SHADOWS } from '@theme';
-import { LifeScreen }    from '../screens/LifeScreen';
-import { PeopleScreen }  from '../screens/PeopleScreen';
-import { CareerScreen }  from '../screens/CareerScreen';
-import { AssetsScreen }  from '../screens/AssetsScreen';
-import { ProfileScreen } from '../screens/ProfileScreen';
+import { LifeScreen }    from '@features/life/LifeScreen';
+import { PeopleScreen }  from '@features/people/PeopleScreen';
+import { CareerScreen }  from '@features/career/CareerScreen';
+import { AssetsScreen }  from '@features/economy/AssetsScreen';
+import { ProfileScreen } from '@features/life/ProfileScreen';
 import { GameErrorBoundary } from '../components/GameErrorBoundary';
 import Svg, { Path, Circle, Polyline, Rect } from 'react-native-svg';
 

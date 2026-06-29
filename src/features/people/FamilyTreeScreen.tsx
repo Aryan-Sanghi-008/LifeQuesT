@@ -1,10 +1,10 @@
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, FONTS, RADII, SPACING } from '@theme';
-import { useGameStore } from '../store/gameStore';
-import { ScreenHeader } from '../components/ScreenHeader';
-import { Card, SectionLabel, Divider } from '../components/index';
-import { NpcAvatar } from '../components/Avatars';
+import { useGameStore } from '../../store/gameStore';
+import { ScreenHeader } from '../../components/ScreenHeader';
+import { Card, SectionLabel, Divider } from '../../components/index';
+import { NpcAvatar } from '../../components/Avatars';
 
 export function FamilyTreeScreen() {
   const character = useGameStore(s => s.character);

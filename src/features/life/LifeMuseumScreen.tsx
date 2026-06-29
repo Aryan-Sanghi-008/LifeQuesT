@@ -1,11 +1,11 @@
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, FONTS, SPACING } from '@theme';
-import { useGameStore } from '../store/gameStore';
-import { ScreenHeader } from '../components/ScreenHeader';
-import { Card, SectionLabel } from '../components/index';
-import { ACHIEVEMENTS } from '../data/gameData';
-import { calculateDynastyScore } from '../engine/legacyEngine';
+import { useGameStore } from '../../store/gameStore';
+import { ScreenHeader } from '../../components/ScreenHeader';
+import { Card, SectionLabel } from '../../components/index';
+import { ACHIEVEMENTS } from '../../data/gameData';
+import { calculateDynastyScore } from '../../engine/legacyEngine';
 import Svg, { Path } from 'react-native-svg';
 
 export function LifeMuseumScreen() {

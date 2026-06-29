@@ -13,26 +13,26 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, FONTS, RADII, SPACING } from '@theme';
-import { useGameStore } from "../store/gameStore";
-import { FadeInView } from "../components/index";
+import { useGameStore } from "../../store/gameStore";
+import { FadeInView } from "../../components/index";
 import {
   purchaseProduct,
   restorePurchases,
   getIAPProducts,
   processVerifiedPurchase,
   applyPurchaseToStore,
-} from "../services/iap";
-import { showRewardedAd } from "../services/ads";
-import { getPrivacyPolicyUrl, openLegalUrlSafe } from "../config/legal";
-import { IAPProductId } from "../types";
-import { SEASON_PASS_TIERS } from "../data/gameData";
+} from "../../services/iap";
+import { showRewardedAd } from "../../services/ads";
+import { getPrivacyPolicyUrl, openLegalUrlSafe } from "../../config/legal";
+import { IAPProductId } from "../../types";
+import { SEASON_PASS_TIERS } from "../../data/gameData";
 import {
   IAP_CATALOG,
   AVATAR_PACK_CATALOG,
   getCatalogPriceLabel,
-} from "../data/iapCatalog";
-import { ScreenHeader } from "../components/index";
-import { isDlcUnlocked } from "../data/dlcData";
+} from "../../data/iapCatalog";
+import { ScreenHeader } from "../../components/index";
+import { isDlcUnlocked } from "../../data/dlcData";
 import Svg, { Path, Circle } from "react-native-svg";
 
 // ─── Shimmer View ─────────────────────────────────────────────────────────────

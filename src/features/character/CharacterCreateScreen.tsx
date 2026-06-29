@@ -6,15 +6,15 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RouteProp, StackActions } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList, FamilyBackground, Gender } from '../types';
+import { RootStackParamList, FamilyBackground, Gender } from '../../types';
 import { COLORS, FONTS, RADII, SPACING, SHADOWS } from '@theme';
-import { DiceBearAvatar } from '../components/Avatars';
-import { GradientButton, FadeInView } from '../components/index';
-import { useGameStore } from '../store/gameStore';
-import { COUNTRIES, ZODIACS, TRAITS, FAMILY_BACKGROUNDS } from '../data/gameData';
+import { DiceBearAvatar } from '../../components/Avatars';
+import { GradientButton, FadeInView } from '../../components/index';
+import { useGameStore } from '../../store/gameStore';
+import { COUNTRIES, ZODIACS, TRAITS, FAMILY_BACKGROUNDS } from '../../data/gameData';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
-import { CHALLENGES } from '../engine/challengeEngine';
-import { PRESTIGE_TRAITS } from '../engine/prestigeEngine';
+import { CHALLENGES } from '../../engine/challengeEngine';
+import { PRESTIGE_TRAITS } from '../../engine/prestigeEngine';
 
 const { width } = Dimensions.get('window');
 const STEP_COUNT = 3;

@@ -6,15 +6,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { COLORS, FONTS, RADII, SPACING } from '@theme';
-import { useGameStore } from '../store/gameStore';
-import { ACTIVITIES } from '../data/gameData';
-import { HOBBY_CATALOG } from '../data/hobbies';
-import { Activity, ActivityCategory, RootStackParamList } from '../types';
-import { ScreenHeader } from '../components/ScreenHeader';
-import { SectionLabel } from '../components/index';
-import { getHobbyProgress } from '../engine/hobbyEngine';
+import { useGameStore } from '../../store/gameStore';
+import { ACTIVITIES } from '../../data/gameData';
+import { HOBBY_CATALOG } from '../../data/hobbies';
+import { Activity, ActivityCategory, RootStackParamList } from '../../types';
+import { ScreenHeader } from '../../components/ScreenHeader';
+import { SectionLabel } from '../../components/index';
+import { getHobbyProgress } from '../../engine/hobbyEngine';
 import Svg, { Path, Circle } from 'react-native-svg';
-import { formatCurrency } from '../utils/currency';
+import { formatCurrency } from '../../utils/currency';
 
 // ─── Category SVG icons ───────────────────────────────────────────────────────
 function CatIcon({ cat, color }: { cat: ActivityCategory; color: string }) {

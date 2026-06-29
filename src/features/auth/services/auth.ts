@@ -8,10 +8,10 @@ import {
   Auth,
   User,
 } from 'firebase/auth';
-import { GOOGLE_WEB_CLIENT_ID, isFirebaseConfigured } from '../config/firebase';
+import { GOOGLE_WEB_CLIENT_ID, isFirebaseConfigured } from '../../../config/firebase';
 import { getFirebaseApp } from '@services/firebaseClient';
-import { isGoogleSignInAvailable } from '../utils/nativeAvailability';
-import { AppUser } from '../types';
+import { isGoogleSignInAvailable } from '../../../utils/nativeAvailability';
+import { AppUser } from '../../../types';
 
 let auth: Auth | null = null;
 

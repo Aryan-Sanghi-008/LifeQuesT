@@ -10,7 +10,7 @@ import { COLORS, FONTS, RADII, SPACING } from '@theme';
 import LifeGlyph from '@components/LifeGlyph';
 import { GradientButton } from '@components/index';
 import { DiceBearAvatar } from '@components/Avatars';
-import { signInWithGoogle, signInAsGuest, isGoogleSignInAvailable } from '@services/auth';
+import { signInWithGoogle, signInAsGuest, isGoogleSignInAvailable } from "./services/auth";
 import { useGameStore } from '@store/gameStore';
 import { logEvent } from '@services/analytics';
 import { getPrivacyPolicyUrl, getTermsUrl, openLegalUrlSafe } from '@config/legal';

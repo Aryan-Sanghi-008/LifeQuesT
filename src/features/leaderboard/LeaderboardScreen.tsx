@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { fetchLeaderboard } from '../services/leaderboard';
-import { LeaderboardEntry } from '../types';
-import { Card, ScreenHeader } from '../components/index';
+import { fetchLeaderboard } from '../../services/leaderboard';
+import { LeaderboardEntry } from '../../types';
+import { Card, ScreenHeader } from '../../components/index';
 import { COLORS, FONTS, SPACING } from '@theme';
 
 export default function LeaderboardScreen() {

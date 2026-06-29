@@ -7,15 +7,15 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, FONTS, RADII, SPACING } from '@theme';
-import { useGameStore } from '../store/gameStore';
-import { Asset, PropertyTier, RootStackParamList } from '../types';
-import { SectionLabel } from '../components/index';
+import { useGameStore } from '../../store/gameStore';
+import { Asset, PropertyTier, RootStackParamList } from '../../types';
+import { SectionLabel } from '../../components/index';
 import Svg, { Path, Circle, Rect, Polyline } from 'react-native-svg';
-import { formatCurrency } from '../utils/currency';
-import { getFinanceSummary } from '../utils/financeSummary';
-import { PROPERTY_CATALOG, getPropertiesByTier } from '../data/properties';
-import { EMPLOYEE_ROLES } from '../engine/businessEngine';
-import type { Character } from '../types';
+import { formatCurrency } from '../../utils/currency';
+import { getFinanceSummary } from '../../utils/financeSummary';
+import { PROPERTY_CATALOG, getPropertiesByTier } from '../../data/properties';
+import { EMPLOYEE_ROLES } from '../../engine/businessEngine';
+import type { Character } from '../../types';
 
 // ─── Balance Hero ─────────────────────────────────────────────────────────────
 interface BalanceHeroProps {

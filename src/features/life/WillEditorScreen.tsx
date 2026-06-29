@@ -4,10 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { COLORS, FONTS, RADII, SPACING } from '@theme';
-import { useGameStore } from '../store/gameStore';
-import { ScreenHeader } from '../components/ScreenHeader';
-import { Card, GradientButton } from '../components/index';
-import { WillDetails, RootStackParamList } from '../types';
+import { useGameStore } from '../../store/gameStore';
+import { ScreenHeader } from '../../components/ScreenHeader';
+import { Card, GradientButton } from '../../components/index';
+import { WillDetails, RootStackParamList } from '../../types';
 import Svg, { Path } from 'react-native-svg';
 
 const WILL_TYPES = [

@@ -3,12 +3,12 @@ import { Text, ScrollView, Pressable, StyleSheet, Alert, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../types';
-import { useGameStore } from '../store/gameStore';
-import { GradientButton, Card, SectionLabel } from '../components/index';
+import { RootStackParamList } from '../../types';
+import { useGameStore } from '../../store/gameStore';
+import { GradientButton, Card, SectionLabel } from '../../components/index';
 import { COLORS, FONTS, RADII, SPACING } from '@theme';
-import { getEnrollableDegrees, getEarnedDegrees } from '../engine/educationEngine';
-import { formatCurrency } from '../utils/currency';
+import { getEnrollableDegrees, getEarnedDegrees } from '../../engine/educationEngine';
+import { formatCurrency } from '../../utils/currency';
 
 // ─── Degree Selection Step ─────────────────────────────────────────────────────
 function DegreeSelector({

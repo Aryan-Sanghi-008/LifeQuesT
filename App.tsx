@@ -29,7 +29,7 @@ import RootNavigator from "@navigation/RootNavigator";
 import { NavigationSync } from "@navigation/NavigationSync";
 import { navigationRef } from "@navigation/navigationRef";
 import { useGameStore } from "@store/gameStore";
-import { initAuth, subscribeAuth } from "@services/auth";
+import { initAuth, subscribeAuth } from "@features/auth/services/auth";
 import { initAds } from "@services/ads";
 import {
   initIAP,

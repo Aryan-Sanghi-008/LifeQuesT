@@ -4,17 +4,17 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../types';
+import { RootStackParamList } from '../../types';
 import { COLORS, FONTS, RADII, SPACING } from '@theme';
-import { useGameStore } from '../store/gameStore';
-import { NpcAvatar } from '../components/Avatars';
-import { Card, StatBar, SectionLabel, Badge } from '../components/index';
-import { getEligibleCareers, checkCareerEligibility, getCountrySalary, getSkillTreeProgress } from '../engine/careerEngine';
-import { getAllCareerPaths } from '../data/careerPaths';
-import { resolveEducationLevelForDisplay } from '../engine/educationEngine';
-import { listPursuableCertifications, getCertificationLabel } from '../engine/certificationEngine';
-import { CAREER_PATHS } from '../data/careerPaths';
-import { formatCurrency } from '../utils/currency';
+import { useGameStore } from '../../store/gameStore';
+import { NpcAvatar } from '../../components/Avatars';
+import { Card, StatBar, SectionLabel, Badge } from '../../components/index';
+import { getEligibleCareers, checkCareerEligibility, getCountrySalary, getSkillTreeProgress } from '../../engine/careerEngine';
+import { getAllCareerPaths } from '../../data/careerPaths';
+import { resolveEducationLevelForDisplay } from '../../engine/educationEngine';
+import { listPursuableCertifications, getCertificationLabel } from '../../engine/certificationEngine';
+import { CAREER_PATHS } from '../../data/careerPaths';
+import { formatCurrency } from '../../utils/currency';
 import Svg, { Path, Rect } from 'react-native-svg';
 
 const EDU_ICONS: Record<string, React.ReactNode> = {

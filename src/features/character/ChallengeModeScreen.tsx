@@ -1,10 +1,10 @@
 import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { COLORS, FONTS, RADII, SPACING } from '@theme';
-import { useGameStore } from "../store/gameStore";
-import { ScreenHeader } from "../components/ScreenHeader";
-import { Card, SectionLabel, Divider } from "../components/index";
-import { CHALLENGES } from "../engine/challengeEngine";
+import { useGameStore } from "../../store/gameStore";
+import { ScreenHeader } from "../../components/ScreenHeader";
+import { Card, SectionLabel, Divider } from "../../components/index";
+import { CHALLENGES } from "../../engine/challengeEngine";
 import Svg, { Circle } from "react-native-svg";
 
 export function ChallengeModeScreen() {
