@@ -1,4 +1,7 @@
 import {
+  initializeAuth,
+  // @ts-expect-error — RN persistence exists in Metro bundle but is omitted from web typings
+  getReactNativePersistence,
   getAuth,
   signInAnonymously,
   signInWithCredential,
@@ -8,9 +11,10 @@ import {
   Auth,
   User,
 } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { GOOGLE_WEB_CLIENT_ID, isFirebaseConfigured } from '../../../config/firebase';
 import { getFirebaseApp } from '@services/firebaseClient';
-import { isGoogleSignInAvailable } from '../../../utils/nativeAvailability';
+import { isGoogleSignInAvailable } from '@utils/nativeAvailability';
 import { AppUser } from '../../../types';
 
 let auth: Auth | null = null;
@@ -27,7 +31,13 @@ function getFirebaseAuth(): Auth | null {
   const app = getFirebaseApp();
   if (!app) return null;
   if (!auth) {
-    auth = getAuth(app);
+    try {
+      auth = initializeAuth(app, {
+        persistence: getReactNativePersistence(AsyncStorage),
+      });
+    } catch {
+      auth = getAuth(app);
+    }
   }
   return auth;
 }

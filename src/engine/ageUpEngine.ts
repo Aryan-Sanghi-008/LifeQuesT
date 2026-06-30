@@ -8,8 +8,8 @@ import {
   TraumaMemory,
 } from "../types";
 import { DEATH_CAUSES } from "../data/gameData";
-import { getLifeStage } from "../utils/lifeStage";
-import { generatePartner, generatePet } from "../utils/npcGenerator";
+import { getLifeStage } from "@utils/lifeStage";
+import { generatePartner, generatePet } from "@utils/npcGenerator";
 import {
   applyEffect,
   applyCashDelta,
@@ -24,6 +24,7 @@ import {
   pickWeightedEvents,
   getGuaranteedMilestones,
   getWeightedEligibleEvents,
+  resolveEventRarity,
 } from "./eventEngine";
 import {
   applyFocusStatModifiers,
@@ -76,7 +77,7 @@ import {
   crossoverPersonality,
   generateRandomDNA,
   generateRandomPersonality,
-} from "../utils/genetics";
+} from "@utils/genetics";
 import { tickWorldEvents, getWorldEventModifiers } from "./worldEngine";
 import { tickNpcAutonomy } from "./npcAutonomyEngine";
 import { PROPERTY_MAP } from "../data/properties";
@@ -751,7 +752,7 @@ export function runAgeUp(
       statEffect: event.statEffect,
       category: event.category,
       color: event.color,
-      rarity: event.rarity,
+      rarity: resolveEventRarity(event),
       timestamp: Date.now(),
     });
   }

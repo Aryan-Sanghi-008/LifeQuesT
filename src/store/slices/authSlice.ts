@@ -9,7 +9,7 @@ import {
   clearConsumedGrants,
 } from "../../services/entitlements";
 import { listCloudSlots } from "../../services/cloudSave";
-import { mergeSlotLists } from "../../utils/saveSync";
+import { mergeSlotLists } from "@utils/saveSync";
 
 export interface AuthSlice {
   user: AppUser | null;

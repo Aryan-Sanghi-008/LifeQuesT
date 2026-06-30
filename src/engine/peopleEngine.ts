@@ -1,5 +1,5 @@
 import { Person } from '../types';
-import { generateClassmate, generateCoworker } from '../utils/npcGenerator';
+import { generateClassmate, generateCoworker } from '@utils/npcGenerator';
 
 const MOOD_OPTIONS = ['Happy', 'Neutral', 'Stressed', 'Excited', 'Reserved', 'Angry'] as const;
 const GOAL_POOL = ['Career success', 'Family stability', 'Wealth', 'Fame', 'Peace', 'Revenge', 'Adventure'];

@@ -6,8 +6,18 @@ export interface GameNavState {
   pendingReincarnation: boolean;
 }
 
-export function resolveRootRoute(state: GameNavState): keyof RootStackParamList {
-  if (!state.user) return 'Auth';
+export interface BootstrapNavState extends GameNavState {
+  onboardingComplete: boolean;
+  ageGateVerified: boolean;
+}
+
+export function resolveRootRoute(state: BootstrapNavState): keyof RootStackParamList {
+  // Existing players skip first-run flows
+  if (!state.user) {
+    if (!state.onboardingComplete) return 'Onboarding';
+    if (!state.ageGateVerified) return 'AgeGate';
+    return 'Auth';
+  }
   if (!state.character) {
     return state.pendingReincarnation ? 'CharacterCreate' : 'SaveSlots';
   }

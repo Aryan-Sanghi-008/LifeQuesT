@@ -3,10 +3,12 @@ import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-nat
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fetchLeaderboard } from '../../services/leaderboard';
 import { LeaderboardEntry } from '../../types';
-import { Card, ScreenHeader } from '../../components/index';
-import { COLORS, FONTS, SPACING } from '@theme';
+import { Card, ScreenHeader } from '@components/index';
+import { useThemedStyles, useTheme } from '@theme';
 
 export default function LeaderboardScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [fromCache, setFromCache] = useState(false);
@@ -25,7 +27,7 @@ export default function LeaderboardScreen() {
         <Text style={styles.cacheHint}>Showing cached rankings — connect to refresh</Text>
       ) : null}
       {loading ? (
-        <ActivityIndicator color={COLORS.sapphire} />
+        <ActivityIndicator color={colors.sapphire} />
       ) : (
         <ScrollView contentContainerStyle={styles.list}>
           {entries.length === 0 ? (
@@ -48,15 +50,15 @@ export default function LeaderboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.bg, padding: SPACING.lg },
-  cacheHint: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4, marginBottom: SPACING.sm },
-  list: { gap: SPACING.sm },
-  empty: { fontFamily: FONTS.body, color: COLORS.t3 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
-  rank: { fontFamily: FONTS.mono, fontSize: 16, color: COLORS.gold, width: 36 },
+const createStyles = ({ colors, fonts, spacing }: ReturnType<typeof useTheme>) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bg, padding: spacing.lg },
+  cacheHint: { fontFamily: fonts.body, fontSize: 11, color: colors.t4, marginBottom: spacing.sm },
+  list: { gap: spacing.sm },
+  empty: { fontFamily: fonts.body, color: colors.t3 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  rank: { fontFamily: fonts.mono, fontSize: 16, color: colors.gold, width: 36 },
   info: { flex: 1 },
-  name: { fontFamily: FONTS.bodyBold, fontSize: 15, color: COLORS.t1 },
-  meta: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.t3 },
-  score: { fontFamily: FONTS.monoSemiBold, fontSize: 15, color: COLORS.sapphire },
+  name: { fontFamily: fonts.bodyBold, fontSize: 15, color: colors.t1 },
+  meta: { fontFamily: fonts.body, fontSize: 12, color: colors.t3 },
+  score: { fontFamily: fonts.monoSemiBold, fontSize: 15, color: colors.sapphire },
 });

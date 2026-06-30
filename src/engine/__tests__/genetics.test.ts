@@ -5,7 +5,7 @@ import {
   crossoverPersonality,
   determineTraitsFromPersonality,
   calculateStatCap,
-} from '../../utils/genetics';
+} from '@utils/genetics';
 
 describe('Genetics Utility Tests', () => {
   describe('calculateStatCap', () => {

@@ -76,6 +76,11 @@ export interface SettingsState {
   reducedMotion: boolean;
   colorScheme: 'light' | 'dark' | 'system';
 
+  // Onboarding / legal
+  onboardingComplete: boolean;
+  ageGateVerified: boolean;
+  verifiedAge: number | null;
+
   // Actions
   setMasterVolume: (v: number) => void;
   setSoundEnabled: (v: boolean) => void;
@@ -85,6 +90,8 @@ export interface SettingsState {
   setNotificationsEnabled: (v: boolean) => void;
   setReducedMotion: (v: boolean) => void;
   setColorScheme: (v: 'light' | 'dark' | 'system') => void;
+  setOnboardingComplete: (v: boolean) => void;
+  setAgeGateVerified: (age: number) => void;
   resetToDefaults: () => void;
 }
 
@@ -97,6 +104,9 @@ const DEFAULTS = {
   notificationsEnabled: true,
   reducedMotion: false,
   colorScheme: 'system' as 'light' | 'dark' | 'system',
+  onboardingComplete: false,
+  ageGateVerified: false,
+  verifiedAge: null as number | null,
 };
 
 function load<T>(key: string, defaultVal: T): T {
@@ -105,6 +115,11 @@ function load<T>(key: string, defaultVal: T): T {
     if (raw === undefined) return defaultVal;
     if (typeof defaultVal === 'boolean') return (raw === 'true') as unknown as T;
     if (typeof defaultVal === 'number') return parseFloat(raw) as unknown as T;
+    if (defaultVal === null) {
+      if (raw === 'null' || raw === '') return null as T;
+      const n = Number(raw);
+      return (Number.isNaN(n) ? null : n) as T;
+    }
     return JSON.parse(raw) as T;
   } catch {
     return defaultVal;
@@ -151,6 +166,9 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
   notificationsEnabled: load('notificationsEnabled', DEFAULTS.notificationsEnabled),
   reducedMotion: load('reducedMotion', DEFAULTS.reducedMotion),
   colorScheme: load<'light' | 'dark' | 'system'>('colorScheme', DEFAULTS.colorScheme),
+  onboardingComplete: load('onboardingComplete', DEFAULTS.onboardingComplete),
+  ageGateVerified: load('ageGateVerified', DEFAULTS.ageGateVerified),
+  verifiedAge: load<number | null>('verifiedAge', DEFAULTS.verifiedAge),
 
   setMasterVolume: (v) => {
     save('masterVolume', v);
@@ -183,6 +201,15 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
   setColorScheme: (v) => {
     save('colorScheme', v);
     set({ colorScheme: v });
+  },
+  setOnboardingComplete: (v) => {
+    save('onboardingComplete', v);
+    set({ onboardingComplete: v });
+  },
+  setAgeGateVerified: (age) => {
+    save('ageGateVerified', true);
+    save('verifiedAge', age);
+    set({ ageGateVerified: true, verifiedAge: age });
   },
   resetToDefaults: () => {
     Object.entries(DEFAULTS).forEach(([k, v]) => save(k, v));

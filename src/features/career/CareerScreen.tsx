@@ -4,10 +4,10 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../types";
 import { useTheme } from "@theme";
 import { useGameStore } from "../../store/gameStore";
-import { NpcAvatar } from "../../components/Avatars";
-import { Card, StatBar, SectionLabel, Badge } from "../../components/index";
-import { ScreenShell } from "../../components/ScreenShell";
-import { TabScreenHeader } from "../../components/TabScreenHeader";
+import { NpcAvatar } from "@components/Avatars";
+import { Card, StatBar, SectionLabel, Badge } from "@components/index";
+import { ScreenShell } from "@components/ScreenShell";
+import { TabScreenHeader } from "@components/TabScreenHeader";
 import {
   getEligibleCareers,
   checkCareerEligibility,
@@ -18,7 +18,7 @@ import { getAllCareerPaths } from "../../data/careerPaths";
 import { resolveEducationLevelForDisplay } from "../../engine/educationEngine";
 import { listPursuableCertifications, getCertificationLabel } from "../../engine/certificationEngine";
 import { CAREER_PATHS } from "../../data/careerPaths";
-import { formatCurrency } from "../../utils/currency";
+import { formatCurrency } from "@utils/currency";
 import Svg, { Path, Rect } from "react-native-svg";
 
 // ─── Education Icons and Colors Dynamic Generators ───────────────────────────

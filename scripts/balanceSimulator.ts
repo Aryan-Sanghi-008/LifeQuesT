@@ -4,8 +4,8 @@ import { runResolveDecision } from "../src/engine/resolveDecisionEngine";
 import {
   generateRandomDNA,
   generateRandomPersonality,
-} from "../src/utils/genetics";
-import { getLifeStage } from "../src/utils/lifeStage";
+} from "../src/shared/utils/genetics";
+import { getLifeStage } from "../src/shared/utils/lifeStage";
 
 function createMockCharacter(): Character {
   return {

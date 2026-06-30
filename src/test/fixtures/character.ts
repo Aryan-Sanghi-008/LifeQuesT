@@ -1,5 +1,5 @@
 import type { Character } from '../../types';
-import { generateRandomDNA, generateRandomPersonality } from '../../utils/genetics';
+import { generateRandomDNA, generateRandomPersonality } from '@utils/genetics';
 
 /** Shared test character with all required fields defaulted. */
 export function createTestCharacter(overrides: Partial<Character> = {}): Character {
@@ -68,6 +68,7 @@ export function createTestCharacter(overrides: Partial<Character> = {}): Charact
     focusPointsSpent: {},
     createdAt: 1,
     updatedAt: 1,
+    scenarioId: 'classic',
     ...overrides,
   };
 }

@@ -1,9 +1,9 @@
 import {
   hasJob, isEligible, applySuccessChance, consumeLuckBoost, getEligibleEvents,
   getWeightedEligibleEvents,
-  pickWeightedEvents, getGuaranteedMilestones,
+  pickWeightedEvents, getGuaranteedMilestones, resolveEventRarity,
 } from '@engine/eventEngine';
-import type { Character } from '../../types';
+import type { Character, LifeEvent } from '../../types';
 import { createTestCharacter } from '../../test/fixtures/character';
 
 const baseCharacter: Character = createTestCharacter({
@@ -79,21 +79,38 @@ describe('getEligibleEvents', () => {
 
 describe('getWeightedEligibleEvents', () => {
   it('applies focus weight boosts to eligible pool', () => {
-    const character = {
+    const focusCharacter = {
       ...baseCharacter,
       age: 25,
       focusAllocation: { career: 2, education: 1 },
       lifePhase: 'acting' as const,
     };
-    const weighted = getWeightedEligibleEvents(25, character);
-    const careerEvents = weighted.filter(e => e.category === 'career');
-    const randomEvents = weighted.filter(e => e.category === 'random');
-    if (careerEvents.length > 0 && randomEvents.length > 0) {
-      const avgCareer = careerEvents.reduce((s, e) => s + (e.weight ?? 1), 0) / careerEvents.length;
-      const avgRandom = randomEvents.reduce((s, e) => s + (e.weight ?? 1), 0) / randomEvents.length;
-      expect(avgCareer).toBeGreaterThan(avgRandom);
-    }
+    const noFocusCharacter = {
+      ...baseCharacter,
+      age: 25,
+      focusAllocation: {},
+      lifePhase: 'acting' as const,
+    };
+    const weighted = getWeightedEligibleEvents(25, focusCharacter);
+    const unfocused = getWeightedEligibleEvents(25, noFocusCharacter);
+
     expect(weighted.length).toBeGreaterThan(0);
+
+    // Career focus (2 pts) should boost the average weight of career events
+    // relative to the same events with no focus allocation.
+    const focusedCareerAvg = weighted
+      .filter(e => e.category === 'career')
+      .reduce((s, e) => s + (e.weight ?? 1), 0) /
+      Math.max(1, weighted.filter(e => e.category === 'career').length);
+
+    const unfocusedCareerAvg = unfocused
+      .filter(e => e.category === 'career')
+      .reduce((s, e) => s + (e.weight ?? 1), 0) /
+      Math.max(1, unfocused.filter(e => e.category === 'career').length);
+
+    if (focusedCareerAvg > 0 && unfocusedCareerAvg > 0) {
+      expect(focusedCareerAvg).toBeGreaterThan(unfocusedCareerAvg);
+    }
   });
 
   it('excludes memory-gated events without required tags', () => {
@@ -143,5 +160,84 @@ describe('getGuaranteedMilestones', () => {
     };
     const milestones = getGuaranteedMilestones(5, char);
     expect(milestones.some(e => e.id === 'school_start')).toBe(false);
+  });
+});
+
+describe('resolveEventRarity', () => {
+  const baseEvent = (overrides: Partial<LifeEvent> = {}): LifeEvent => ({
+    id: 'test_event',
+    minAge: 0,
+    maxAge: 99,
+    title: 'Test',
+    description: 'Test',
+    statEffect: {},
+    category: 'random',
+    color: '#000',
+    ...overrides,
+  });
+
+  it('returns explicit rarity when set on event data', () => {
+    expect(resolveEventRarity(baseEvent({ rarity: 'legendary' }))).toBe('legendary');
+  });
+
+  it('marks milestone category events as epic', () => {
+    expect(resolveEventRarity(baseEvent({ category: 'milestone' }))).toBe('epic');
+  });
+
+  it('marks one-time low-weight events as legendary', () => {
+    expect(resolveEventRarity(baseEvent({ oneTime: true, weight: 2 }))).toBe('legendary');
+  });
+
+  it('marks choice events as uncommon by default', () => {
+    expect(resolveEventRarity(baseEvent({
+      choices: [{ id: 'a', text: 'Do it', subtext: 'Go ahead', statEffect: {} }],
+    }))).toBe('uncommon');
+  });
+
+  it('marks high-impact financial events as rare', () => {
+    expect(resolveEventRarity(baseEvent({
+      category: 'financial',
+      bankEffect: 100000,
+      weight: 3,
+    }))).toBe('rare');
+  });
+
+  it('defaults routine events to common', () => {
+    expect(resolveEventRarity(baseEvent({ weight: 10 }))).toBe('common');
+  });
+});
+
+describe('scenario eligibility filtering', () => {
+  const royalEvent: LifeEvent = {
+    id: 'test_royal', title: 'Royal Test', description: 'Palace intrigue',
+    minAge: 18, maxAge: 60, statEffect: { happiness: 5 }, category: 'random',
+    weight: 5, color: '#FFD700', requiresScenario: ['royal'],
+  };
+
+  it('classic character does not receive royal-only events', () => {
+    const classic = createTestCharacter({ age: 30, scenarioId: 'classic' });
+    expect(isEligible(royalEvent, 30, [], classic)).toBe(false);
+  });
+
+  it('royal character receives royal-only events', () => {
+    const royal = createTestCharacter({ age: 30, scenarioId: 'royal' });
+    expect(isEligible(royalEvent, 30, [], royal)).toBe(true);
+  });
+
+  it('universal events (no requiresScenario) are eligible for any character', () => {
+    const universalEvent: LifeEvent = {
+      id: 'test_universal', title: 'Universal', description: 'For everyone',
+      minAge: 18, maxAge: 60, statEffect: {}, category: 'random', weight: 5, color: '#FFF',
+    };
+    const classic = createTestCharacter({ age: 30, scenarioId: 'classic' });
+    const royal = createTestCharacter({ age: 30, scenarioId: 'royal' });
+    expect(isEligible(universalEvent, 30, [], classic)).toBe(true);
+    expect(isEligible(universalEvent, 30, [], royal)).toBe(true);
+  });
+
+  it('character without explicit scenarioId defaults to classic', () => {
+    const noScenario = createTestCharacter({ age: 30 });
+    delete (noScenario as Partial<typeof noScenario>).scenarioId;
+    expect(isEligible(royalEvent, 30, [], noScenario)).toBe(false);
   });
 });

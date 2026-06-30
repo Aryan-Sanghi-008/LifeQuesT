@@ -4,7 +4,7 @@ import { FocusAllocation, AspirationId, WillDetails } from "../../types";
 import { ACTIVITIES } from "../../data/gameData";
 import { applySuccessChance, consumeLuckBoost } from "../../engine/eventEngine";
 import { applyEffect, computeNetWorth } from "../../engine/economyEngine";
-import { generatePet } from "../../utils/npcGenerator";
+import { generatePet } from "@utils/npcGenerator";
 import { recordCrime } from "../../engine/crimeEngine";
 import { updateQuestProgress, pickDailyQuests } from "../../engine/questEngine";
 import { setDailyQuestsProgress, saveCharacterLocal } from "../../services/persistence";

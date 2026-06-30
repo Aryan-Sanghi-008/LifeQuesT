@@ -1,14 +1,16 @@
 import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useGameStore } from "../../store/gameStore";
-import { COLORS, FONTS, SPACING, RADII, SHADOWS } from '@theme';
+import { useThemedStyles, useTheme } from '@theme';
 import { LinearGradient } from "expo-linear-gradient";
 import { getCurrentSeason } from "../../engine/liveOpsEngine";
 import { computeNetWorth } from "../../engine/economyEngine";
-import { ScreenHeader } from "../../components/ScreenHeader";
+import { ScreenHeader } from "@components/ScreenHeader";
 import Svg, { Path } from "react-native-svg";
 
 export default function LiveOpsScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const character = useGameStore((s) => s.character);
   const season = getCurrentSeason();
 
@@ -22,7 +24,7 @@ export default function LiveOpsScreen() {
   return (
     <View style={styles.root}>
       <LinearGradient
-        colors={[COLORS.bg, "#0B0F19", COLORS.bg]}
+        colors={[colors.bg, "#0B0F19", colors.bg]}
         style={StyleSheet.absoluteFill}
       />
 
@@ -196,7 +198,7 @@ export default function LiveOpsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ fonts, spacing, radii, shadows }: ReturnType<typeof useTheme>) => StyleSheet.create({
   root: {
     flex: 1,
   },
@@ -204,47 +206,47 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scroll: {
-    padding: SPACING.md,
-    gap: SPACING.lg,
+    padding: spacing.md,
+    gap: spacing.lg,
   },
   seasonBanner: {
-    borderRadius: RADII.lg,
-    padding: SPACING.lg,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
     borderWidth: 1,
     borderColor: "#C084FC",
-    ...SHADOWS.card,
+    ...shadows.card,
   },
   seasonBadge: {
     alignSelf: "flex-start",
     backgroundColor: "rgba(255, 255, 255, 0.2)",
-    paddingHorizontal: SPACING.sm,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 3,
-    borderRadius: RADII.sm,
-    marginBottom: SPACING.sm,
+    borderRadius: radii.sm,
+    marginBottom: spacing.sm,
   },
   seasonBadgeText: {
-    fontFamily: FONTS.bodyBold,
+    fontFamily: fonts.bodyBold,
     fontSize: 9,
     color: "#FFFFFF",
     letterSpacing: 1.0,
   },
   seasonTitle: {
-    fontFamily: FONTS.displayBold,
+    fontFamily: fonts.displayBold,
     fontSize: 22,
     color: "#FFFFFF",
-    marginBottom: SPACING.xs,
+    marginBottom: spacing.xs,
   },
   seasonDesc: {
-    fontFamily: FONTS.body,
+    fontFamily: fonts.body,
     fontSize: 13,
     color: "#E9D5FF",
     lineHeight: 18,
   },
   section: {
-    gap: SPACING.sm,
+    gap: spacing.sm,
   },
   sectionTitle: {
-    fontFamily: FONTS.bodyBold,
+    fontFamily: fonts.bodyBold,
     fontSize: 11,
     color: "#64748B",
     letterSpacing: 1.2,
@@ -252,16 +254,16 @@ const styles = StyleSheet.create({
   },
   modifierCard: {
     backgroundColor: "#1E293B",
-    borderRadius: RADII.md,
-    padding: SPACING.md,
+    borderRadius: radii.md,
+    padding: spacing.md,
     borderWidth: 1,
     borderColor: "#334155",
-    gap: SPACING.md,
+    gap: spacing.md,
   },
   modifierRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: SPACING.md,
+    gap: spacing.md,
   },
   indicator: {
     width: 6,
@@ -272,60 +274,60 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   modifierLabel: {
-    fontFamily: FONTS.bodyBold,
+    fontFamily: fonts.bodyBold,
     fontSize: 13,
     color: "#F1F5F9",
   },
   modifierSub: {
-    fontFamily: FONTS.body,
+    fontFamily: fonts.body,
     fontSize: 11,
     color: "#94A3B8",
     marginTop: 1,
   },
   challengeCard: {
-    borderRadius: RADII.md,
-    padding: SPACING.md,
+    borderRadius: radii.md,
+    padding: spacing.md,
     borderWidth: 1,
     borderColor: "#334155",
-    ...SHADOWS.card,
+    ...shadows.card,
   },
   challengeHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: SPACING.xs,
+    marginBottom: spacing.xs,
   },
   challengeTitle: {
-    fontFamily: FONTS.displayBold,
+    fontFamily: fonts.displayBold,
     fontSize: 16,
     color: "#F1F5F9",
   },
   rewardBadge: {
     backgroundColor: "#FEF08A",
-    paddingHorizontal: SPACING.sm,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 3,
-    borderRadius: RADII.sm,
+    borderRadius: radii.sm,
   },
   rewardText: {
-    fontFamily: FONTS.monoSemiBold,
+    fontFamily: fonts.monoSemiBold,
     fontSize: 11,
     color: "#713F12",
   },
   challengeDesc: {
-    fontFamily: FONTS.body,
+    fontFamily: fonts.body,
     fontSize: 13,
     color: "#94A3B8",
     lineHeight: 18,
-    marginBottom: SPACING.lg,
+    marginBottom: spacing.lg,
   },
   trackerContainer: {
     borderTopWidth: 1,
     borderColor: "#334155",
-    paddingTop: SPACING.md,
-    gap: SPACING.sm,
+    paddingTop: spacing.md,
+    gap: spacing.sm,
   },
   trackerHeading: {
-    fontFamily: FONTS.bodyBold,
+    fontFamily: fonts.bodyBold,
     fontSize: 10,
     color: "#64748B",
     letterSpacing: 1.0,
@@ -337,17 +339,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   criteriaLabel: {
-    fontFamily: FONTS.bodySemiBold,
+    fontFamily: fonts.bodySemiBold,
     fontSize: 12,
     color: "#E2E8F0",
   },
   criteriaStatus: {
     flexDirection: "row",
     alignItems: "center",
-    gap: SPACING.xs,
+    gap: spacing.xs,
   },
   criteriaValue: {
-    fontFamily: FONTS.monoSemiBold,
+    fontFamily: fonts.monoSemiBold,
     fontSize: 12,
   },
   dot: {

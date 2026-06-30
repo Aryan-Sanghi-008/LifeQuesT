@@ -16,6 +16,7 @@ import {
   WillDetails,
   GlobalPrestigeState,
   SyncConflict,
+  ScenarioId,
 } from "../types";
 import { StudyQuestion, StudySessionResult } from "../engine/educationEngine";
 
@@ -35,6 +36,8 @@ export interface CreateCharacterPayload {
   parentPersonality?: BigFivePersonality;
   partnerPersonality?: BigFivePersonality;
   activeChallengeId?: string;
+  scenarioId?: ScenarioId;
+  personality?: BigFivePersonality;
 }
 
 type FamilyBackground = "poor" | "middle" | "wealthy" | "royalty";
@@ -74,6 +77,11 @@ export interface GameStore {
   onUserChanged: (user: AppUser | null) => Promise<void>;
   refreshSlotList: () => Promise<SaveSlot[]>;
   claimDailyBonus: () => { ok: boolean; message: string };
+  claimLoginReward: () => { ok: boolean; message: string; day: number; reward: import('./slices/progressionSlice').LoginReward };
+  canClaimLoginReward: () => boolean;
+  getLoginRewardState: () => { day: number; claimed: boolean };
+  canSpinMysteryBox: () => boolean;
+  spinMysteryBox: () => { ok: boolean; reward?: import('./slices/progressionSlice').MysteryReward; message: string };
   loadDailyQuests: () => void;
   claimQuestReward: (questId: string) => { ok: boolean; message: string };
   addSeasonXp: (amount: number) => void;
@@ -166,4 +174,8 @@ export interface GameStore {
   resetGame: () => Promise<void>;
   _checkAchievements: () => void;
   _persist: () => Promise<void>;
+  checkStreakMilestones: () => import('./slices/progressionSlice').StreakMilestone | null;
+  purchaseStreakShield: () => { ok: boolean; message: string };
+  consumeStreakShieldIfAvailable: () => boolean;
+  checkCollectionSetRewards: () => import('@/types').CollectionSet[];
 }

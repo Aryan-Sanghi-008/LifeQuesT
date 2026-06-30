@@ -6,12 +6,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/types';
-import { COLORS, FONTS, RADII, SPACING } from '@theme';
+import { useThemedStyles, useTheme } from '@theme';
 import LifeGlyph from '@components/LifeGlyph';
 import { GradientButton } from '@components/index';
 import { DiceBearAvatar } from '@components/Avatars';
 import { signInWithGoogle, signInAsGuest, isGoogleSignInAvailable } from "./services/auth";
-import { useGameStore } from '@store/gameStore';
+import { useAuth } from './hooks/useAuth';
+import { useReducedMotion } from '@hooks/useReducedMotion';
 import { logEvent } from '@services/analytics';
 import { getPrivacyPolicyUrl, getTermsUrl, openLegalUrlSafe } from '@config/legal';
 import Svg, { Path, G } from 'react-native-svg';
@@ -51,20 +52,22 @@ interface Particle {
 }
 
 function useParticles(): Particle[] {
-  const particles = useRef<Particle[]>(
-    Array.from({ length: PARTICLE_COUNT }, (_, i) => ({
+  const { colors } = useTheme();
+  const particles = useRef<Particle[] | null>(null);
+  if (!particles.current) {
+    particles.current = Array.from({ length: PARTICLE_COUNT }, (_, i) => ({
       x: Math.random() * W,
       y: Math.random() * H,
       size: 1.5 + Math.random() * 3,
-      color: [COLORS.gold, COLORS.teal, COLORS.sapphire, COLORS.orchid, COLORS.crimson][i % 5],
+      color: [colors.gold, colors.teal, colors.sapphire, colors.orchid, colors.crimson][i % 5],
       anim: new Animated.Value(0),
       dur: 3000 + Math.random() * 4000,
       offset: 8 + Math.random() * 20,
-    }))
-  ).current;
+    }));
+  }
 
   useEffect(() => {
-    particles.forEach(p => {
+    particles.current!.forEach(p => {
       Animated.loop(
         Animated.sequence([
           Animated.timing(p.anim, { toValue: 1, duration: p.dur, useNativeDriver: true }),
@@ -74,7 +77,7 @@ function useParticles(): Particle[] {
     });
   }, []);
 
-  return particles;
+  return particles.current!;
 }
 
 function ParticleField() {
@@ -113,6 +116,8 @@ const CAROUSEL_CHARS: Array<{ seed: string; stage: LifeStage; gender: Gender; la
 ];
 
 function CharacterCarousel() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const [activeIdx, setActiveIdx] = useState(0);
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
@@ -147,7 +152,7 @@ function CharacterCarousel() {
           gender={char.gender}
           size={84}
           showFrame
-          frameColor={COLORS.goldBorder}
+          frameColor={colors.goldBorder}
         />
       </View>
       <Text style={styles.carouselLabel}>{char.label}</Text>
@@ -164,18 +169,19 @@ function CharacterCarousel() {
 }
 
 // ─── Feature Pills ─────────────────────────────────────────────────────────────
-const FEATURE_PILLS = [
-  { label: '🔫 Crime & Karma',     color: COLORS.crimson   },
-  { label: '🏢 Business Empire',   color: COLORS.gold      },
-  { label: '💑 Relationships',     color: COLORS.orchid    },
-  { label: '🎓 Education Paths',   color: COLORS.sapphire  },
-  { label: '🌍 50+ Countries',     color: COLORS.teal      },
-];
-
 function FeaturePills() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
+  const featurePills = [
+    { label: '🔫 Crime & Karma',     color: colors.crimson   },
+    { label: '🏢 Business Empire',   color: colors.gold      },
+    { label: '💑 Relationships',     color: colors.orchid    },
+    { label: '🎓 Education Paths',   color: colors.sapphire  },
+    { label: '🌍 50+ Countries',     color: colors.teal      },
+  ];
   return (
     <View style={styles.pillsWrap}>
-      {FEATURE_PILLS.map(pill => (
+      {featurePills.map(pill => (
         <View key={pill.label} style={[styles.pill, { borderColor: `${pill.color}40`, backgroundColor: `${pill.color}10` }]}>
           <Text style={[styles.pillText, { color: pill.color }]}>{pill.label}</Text>
         </View>
@@ -185,30 +191,35 @@ function FeaturePills() {
 }
 
 // ─── Stagger Animation Hook ────────────────────────────────────────────────────
-function useStaggeredEntrance(count: number, delay = 100) {
+function useStaggeredEntrance(count: number, delay = 100, reducedMotion = false) {
   const anims = useRef<Animated.Value[]>(
-    Array.from({ length: count }, () => new Animated.Value(0))
+    Array.from({ length: count }, () => new Animated.Value(reducedMotion ? 1 : 0))
   ).current;
 
   useEffect(() => {
+    if (reducedMotion) return;
     Animated.stagger(
       delay,
       anims.map(a =>
         Animated.spring(a, { toValue: 1, useNativeDriver: true, damping: 18, stiffness: 180 })
       )
     ).start();
-  }, []);
+  }, [anims, delay, reducedMotion]);
 
   return anims;
 }
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 export default function AuthScreen({ navigation: _navigation }: Props) {
-  const onUserChanged = useGameStore(s => s.onUserChanged);
+  const { colors, isDark } = useTheme();
+  const styles = useThemedStyles(createStyles);
+  const { onUserChanged } = useAuth();
   const [loading, setLoading] = useState<'google' | 'guest' | null>(null);
+  const [legalAccepted, setLegalAccepted] = useState(false);
   const googleSignInAvailable = isGoogleSignInAvailable();
 
-  const anims = useStaggeredEntrance(6, 120);
+  const reducedMotion = useReducedMotion();
+  const anims = useStaggeredEntrance(7, 120, reducedMotion);
 
   const makeEntrance = (idx: number) => ({
     opacity: anims[idx],
@@ -223,6 +234,7 @@ export default function AuthScreen({ navigation: _navigation }: Props) {
   const orb3Y = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    if (reducedMotion) return;
     const float = (anim: Animated.Value, dur: number, offset: number) =>
       Animated.loop(
         Animated.sequence([
@@ -233,7 +245,7 @@ export default function AuthScreen({ navigation: _navigation }: Props) {
     float(orb1Y, 4000, 18);
     float(orb2Y, 5500, 14);
     float(orb3Y, 3800, 22);
-  }, []);
+  }, [orb1Y, orb2Y, orb3Y, reducedMotion]);
 
   // Navigation is handled entirely by RootNavigator via game-phase state.
   // Do NOT call navigation.replace here — it causes SaveSlots to appear twice
@@ -278,7 +290,7 @@ export default function AuthScreen({ navigation: _navigation }: Props) {
 
   return (
     <View style={styles.root}>
-      <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
+      <StatusBar translucent backgroundColor="transparent" barStyle={isDark ? 'light-content' : 'dark-content'} />
 
       {/* Floating orbs */}
       <Animated.View style={[styles.orb, styles.orb1, { transform: [{ translateY: orb1Y }] }]} />
@@ -315,18 +327,50 @@ export default function AuthScreen({ navigation: _navigation }: Props) {
             <View style={styles.dividerLine} />
           </Animated.View>
 
+          {/* Legal acceptance */}
+          <Animated.View style={[styles.legalCheckRow, makeEntrance(3)]}>
+            <Pressable
+              onPress={() => setLegalAccepted((v) => !v)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: legalAccepted }}
+              style={[styles.checkbox, legalAccepted && styles.checkboxChecked]}
+            >
+              {legalAccepted && <Text style={styles.checkmark}>✓</Text>}
+            </Pressable>
+            <Text style={styles.legalCheckText}>
+              I agree to the{" "}
+              <Text
+                style={styles.legalLink}
+                onPress={() => void handleOpenLegal(getTermsUrl(), 'Terms of Service')}
+              >
+                Terms
+              </Text>
+              {" "}and{" "}
+              <Text
+                style={styles.legalLink}
+                onPress={() => void handleOpenLegal(getPrivacyPolicyUrl(), 'Privacy Policy')}
+              >
+                Privacy Policy
+              </Text>
+            </Text>
+          </Animated.View>
+
           {/* CTA buttons */}
-          <Animated.View style={[styles.actions, makeEntrance(3)]}>
+          <Animated.View style={[styles.actions, makeEntrance(4)]}>
             {googleSignInAvailable ? (
               <Pressable
                 onPress={() => void handleGoogle()}
-                disabled={loading !== null}
+                disabled={loading !== null || !legalAccepted}
                 accessibilityRole="button"
                 accessibilityLabel="Continue with Google"
                 android_ripple={{ color: 'rgba(255,255,255,0.08)' }}
-                style={({ pressed }) => [styles.googleBtn, pressed && { opacity: 0.85 }]}
+                style={({ pressed }) => [
+                  styles.googleBtn,
+                  pressed && { opacity: 0.85 },
+                  (!legalAccepted || loading !== null) && styles.btnDisabled,
+                ]}
               >
-                {loading === 'google' ? <ActivityIndicator color={COLORS.t2} /> : <GoogleIcon />}
+                {loading === 'google' ? <ActivityIndicator color={colors.t2} /> : <GoogleIcon />}
                 <Text style={styles.googleText}>Continue with Google</Text>
               </Pressable>
             ) : (
@@ -339,16 +383,16 @@ export default function AuthScreen({ navigation: _navigation }: Props) {
               label={loading === 'guest' ? '' : 'Play as Guest'}
               accessibilityLabel="Play as guest"
               onPress={() => void handleGuest()}
-              colors={[COLORS.sapphire, COLORS.sapphire2]}
+              colors={[colors.sapphire, colors.sapphire2]}
               textColor="#FFFFFF"
               loading={loading === 'guest'}
-              disabled={loading !== null}
+              disabled={loading !== null || !legalAccepted}
               style={{ width: '100%' }}
             />
           </Animated.View>
 
           {/* Social proof + rating */}
-          <Animated.View style={[styles.proof, makeEntrance(4)]}>
+          <Animated.View style={[styles.proof, makeEntrance(5)]}>
             <View style={styles.stars}>
               {[0,1,2,3,4].map(i => (
                 <Text key={i} style={styles.star}>★</Text>
@@ -357,26 +401,10 @@ export default function AuthScreen({ navigation: _navigation }: Props) {
             <Text style={styles.proofText}>4.8 · #1 Life Sim · 2M+ lives lived</Text>
           </Animated.View>
 
-          {/* Legal */}
-          <Animated.View style={makeEntrance(5)}>
+          {/* Legal note */}
+          <Animated.View style={makeEntrance(6)}>
             <Text style={styles.legal}>
-              By continuing you agree to our{' '}
-              <Text
-                style={styles.legalLink}
-                onPress={() => void handleOpenLegal(getTermsUrl(), 'Terms of Service')}
-                accessibilityRole="link"
-              >
-                Terms
-              </Text>
-              {' '}and{' '}
-              <Text
-                style={styles.legalLink}
-                onPress={() => void handleOpenLegal(getPrivacyPolicyUrl(), 'Privacy Policy')}
-                accessibilityRole="link"
-              >
-                Privacy Policy
-              </Text>
-              .
+              You must accept our Terms and Privacy Policy before creating an account.
             </Text>
           </Animated.View>
         </View>
@@ -385,69 +413,69 @@ export default function AuthScreen({ navigation: _navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = ({ colors, fonts, spacing, radii }: ReturnType<typeof useTheme>) => StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: colors.bg,
   },
   safe: { flex: 1 },
 
   // Orbs
   orb: { position: 'absolute', borderRadius: 999 },
-  orb1: { width: 320, height: 320, backgroundColor: `${COLORS.gold}09`, top: -80, right: -100 },
-  orb2: { width: 280, height: 280, backgroundColor: `${COLORS.teal}07`, bottom: 100, left: -100 },
-  orb3: { width: 200, height: 200, backgroundColor: `${COLORS.crimson}05`, bottom: 250, right: -50 },
+  orb1: { width: 320, height: 320, backgroundColor: `${colors.gold}09`, top: -80, right: -100 },
+  orb2: { width: 280, height: 280, backgroundColor: `${colors.teal}07`, bottom: 100, left: -100 },
+  orb3: { width: 200, height: 200, backgroundColor: `${colors.crimson}05`, bottom: 250, right: -50 },
 
   // Layout
   content: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: SPACING.xl,
-    paddingBottom: SPACING.xl,
-    gap: SPACING.md,
+    paddingHorizontal: spacing.xl,
+    paddingBottom: spacing.xl,
+    gap: spacing.md,
   },
 
   // Hero
-  heroSection: { alignItems: 'center', gap: SPACING.sm },
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.sm },
+  heroSection: { alignItems: 'center', gap: spacing.sm },
+  logoRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
   wordmark: {
-    fontFamily: FONTS.displayBlack,
+    fontFamily: fonts.displayBlack,
     fontSize: 38,
-    color: COLORS.t1,
+    color: colors.t1,
     letterSpacing: -0.5,
   },
-  wordmarkAccent: { color: COLORS.gold },
+  wordmarkAccent: { color: colors.gold },
   tagline: {
-    fontFamily: FONTS.body,
+    fontFamily: fonts.body,
     fontSize: 13,
-    color: COLORS.t3,
+    color: colors.t3,
     textAlign: 'center',
     letterSpacing: 0.3,
   },
 
   // Carousel
-  carouselWrap: { alignItems: 'center', gap: SPACING.sm },
+  carouselWrap: { alignItems: 'center', gap: spacing.sm },
   carouselAvatarRing: {
     width: 96,
     height: 96,
     borderRadius: 48,
     overflow: 'hidden',
     borderWidth: 2.5,
-    borderColor: `${COLORS.gold}50`,
+    borderColor: `${colors.gold}50`,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLORS.bgCard,
+    backgroundColor: colors.bgCard,
   },
   carouselLabel: {
-    fontFamily: FONTS.bodySemiBold,
+    fontFamily: fonts.bodySemiBold,
     fontSize: 13,
-    color: COLORS.t2,
+    color: colors.t2,
     letterSpacing: 0.5,
   },
   carouselDots: { flexDirection: 'row', gap: 5 },
-  carouselDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: COLORS.border },
-  carouselDotActive: { backgroundColor: COLORS.gold, width: 14 },
+  carouselDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.border },
+  carouselDotActive: { backgroundColor: colors.gold, width: 14 },
 
   // Feature pills
   pillsWrap: {
@@ -455,16 +483,16 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 7,
     justifyContent: 'center',
-    paddingHorizontal: SPACING.sm,
+    paddingHorizontal: spacing.sm,
   },
   pill: {
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: RADII.full,
+    borderRadius: radii.full,
     borderWidth: 1.5,
   },
   pillText: {
-    fontFamily: FONTS.bodySemiBold,
+    fontFamily: fonts.bodySemiBold,
     fontSize: 11,
     letterSpacing: 0.2,
   },
@@ -476,18 +504,18 @@ const styles = StyleSheet.create({
     gap: 10,
     width: '100%',
   },
-  dividerLine: { flex: 1, height: 1, backgroundColor: COLORS.border },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
   dividerText: {
-    fontFamily: FONTS.body,
+    fontFamily: fonts.body,
     fontSize: 10,
-    color: COLORS.t4,
+    color: colors.t4,
     letterSpacing: 1.5,
   },
 
   // Actions
   actions: {
     width: '100%',
-    gap: SPACING.md,
+    gap: spacing.md,
     alignItems: 'center',
   },
   googleBtn: {
@@ -498,46 +526,80 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingVertical: 15,
     paddingHorizontal: 24,
-    backgroundColor: COLORS.bgCard,
-    borderRadius: RADII.lg,
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.lg,
     borderWidth: 1.5,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
   googleText: {
-    fontFamily: FONTS.bodySemiBold,
+    fontFamily: fonts.bodySemiBold,
     fontSize: 15,
-    color: COLORS.t1,
+    color: colors.t1,
+  },
+  btnDisabled: { opacity: 0.45 },
+  legalCheckRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    width: '100%',
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 1,
+    backgroundColor: colors.bgCard,
+  },
+  checkboxChecked: {
+    backgroundColor: colors.sapphire,
+    borderColor: colors.sapphire,
+  },
+  checkmark: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  legalCheckText: {
+    flex: 1,
+    fontFamily: fonts.body,
+    fontSize: 12,
+    color: colors.t3,
+    lineHeight: 18,
   },
   unavailableHint: {
-    fontFamily: FONTS.body,
+    fontFamily: fonts.body,
     fontSize: 12,
-    color: COLORS.t4,
+    color: colors.t4,
     textAlign: 'center',
     lineHeight: 18,
-    paddingHorizontal: SPACING.sm,
+    paddingHorizontal: spacing.sm,
   },
 
   // Social proof
   proof: { alignItems: 'center', gap: 3 },
   stars: { flexDirection: 'row', gap: 2 },
-  star: { fontSize: 13, color: COLORS.gold },
+  star: { fontSize: 13, color: colors.gold },
   proofText: {
-    fontFamily: FONTS.body,
+    fontFamily: fonts.body,
     fontSize: 11,
-    color: COLORS.t4,
+    color: colors.t4,
     textAlign: 'center',
   },
 
   // Legal
   legal: {
-    fontFamily: FONTS.body,
+    fontFamily: fonts.body,
     fontSize: 10,
-    color: COLORS.t4,
+    color: colors.t4,
     textAlign: 'center',
     lineHeight: 15,
   },
   legalLink: {
-    color: COLORS.t3,
+    color: colors.t3,
     textDecorationLine: 'underline',
   },
 });

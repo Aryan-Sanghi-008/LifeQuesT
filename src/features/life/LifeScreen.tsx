@@ -1,13 +1,14 @@
-import { useRef, useEffect, useCallback, useState } from "react";
+import { useRef, useEffect, useCallback, useState, useMemo } from "react";
 import {
   View,
   Text,
-  SectionList,
   Pressable,
   StyleSheet,
   Animated,
   Modal,
+  InteractionManager,
 } from "react-native";
+import { FlashList } from "@shopify/flash-list";
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -17,6 +18,7 @@ import { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { LinearGradient } from "expo-linear-gradient";
 import { RootStackParamList, MainTabParamList } from "@/types";
+import { useCharacter } from "@features/character/hooks/useCharacter";
 import { useGameStore } from "@store/gameStore";
 import { AvatarByCharacter } from "@components/Avatars";
 import EventCard from "@components/EventCard";
@@ -24,8 +26,10 @@ import DecisionSheet from "@components/DecisionSheet";
 import { FocusPhaseSheet } from "@components/FocusPhaseSheet";
 import { YearReviewCard } from "@components/YearReviewCard";
 import { YearReviewBanner } from "@components/YearReviewBanner";
-import { ScreenShell, GlassCard, ConfettiOverlay, StatDeltaChip } from "@components/index";
-import { ACHIEVEMENTS } from "@data/gameData";
+import { ScreenShell, GlassCard, ConfettiOverlay, StatDeltaChip, ScenarioBanner, StatArc } from "@components/index";
+import { LifeStageBannerIcon } from "@components/LifeStageBannerIcon";
+import { ACHIEVEMENTS, ACHIEVEMENT_COIN_REWARDS } from "@data/gameData";
+import { SCENARIOS } from "@data/scenarios";
 import { isFocusConfirmedForAge } from "@engine/focusEngine";
 import { LifeEventRecord, CharacterStats } from "@/types";
 import { maybeShowInterstitial } from "@services/ads";
@@ -35,6 +39,7 @@ import { formatCurrency } from "@utils/currency";
 import { getFinanceSummary } from "@utils/financeSummary";
 import { getEducationLabel } from "@engine/educationEngine";
 import { hapticAgeUp } from "@services/haptics";
+import { playSound } from "@services/audio";
 import { isInJail } from "@engine/crimeEngine";
 import Svg, { Path } from "react-native-svg";
 import { useTheme } from "@theme";
@@ -74,21 +79,18 @@ function MiniVitalsStrip({
           paddingVertical: spacing.sm,
           paddingHorizontal: spacing.md,
           gap: spacing.sm,
+          alignItems: 'center',
         }}
       >
         {MINI_STATS.map((s) => (
           <View key={s.key} style={mini.vital}>
-            <Text style={[mini.label, { color: colors.t4, fontFamily: fonts.body }]}>
-              {s.label}
-            </Text>
-            <Text
-              style={[
-                mini.value,
-                { color: colorMap[s.colorKey], fontFamily: fonts.monoSemiBold },
-              ]}
-            >
-              {stats[s.key]}
-            </Text>
+            <StatArc
+              value={stats[s.key] as number}
+              color={colorMap[s.colorKey]}
+              label={s.label}
+              size={60}
+              strokeWidth={5}
+            />
           </View>
         ))}
         <View style={[mini.more, { borderColor: colors.border, borderRadius: radii.sm }]}>
@@ -102,9 +104,7 @@ function MiniVitalsStrip({
 }
 
 const mini = StyleSheet.create({
-  vital: { flex: 1, alignItems: "center", gap: 2 },
-  label: { fontSize: 9, letterSpacing: 0.6, textTransform: "uppercase" },
-  value: { fontSize: 16 },
+  vital: { flex: 1, alignItems: "center" },
   more: {
     justifyContent: "center",
     paddingHorizontal: 10,
@@ -421,80 +421,147 @@ const ageBtn = StyleSheet.create({
 
 // ─── Age Section Header ───────────────────────────────────────────────────────
 
-function AgeSectionHeader({ age }: { age: number }) {
-  const { colors, fonts } = useTheme();
-  const lifeStageColor =
-    age < 13
-      ? colors.emerald
-      : age < 18
-      ? colors.sapphire
-      : age < 30
-      ? colors.catCareer
-      : age < 60
-      ? colors.gold
-      : colors.orchid;
+const LIFE_STAGE_CONFIG: Array<{
+  maxAge: number;
+  label: string;
+  emoji: string;
+  gradient: readonly [string, string];
+}> = [
+  { maxAge: 12,  label: 'Childhood',   emoji: '🧒', gradient: ['#10B981', '#34D399'] },
+  { maxAge: 17,  label: 'Teenager',    emoji: '🎒', gradient: ['#3B82F6', '#60A5FA'] },
+  { maxAge: 29,  label: 'Young Adult', emoji: '🚀', gradient: ['#F59E0B', '#FBBF24'] },
+  { maxAge: 59,  label: 'Adult',       emoji: '💼', gradient: ['#8B5CF6', '#A78BFA'] },
+  { maxAge: 999, label: 'Golden Years',emoji: '🌟', gradient: ['#EC4899', '#F472B6'] },
+];
+
+function getLifeStageConfig(age: number) {
+  return LIFE_STAGE_CONFIG.find((s) => age <= s.maxAge) ?? LIFE_STAGE_CONFIG[LIFE_STAGE_CONFIG.length - 1];
+}
+
+function AgeSectionHeader({ age, character: _char }: { age: number; character?: import('@/types').Character }) {
+  const { fonts, radii, spacing } = useTheme();
+  const config = getLifeStageConfig(age);
 
   return (
-    <View style={ash.wrap}>
-      <View style={[ash.line, { backgroundColor: colors.border }]} />
-      <View
-        style={[
-          ash.badge,
-          {
-            backgroundColor: `${lifeStageColor}12`,
-            borderColor: `${lifeStageColor}30`,
-          },
-        ]}
-      >
-        <Text
-          style={[
-            ash.text,
-            { color: lifeStageColor, fontFamily: fonts.bodyBold },
-          ]}
-        >
+    <LinearGradient
+      colors={[`${config.gradient[0]}28`, `${config.gradient[1]}10`]}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 0 }}
+      style={[ash.banner, { borderRadius: radii.sm, marginHorizontal: spacing.lg }]}
+    >
+      <LifeStageBannerIcon age={age} color={config.gradient[0]} size={44} />
+      <View>
+        <Text style={[ash.ageText, { color: config.gradient[0], fontFamily: fonts.displayBlack }]}>
           AGE {age}
         </Text>
+        <Text style={[ash.stageText, { color: config.gradient[0], fontFamily: fonts.body, opacity: 0.7 }]}>
+          {config.label}
+        </Text>
       </View>
-      <View style={[ash.line, { backgroundColor: colors.border }]} />
-    </View>
+    </LinearGradient>
   );
 }
 
 const ash = StyleSheet.create({
-  wrap: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginVertical: 8,
-    paddingHorizontal: 16,
+  banner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    marginVertical: 10,
   },
-  line: { flex: 1, height: 1 },
-  badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    borderWidth: 1,
-  },
-  text: { fontSize: 10.5, letterSpacing: 1 },
+  emoji: { fontSize: 20 },
+  ageText: { fontSize: 14, letterSpacing: 0.5 },
+  stageText: { fontSize: 11, letterSpacing: 0.3, marginTop: 1 },
 });
 
-// ─── Helper: Group Event History by Age ──────────────────────────────────────
+// ─── Helper: Build flat FlashList items from event history ───────────────────
 
-function groupByAge(events: LifeEventRecord[]) {
+type FeedItem =
+  | { kind: 'header'; age: number; key: string }
+  | { kind: 'event'; event: LifeEventRecord; staggerIndex: number; key: string };
+
+function buildFeedItems(events: LifeEventRecord[]): FeedItem[] {
   const map = new Map<number, LifeEventRecord[]>();
   events.forEach((e) => {
     const list = map.get(e.age) || [];
     list.push(e);
     map.set(e.age, list);
   });
-  // Sort events by timestamp descending, and return ages in descending order
   const sortedAges = Array.from(map.keys()).sort((a, b) => b - a);
-  return sortedAges.map((age) => {
-    const data = map.get(age) || [];
-    data.sort((a, b) => b.timestamp - a.timestamp);
-    return { title: String(age), data };
+  const items: FeedItem[] = [];
+  sortedAges.forEach((age) => {
+    const ageEvents = (map.get(age) || []).slice().sort((a, b) => b.timestamp - a.timestamp);
+    items.push({ kind: 'header', age, key: `header_${age}` });
+    ageEvents.forEach((evt, idx) => {
+      items.push({ kind: 'event', event: evt, staggerIndex: idx, key: `evt_${evt.id}_${evt.timestamp}` });
+    });
   });
+  return items;
 }
+
+// ─── Epic Event Dramatic Reveal (auto-dismiss, smaller than legendary) ────────
+
+function EpicRevealOverlay({ event, onDismiss }: { event: LifeEventRecord; onDismiss: () => void }) {
+  const { colors, fonts, radii } = useTheme();
+  const slideY = useRef(new Animated.Value(60)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(slideY, { toValue: 0, useNativeDriver: true, friction: 7 }),
+      Animated.timing(opacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+    ]).start();
+    const timer = setTimeout(() => {
+      Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }).start(onDismiss);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        epicRevealStyles.container,
+        { transform: [{ translateY: slideY }], opacity },
+      ]}
+    >
+      <View style={[epicRevealStyles.card, { backgroundColor: `${event.color ?? colors.orchid}EE`, borderRadius: radii.lg }]}>
+        <Text style={[epicRevealStyles.label, { color: '#FFFFFF', fontFamily: fonts.bodyBold }]}>
+          ✨ EPIC MOMENT
+        </Text>
+        <Text style={[epicRevealStyles.title, { color: '#FFFFFF', fontFamily: fonts.displayBlack }]} numberOfLines={2}>
+          {event.title}
+        </Text>
+      </View>
+    </Animated.View>
+  );
+}
+
+const epicRevealStyles = StyleSheet.create({
+  container: {
+    position: 'absolute',
+    bottom: 120,
+    left: 20,
+    right: 20,
+    zIndex: 900,
+    alignItems: 'center',
+  },
+  card: {
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 10,
+    width: '100%',
+  },
+  label: { fontSize: 11, letterSpacing: 1.5, marginBottom: 4 },
+  title: { fontSize: 18, textAlign: 'center' },
+});
 
 // ─── Main Screen Component ────────────────────────────────────────────────────
 
@@ -506,30 +573,34 @@ export function LifeScreen() {
   const tabNavigation =
     useNavigation<BottomTabNavigationProp<MainTabParamList>>();
   const insets = useSafeAreaInsets();
-  const character = useGameStore((s) => s.character);
-  const pendingDecision = useGameStore((s) => s.pendingDecision);
-  const isProcessing = useGameStore((s) => s.isProcessing);
-  const lastAgeUpNotice = useGameStore((s) => s.lastAgeUpNotice);
-  const clearAgeUpNotice = useGameStore((s) => s.clearAgeUpNotice);
-  const ageUp = useGameStore((s) => s.ageUp);
-  const resolveDecision = useGameStore((s) => s.resolveDecision);
-  const dismissDecision = useGameStore((s) => s.dismissDecision);
+  const {
+    character,
+    pendingDecision,
+    isProcessing,
+    lastAgeUpNotice,
+    clearAgeUpNotice,
+    ageUp,
+    resolveDecision,
+    dismissDecision,
+    showConfetti,
+    setShowConfetti,
+    pendingAspirationPicker,
+  } = useCharacter();
   const dismissYearReview = useGameStore((s) => s.dismissYearReview);
-  const pendingAspirationPicker = useGameStore(
-    (s) => s.pendingAspirationPicker,
-  );
   const lifePhase = character?.lifePhase ?? "planning";
-
   const [isAgeUpCeremony, setIsAgeUpCeremony] = useState(false);
   const [yearReviewOpen, setYearReviewOpen] = useState(false);
-  const showConfetti = useGameStore((s) => s.showConfetti);
-  const setShowConfetti = useGameStore((s) => s.setShowConfetti);
 
   // Phase 5 States
   const [activeDeltas, setActiveDeltas] = useState<Array<{ id: string; name: string; value: number }>>([]);
   const [legendaryEventToShow, setLegendaryEventToShow] = useState<LifeEventRecord | null>(null);
+  const [epicRevealEvent, setEpicRevealEvent] = useState<LifeEventRecord | null>(null);
   const [unlockedAchievement, setUnlockedAchievement] = useState<string | null>(null);
   const prevAchievementsRef = useRef<string[]>(character?.achievements ?? []);
+
+  // Animated values for legendary modal entrance
+  const legendaryScale = useRef(new Animated.Value(0.85)).current;
+  const legendaryOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (pendingAspirationPicker) {
@@ -561,11 +632,16 @@ export function LifeScreen() {
       }
     }
 
-    // 2. Scan for Legendary Events in the newest age
+    // 2. Scan for Legendary / Epic Events in the newest age
     const newEvents = character.eventHistory.filter((e) => e.age === character.age);
     const legendary = newEvents.find((e) => e.rarity === "legendary");
     if (legendary) {
       setLegendaryEventToShow(legendary);
+      // Confetti for legendary moments
+      setShowConfetti(true);
+    } else {
+      const epic = newEvents.find((e) => e.rarity === "epic");
+      if (epic) setEpicRevealEvent(epic);
     }
 
     // 3. Detect newly unlocked achievements
@@ -586,11 +662,11 @@ export function LifeScreen() {
     if (showYearReview) setYearReviewOpen(true);
   }, [showYearReview, character?.lastYearReview?.age]);
 
-  const handleAgeUp = useCallback(async () => {
+  const handleAgeUp = useCallback(() => {
     const wasAlive = useGameStore.getState().character?.isAlive;
     void hapticAgeUp();
     setIsAgeUpCeremony(true);
-    setTimeout(async () => {
+    InteractionManager.runAfterInteractions(async () => {
       ageUp();
       setIsAgeUpCeremony(false);
       const after = useGameStore.getState().character;
@@ -607,12 +683,16 @@ export function LifeScreen() {
       ) {
         await maybeShowInterstitial();
       }
-    }, 1000);
+    });
   }, [ageUp]);
 
   if (!character) return null;
 
-  const sections = groupByAge(character.eventHistory);
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const feedItems = useMemo(
+    () => buildFeedItems(character.eventHistory),
+    [character.eventHistory],
+  );
   const countryCode = character.countryCode ?? "IN";
   const bankStr = formatCurrency(character.bankBalance, countryCode);
   const finance = getFinanceSummary(character);
@@ -758,25 +838,28 @@ export function LifeScreen() {
             </View>
           </View>
         </View>
-        <View style={[styles.agePill, { borderColor: colors.border }]}>
-          <Text
-            style={[
-              styles.ageValue,
-              { color: colors.t1, fontFamily: fonts.monoSemiBold },
-            ]}
-          >
-            Age {character.age}
+        <View style={styles.ageHero}>
+          <Text style={[styles.ageHeroNumber, { color: colors.t1, fontFamily: fonts.displayBlack }]}>
+            {character.age}
           </Text>
-          <Text
-            style={[
-              styles.ageLabel,
-              { color: colors.t3, fontFamily: fonts.bodyBold },
-            ]}
-          >
-            {lifeStage.toUpperCase()}
+          <Text style={[styles.ageHeroLabel, { color: colors.t3, fontFamily: fonts.body }]}>
+            {lifeStage}
           </Text>
         </View>
       </View>
+
+      {(() => {
+        const scenarioData = SCENARIOS.find(s => s.id === (character.scenarioId ?? 'classic')) ?? SCENARIOS[0];
+        return (
+          <View style={{ paddingHorizontal: spacing.lg }}>
+            <ScenarioBanner
+              type={scenarioData.bannerType}
+              scenarioName={scenarioData.name}
+              description={scenarioData.tagline}
+            />
+          </View>
+        );
+      })()}
 
       {/* ── Finances ── */}
       <GlassCard
@@ -872,7 +955,7 @@ export function LifeScreen() {
         </View>
       ) : null}
 
-      {sections.length > 0 ? (
+      {feedItems.length > 0 ? (
         <Text
           style={[
             styles.logLabel,
@@ -920,31 +1003,30 @@ export function LifeScreen() {
   return (
     <>
       <ScreenShell footer={stickyFooter}>
-        <SectionList
-          sections={sections}
-          keyExtractor={(item) => `${item.id}_${item.timestamp}`}
+        <FlashList
+          data={feedItems}
+          keyExtractor={(item) => item.key}
           ListHeaderComponent={lifeDashboard}
           ListEmptyComponent={<EmptyLifeLog />}
-          renderItem={({ item, section }) => {
-            const isNewestAge = item.age === character.age;
-            const itemIndexInAge = section.data.indexOf(item);
+          getItemType={(item) => item.kind}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: spacing.md }}
+          renderItem={({ item }) => {
+            if (item.kind === 'header') {
+              return <AgeSectionHeader age={item.age} character={character} />;
+            }
+            const isNewestAge = item.event.age === character.age;
             return (
               <View style={{ paddingHorizontal: spacing.lg }}>
                 <EventCard
-                  event={item}
+                  event={item.event}
                   isNew={isNewestAge && !isProcessing}
-                  staggerIndex={itemIndexInAge}
+                  staggerIndex={item.staggerIndex}
+                  activeScenarioId={character.scenarioId}
                 />
               </View>
             );
           }}
-          renderSectionHeader={({ section }) => (
-            <AgeSectionHeader age={Number(section.title)} />
-          )}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: spacing.md, flexGrow: 1 }}
-          stickySectionHeadersEnabled={false}
-          style={{ flex: 1 }}
         />
       </ScreenShell>
 
@@ -989,6 +1071,22 @@ export function LifeScreen() {
         onAnimationEnd={() => setShowConfetti(false)}
       />
 
+      {/* Floating Scenario Badge (hidden for classic) */}
+      {character.scenarioId && character.scenarioId !== 'classic' && (() => {
+        const s = SCENARIOS.find(sc => sc.id === character.scenarioId);
+        if (!s) return null;
+        return (
+          <View
+            pointerEvents="none"
+            style={[styles.scenarioBadge, { backgroundColor: `${s.accentColor}EE`, borderRadius: 20 }]}
+          >
+            <Text style={[styles.scenarioBadgeText, { color: '#FFFFFF', fontFamily: fonts.bodyBold }]}>
+              {s.name}
+            </Text>
+          </View>
+        );
+      })()}
+
       {/* Floating Stat Deltas Container */}
       {activeDeltas.length > 0 && (
         <View style={styles.deltasContainer} pointerEvents="none">
@@ -1009,10 +1107,20 @@ export function LifeScreen() {
       <Modal
         visible={!!legendaryEventToShow}
         transparent={true}
-        animationType="fade"
+        animationType="none"
         onRequestClose={() => setLegendaryEventToShow(null)}
+        onShow={() => {
+          legendaryScale.setValue(0.85);
+          legendaryOpacity.setValue(0);
+          Animated.parallel([
+            Animated.spring(legendaryScale, { toValue: 1, useNativeDriver: true, friction: 6 }),
+            Animated.timing(legendaryOpacity, { toValue: 1, duration: 280, useNativeDriver: true }),
+          ]).start();
+          void playSound('achievement_unlock');
+        }}
       >
         <View style={[styles.legendaryOverlay, { backgroundColor: "rgba(13, 17, 23, 0.96)" }]}>
+          <Animated.View style={{ transform: [{ scale: legendaryScale }], opacity: legendaryOpacity }}>
           <GlassCard style={[styles.legendaryCard, { borderColor: colors.gold, borderWidth: 1.5 }]}>
             <View style={[styles.legendaryBadge, { backgroundColor: `${colors.gold}18` }]}>
               <Text style={[styles.legendaryBadgeText, { color: colors.gold, fontFamily: fonts.bodyBold }]}>
@@ -1037,8 +1145,17 @@ export function LifeScreen() {
               </Text>
             </Pressable>
           </GlassCard>
+          </Animated.View>
         </View>
       </Modal>
+
+      {/* Epic Event Dramatic Inline Reveal (auto-dismiss 2.5s) */}
+      {epicRevealEvent && (
+        <EpicRevealOverlay
+          event={epicRevealEvent}
+          onDismiss={() => setEpicRevealEvent(null)}
+        />
+      )}
 
       {/* Achievement Unlocked Interruption Modal */}
       <Modal
@@ -1062,6 +1179,7 @@ export function LifeScreen() {
             {(() => {
               const ach = ACHIEVEMENTS.find(a => a.id === unlockedAchievement);
               if (!ach) return null;
+              const coins = ACHIEVEMENT_COIN_REWARDS[ach.id] ?? 50;
               return (
                 <>
                   <Text style={[styles.achievementLabel, { color: colors.t1, fontFamily: fonts.bodyBold }]}>
@@ -1070,13 +1188,12 @@ export function LifeScreen() {
                   <Text style={[styles.achievementDesc, { color: colors.t3, fontFamily: fonts.body }]}>
                     {ach.description}
                   </Text>
+                  <Text style={[styles.achievementRewardText, { color: colors.emerald2, fontFamily: fonts.monoSemiBold }]}>
+                    Reward: 🪙 +{coins} Coins & 💎 +2 Gems
+                  </Text>
                 </>
               );
             })()}
-
-            <Text style={[styles.achievementRewardText, { color: colors.emerald2, fontFamily: fonts.monoSemiBold }]}>
-              Reward: 🪙 +50 Coins & 💎 +2 Gems
-            </Text>
 
             <Pressable
               onPress={() => setUnlockedAchievement(null)}
@@ -1136,15 +1253,13 @@ const styles = StyleSheet.create({
   },
   jobText: { fontSize: 10 },
   flag: { fontSize: 13 },
-  agePill: {
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    alignItems: "center",
+  ageHero: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
   },
-  ageValue: { fontSize: 15 },
-  ageLabel: { fontSize: 8, letterSpacing: 0.5, marginTop: 1 },
+  ageHeroNumber: { fontSize: 38, lineHeight: 40 },
+  ageHeroLabel: { fontSize: 10, letterSpacing: 0.5, marginTop: 2, textTransform: 'uppercase' },
   finCard: {
     flexDirection: "row",
     justifyContent: "space-around",
@@ -1201,6 +1316,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     zIndex: 9999,
   },
+  scenarioBadge: {
+    position: 'absolute',
+    top: 60,
+    right: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    zIndex: 500,
+  },
+  scenarioBadgeText: { fontSize: 11, letterSpacing: 0.5 },
   legendaryOverlay: {
     flex: 1,
     justifyContent: "center",

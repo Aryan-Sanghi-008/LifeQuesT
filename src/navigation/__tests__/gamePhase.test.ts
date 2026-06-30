@@ -1,32 +1,32 @@
-import { needsCourtRoute } from '@navigation/gamePhase';
-import type { AppUser, Character } from '../../types';
+import { resolveRootRoute } from '@navigation/gamePhase';
 
-const guestUser: AppUser = {
-  uid: 'guest-1',
-  displayName: 'Guest',
-  email: null,
-  photoURL: null,
-  isGuest: true,
-};
+describe('resolveRootRoute', () => {
+  const base = {
+    user: null,
+    character: null,
+    pendingReincarnation: false,
+    onboardingComplete: false,
+    ageGateVerified: false,
+  };
 
-const aliveCharacter = { isAlive: true } as Character;
-
-describe('needsCourtRoute', () => {
-  it('returns true when alive character needs court', () => {
-    expect(needsCourtRoute({
-      user: guestUser,
-      character: aliveCharacter,
-      pendingReincarnation: false,
-      pendingCourt: true,
-    })).toBe(true);
+  it('routes to Onboarding when not complete and no user', () => {
+    expect(resolveRootRoute(base)).toBe('Onboarding');
   });
 
-  it('returns false when court is not pending', () => {
-    expect(needsCourtRoute({
-      user: guestUser,
-      character: aliveCharacter,
-      pendingReincarnation: false,
-      pendingCourt: false,
-    })).toBe(false);
+  it('routes to AgeGate after onboarding', () => {
+    expect(resolveRootRoute({ ...base, onboardingComplete: true })).toBe('AgeGate');
+  });
+
+  it('routes to Auth after age gate', () => {
+    expect(resolveRootRoute({ ...base, onboardingComplete: true, ageGateVerified: true })).toBe('Auth');
+  });
+
+  it('skips onboarding for existing users', () => {
+    expect(
+      resolveRootRoute({
+        ...base,
+        user: { uid: 'u1', displayName: 'A', email: null, photoURL: null, isGuest: true },
+      }),
+    ).toBe('SaveSlots');
   });
 });

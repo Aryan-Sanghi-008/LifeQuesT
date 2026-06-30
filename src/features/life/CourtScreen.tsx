@@ -2,7 +2,7 @@ import { View, Text, Pressable, ScrollView, StyleSheet, Alert } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { COLORS, FONTS, RADII, SPACING } from '@theme';
+import { useThemedStyles, useTheme } from '@theme';
 import { useGameStore } from '@store/gameStore';
 import { getCrimeDef } from '@data/crimes';
 import type { RootStackParamList } from '@/types';
@@ -14,6 +14,8 @@ const LAWYER_OPTIONS = [
 ] as const;
 
 export function CourtScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const character = useGameStore(s => s.character);
   const resolveCourt = useGameStore(s => s.resolveCourt);
@@ -86,49 +88,49 @@ export function CourtScreen() {
           }}
           style={[styles.btn, styles.skipBtn]}
         >
-          <Text style={[styles.btnText, { color: COLORS.t3 }]}>Skip (auto-resolve later)</Text>
+          <Text style={[styles.btnText, { color: colors.t3 }]}>Skip (auto-resolve later)</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
-  content: { padding: SPACING.xl, gap: SPACING.md },
-  title: { fontFamily: FONTS.displayBold, fontSize: 24, color: COLORS.t1 },
-  sub: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.t3, marginBottom: SPACING.md },
+const createStyles = ({ colors, fonts, spacing, radii }: ReturnType<typeof useTheme>) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: spacing.xl, gap: spacing.md },
+  title: { fontFamily: fonts.displayBold, fontSize: 24, color: colors.t1 },
+  sub: { fontFamily: fonts.body, fontSize: 13, color: colors.t3, marginBottom: spacing.md },
   caseCard: {
-    backgroundColor: COLORS.bgCard,
-    borderRadius: RADII.md,
-    padding: SPACING.lg,
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.md,
+    padding: spacing.lg,
     borderWidth: 1,
-    borderColor: `${COLORS.crimson}40`,
-    gap: SPACING.xs,
+    borderColor: `${colors.crimson}40`,
+    gap: spacing.xs,
   },
-  caseLabel: { fontFamily: FONTS.bodySemiBold, fontSize: 10, color: COLORS.crimson, letterSpacing: 2 },
-  caseTitle: { fontFamily: FONTS.bodyBold, fontSize: 18, color: COLORS.t1 },
-  caseMeta: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.t3 },
-  caseDesc: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.t4, marginTop: SPACING.xs },
-  section: { fontFamily: FONTS.bodySemiBold, fontSize: 12, color: COLORS.t4, letterSpacing: 1.5, marginTop: SPACING.md },
+  caseLabel: { fontFamily: fonts.bodySemiBold, fontSize: 10, color: colors.crimson, letterSpacing: 2 },
+  caseTitle: { fontFamily: fonts.bodyBold, fontSize: 18, color: colors.t1 },
+  caseMeta: { fontFamily: fonts.body, fontSize: 12, color: colors.t3 },
+  caseDesc: { fontFamily: fonts.body, fontSize: 12, color: colors.t4, marginTop: spacing.xs },
+  section: { fontFamily: fonts.bodySemiBold, fontSize: 12, color: colors.t4, letterSpacing: 1.5, marginTop: spacing.md },
   lawyerCard: {
-    backgroundColor: COLORS.bgCard,
-    borderRadius: RADII.md,
-    padding: SPACING.md,
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.md,
+    padding: spacing.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     gap: 4,
   },
-  lawyerLabel: { fontFamily: FONTS.bodySemiBold, fontSize: 15, color: COLORS.t1 },
-  lawyerDesc: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.t3 },
-  lawyerCost: { fontFamily: FONTS.monoSemiBold, fontSize: 13, color: COLORS.gold, marginTop: 4 },
+  lawyerLabel: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.t1 },
+  lawyerDesc: { fontFamily: fonts.body, fontSize: 12, color: colors.t3 },
+  lawyerCost: { fontFamily: fonts.monoSemiBold, fontSize: 13, color: colors.gold, marginTop: 4 },
   btn: {
-    marginTop: SPACING.lg,
-    padding: SPACING.md,
-    borderRadius: RADII.md,
-    backgroundColor: COLORS.sapphire,
+    marginTop: spacing.lg,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: colors.sapphire,
     alignItems: 'center',
   },
-  skipBtn: { backgroundColor: 'transparent', borderWidth: 1, borderColor: COLORS.border },
-  btnText: { fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.t1 },
+  skipBtn: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.border },
+  btnText: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.t1 },
 });

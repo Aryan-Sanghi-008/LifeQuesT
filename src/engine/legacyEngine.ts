@@ -1,6 +1,6 @@
 import type { Character, WillDetails, FamilyLineageEntry, Person } from '../types';
 import { computeNetWorth } from './economyEngine';
-import { generateRandomDNA, generateRandomPersonality } from '../utils/genetics';
+import { generateRandomDNA, generateRandomPersonality } from '@utils/genetics';
 
 export function calculateDynastyScore(character: Character): number {
   const gen = character.generation ?? 1;

@@ -3,12 +3,13 @@ import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { COLORS, FONTS, RADII, SPACING } from '@theme';
+import { useThemedStyles, useTheme } from '@theme';
 import { ASPIRATIONS } from '@data/aspirations';
 import type { AspirationId, RootStackParamList } from '@/types';
 import { useGameStore } from '@store/gameStore';
 
 export function AspirationPickerScreen() {
+  const styles = useThemedStyles(createStyles);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const setAspirations = useGameStore(s => s.setAspirations);
   const [primary, setPrimary] = useState<AspirationId | null>(null);
@@ -77,32 +78,32 @@ export function AspirationPickerScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
-  content: { padding: SPACING.lg, paddingBottom: SPACING.xl * 2 },
-  title: { fontFamily: FONTS.displayBold, fontSize: 24, color: COLORS.t1 },
-  subtitle: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.t3, marginTop: SPACING.sm, marginBottom: SPACING.lg },
-  section: { fontFamily: FONTS.bodyBold, color: COLORS.gold, marginBottom: SPACING.sm, marginTop: SPACING.md },
-  grid: { gap: SPACING.sm },
+const createStyles = ({ colors, fonts, spacing, radii }: ReturnType<typeof useTheme>) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: spacing.lg, paddingBottom: spacing.xl * 2 },
+  title: { fontFamily: fonts.displayBold, fontSize: 24, color: colors.t1 },
+  subtitle: { fontFamily: fonts.body, fontSize: 14, color: colors.t3, marginTop: spacing.sm, marginBottom: spacing.lg },
+  section: { fontFamily: fonts.bodyBold, color: colors.gold, marginBottom: spacing.sm, marginTop: spacing.md },
+  grid: { gap: spacing.sm },
   card: {
-    borderRadius: RADII.md,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.bgCard,
-    padding: SPACING.md,
+    borderColor: colors.border,
+    backgroundColor: colors.bgCard,
+    padding: spacing.md,
   },
-  cardActive: { borderColor: COLORS.gold, backgroundColor: `${COLORS.gold}12` },
-  cardTitle: { fontFamily: FONTS.bodyBold, color: COLORS.t1, fontSize: 15 },
-  cardTitleActive: { color: COLORS.gold },
-  cardDesc: { fontFamily: FONTS.body, color: COLORS.t3, fontSize: 12, marginTop: 4 },
-  error: { fontFamily: FONTS.body, color: COLORS.crimson, marginTop: SPACING.md },
+  cardActive: { borderColor: colors.gold, backgroundColor: `${colors.gold}12` },
+  cardTitle: { fontFamily: fonts.bodyBold, color: colors.t1, fontSize: 15 },
+  cardTitleActive: { color: colors.gold },
+  cardDesc: { fontFamily: fonts.body, color: colors.t3, fontSize: 12, marginTop: 4 },
+  error: { fontFamily: fonts.body, color: colors.crimson, marginTop: spacing.md },
   confirm: {
-    marginTop: SPACING.xl,
-    backgroundColor: COLORS.gold,
-    borderRadius: RADII.md,
-    paddingVertical: SPACING.md,
+    marginTop: spacing.xl,
+    backgroundColor: colors.gold,
+    borderRadius: radii.md,
+    paddingVertical: spacing.md,
     alignItems: 'center',
   },
   confirmDisabled: { opacity: 0.5 },
-  confirmText: { fontFamily: FONTS.bodyBold, color: COLORS.bg, fontSize: 16 },
+  confirmText: { fontFamily: fonts.bodyBold, color: colors.bg, fontSize: 16 },
 });

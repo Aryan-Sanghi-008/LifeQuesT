@@ -1,9 +1,9 @@
 import { Character, LifeEvent, LifeEventRecord, StatEffect } from '../types';
 import { applyEffect, computeNetWorth } from './economyEngine';
-import { applySuccessChance, consumeLuckBoost } from './eventEngine';
+import { applySuccessChance, consumeLuckBoost, resolveEventRarity } from './eventEngine';
 import { jobToCareer } from './careerEngine';
 import { advanceRelationship, processDivorce } from './relationshipEngine';
-import { generatePartner } from '../utils/npcGenerator';
+import { generatePartner } from '@utils/npcGenerator';
 import {
   addMemoryTags,
   markChainComplete,
@@ -106,7 +106,7 @@ export function runResolveDecision(
     choiceMade: choice.text,
     category: event.category,
     color: event.color,
-    rarity: event.rarity,
+    rarity: resolveEventRarity(event),
     timestamp: Date.now(),
   };
 

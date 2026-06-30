@@ -5,6 +5,7 @@ import {
   Platform,
   UIManager,
   InteractionManager,
+  AppState,
 } from "react-native";
 import { NavigationContainer } from "@react-navigation/native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -14,6 +15,7 @@ import * as SplashScreen from "expo-splash-screen";
 import {
   PlayfairDisplay_900Black,
   PlayfairDisplay_700Bold,
+  PlayfairDisplay_400Regular_Italic,
 } from "@expo-google-fonts/playfair-display";
 import {
   DMSans_400Regular,
@@ -41,6 +43,7 @@ import { logEvent } from "@services/analytics";
 import { initCrashReporting } from "@services/crashReporting";
 import { initNotifications } from "@services/notifications";
 import { initAudio } from "@services/audio";
+import { useTheme } from "@theme";
 
 void SplashScreen.preventAutoHideAsync().catch(() => {
   /* splash plugin unavailable in some builds */
@@ -56,10 +59,14 @@ if (
 export default function App() {
   const loadGame = useGameStore((s) => s.loadGame);
   const onUserChanged = useGameStore((s) => s.onUserChanged);
+  const isHydrated = useGameStore((s) => s.isHydrated);
+  const characterId = useGameStore((s) => s.character?.id);
+  const { isDark, colors } = useTheme();
 
   const [fontsLoaded, fontError] = useFonts({
     "PlayfairDisplay-Black": PlayfairDisplay_900Black,
     "PlayfairDisplay-Bold": PlayfairDisplay_700Bold,
+    "PlayfairDisplay-Italic": PlayfairDisplay_400Regular_Italic,
     "DMSans-Regular": DMSans_400Regular,
     "DMSans-Medium": DMSans_500Medium,
     "DMSans-SemiBold": DMSans_600SemiBold,
@@ -86,6 +93,32 @@ export default function App() {
     };
   }, [loadGame, onUserChanged]);
 
+  useEffect(() => {
+    if (!isHydrated) return;
+    const state = useGameStore.getState();
+    void import("@services/notificationSync").then((m) =>
+      m.syncGameRetentionNotifications({
+        character: state.character,
+        dailyQuests: state.dailyQuests,
+      }),
+    );
+  }, [isHydrated, characterId]);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        const game = useGameStore.getState();
+        void import("@services/notificationSync").then((m) =>
+          m.syncGameRetentionNotifications({
+            character: game.character,
+            dailyQuests: game.dailyQuests,
+          }),
+        );
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
   // Defer native monetization SDKs until UI is ready (avoids launch-time native crashes).
   useEffect(() => {
     if (!fontsLoaded && !fontError) return;
@@ -110,9 +143,8 @@ export default function App() {
       void initCrashReporting();
       void initNotifications();
       void initIAP(onPurchaseSuccess);
-      cleanupIAP = setupPurchaseListeners(
-        onPurchaseSuccess,
-        (err) => console.warn("[iap]", err.message),
+      cleanupIAP = setupPurchaseListeners(onPurchaseSuccess, (err) =>
+        console.warn("[iap]", err.message),
       );
     });
 
@@ -132,10 +164,9 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutRootView}>
       <SafeAreaProvider>
-        {/* Light status bar for bright theme */}
         <StatusBar
-          barStyle="dark-content"
-          backgroundColor="#F4F6F9"
+          barStyle={isDark ? "light-content" : "dark-content"}
+          backgroundColor={colors.bg}
           translucent={false}
         />
         <NavigationContainer ref={navigationRef}>

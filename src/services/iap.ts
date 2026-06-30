@@ -1,6 +1,6 @@
 import { Platform } from 'react-native';
 import { IAPProductId } from '../types';
-import { isIapNativeAvailable } from '../utils/nativeAvailability';
+import { isIapNativeAvailable } from '@utils/nativeAvailability';
 import { IAP_CLIENT_GRANTS } from '../data/iapCatalog';
 
 const PRODUCT_IDS: IAPProductId[] = [

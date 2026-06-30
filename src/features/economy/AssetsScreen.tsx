@@ -6,9 +6,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@theme';
 import { useGameStore } from '../../store/gameStore';
 import { Asset, PropertyTier, RootStackParamList } from '../../types';
-import { Card, SectionLabel, ScreenShell, TabScreenHeader } from '../../components/index';
-import { formatCurrency } from '../../utils/currency';
-import { getFinanceSummary } from '../../utils/financeSummary';
+import { Card, SectionLabel, ScreenShell, TabScreenHeader, CurrencyChip } from '@components/index';
+import { formatCurrency } from '@utils/currency';
+import { getFinanceSummary } from '@utils/financeSummary';
 import { getPropertiesByTier } from '../../data/properties';
 import { EMPLOYEE_ROLES } from '../../engine/businessEngine';
 
@@ -48,6 +48,10 @@ function BalanceHero() {
         </View>
       </View>
       <Text style={[styles.heroHint, { color: colors.t4, fontFamily: fonts.body }]}>Assets, property market, and business tools in one place.</Text>
+      <View style={styles.currencyRow}>
+        <CurrencyChip type="coin" amount={character.coins} />
+        <CurrencyChip type="gem" amount={character.gems} />
+      </View>
     </LinearGradient>
   );
 }
@@ -283,6 +287,7 @@ const styles = StyleSheet.create({
   metricValue: { fontSize: 13 },
   metricDivider: { width: 1, height: 24 },
   heroHint: { fontSize: 11, marginTop: 4 },
+  currencyRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
   card: { borderWidth: 1, padding: 16, gap: 10 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
   title: { fontSize: 14 },

@@ -3,7 +3,7 @@ import { getFunctionsInstance } from '@services/firebaseClient';
 import { getLeaderboardCache, setLeaderboardCache } from '@services/persistence';
 import { LeaderboardEntry } from '../types';
 
-export { computeLeaderboardScore } from '../utils/leaderboardScore';
+export { computeLeaderboardScore } from '@utils/leaderboardScore';
 
 export interface LeaderboardFetchResult {
   entries: LeaderboardEntry[];

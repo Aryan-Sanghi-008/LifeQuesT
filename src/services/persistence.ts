@@ -9,9 +9,9 @@ import {
 import {
   generateRandomDNA,
   generateRandomPersonality,
-} from "../utils/genetics";
-import { getLifeStage } from "../utils/lifeStage";
-import { isMmkvAvailable } from "../utils/nativeAvailability";
+} from "@utils/genetics";
+import { getLifeStage } from "@utils/lifeStage";
+import { isMmkvAvailable } from "@utils/nativeAvailability";
 import { stageToLegacyEducationLevel } from "../data/educationDegrees";
 import type { EducationStage } from "../data/educationDegrees";
 
@@ -162,6 +162,35 @@ export function getDailyBonusLastClaim(): string | null {
 
 export function setDailyBonusLastClaim(dateKey: string): void {
   setString(DAILY_BONUS_KEY, dateKey);
+}
+
+const LOGIN_REWARD_DAY_KEY = "login_reward_day";
+const LOGIN_REWARD_LAST_CLAIM_KEY = "login_reward_last_claim";
+const MYSTERY_BOX_LAST_SPIN_KEY = "mystery_box_last_spin";
+
+export function getLoginRewardDay(): number {
+  const raw = getString(LOGIN_REWARD_DAY_KEY);
+  return raw ? parseInt(raw, 10) : 1;
+}
+
+export function setLoginRewardDay(day: number): void {
+  setString(LOGIN_REWARD_DAY_KEY, String(day));
+}
+
+export function getLoginRewardLastClaim(): string | null {
+  return getString(LOGIN_REWARD_LAST_CLAIM_KEY) ?? null;
+}
+
+export function setLoginRewardLastClaim(dateKey: string): void {
+  setString(LOGIN_REWARD_LAST_CLAIM_KEY, dateKey);
+}
+
+export function getMysteryBoxLastSpin(): string | null {
+  return getString(MYSTERY_BOX_LAST_SPIN_KEY) ?? null;
+}
+
+export function setMysteryBoxLastSpin(isoWeekKey: string): void {
+  setString(MYSTERY_BOX_LAST_SPIN_KEY, isoWeekKey);
 }
 
 function migrateBusinessEmployees(

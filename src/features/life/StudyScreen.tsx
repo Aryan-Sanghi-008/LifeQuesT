@@ -5,10 +5,10 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../types';
 import { useGameStore } from '../../store/gameStore';
-import { GradientButton, Card, SectionLabel } from '../../components/index';
-import { COLORS, FONTS, RADII, SPACING } from '@theme';
+import { GradientButton, Card, SectionLabel } from '@components/index';
+import { useThemedStyles, useTheme, SPACING } from '@theme';
 import { getEnrollableDegrees, getEarnedDegrees } from '../../engine/educationEngine';
-import { formatCurrency } from '../../utils/currency';
+import { formatCurrency } from '@utils/currency';
 
 // ─── Degree Selection Step ─────────────────────────────────────────────────────
 function DegreeSelector({
@@ -20,6 +20,8 @@ function DegreeSelector({
   onSelect: (degreeId: string) => void;
   onSkip: () => void;
 }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const enrollable = getEnrollableDegrees(character);
   const earned = getEarnedDegrees(character.degreeIds ?? []);
   const teachers = character.people.filter(p => p.relationType === 'teacher');
@@ -50,8 +52,8 @@ function DegreeSelector({
         <>
           <SectionLabel label={`DEGREES EARNED (${earned.length})`} style={{ marginBottom: SPACING.md }} />
           {earned.map(d => (
-            <View key={d.id} style={[styles.degreeCard, { borderColor: `${COLORS.emerald}30` }]}>
-              <Text style={[styles.degreeLabel, { color: COLORS.emerald }]}>{d.shortLabel}</Text>
+            <View key={d.id} style={[styles.degreeCard, { borderColor: `${colors.emerald}30` }]}>
+              <Text style={[styles.degreeLabel, { color: colors.emerald }]}>{d.shortLabel}</Text>
               <Text style={styles.degreeFull}>{d.label}</Text>
               <Text style={styles.degreeSub}>{d.branch} · {d.durationYears}yr</Text>
             </View>
@@ -65,7 +67,7 @@ function DegreeSelector({
           {enrollable.map(d => (
             <Pressable
               key={d.id}
-              style={[styles.degreeCard, { borderColor: `${COLORS.sapphire}25` }]}
+              style={[styles.degreeCard, { borderColor: `${colors.sapphire}25` }]}
               onPress={() => onSelect(d.id)}
               accessibilityLabel={`Enroll in ${d.label}`}
             >
@@ -92,6 +94,7 @@ function DegreeSelector({
 
 // ─── Main StudyScreen ─────────────────────────────────────────────────────────
 export default function StudyScreen() {
+  const styles = useThemedStyles(createStyles);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const character = useGameStore(s => s.character);
   const startStudySession = useGameStore(s => s.startStudySession);
@@ -202,53 +205,53 @@ export default function StudyScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: COLORS.bg, padding: SPACING.lg },
-  scroll: { gap: SPACING.md, paddingBottom: SPACING.xxxl },
-  title: { fontFamily: FONTS.displayBold, fontSize: 28, color: COLORS.t1 },
-  sub: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.t3, marginBottom: SPACING.sm },
-  question: { fontFamily: FONTS.bodyBold, fontSize: 16, color: COLORS.t1, marginBottom: SPACING.md },
+const createStyles = ({ colors, fonts, spacing, radii }: ReturnType<typeof useTheme>) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.bg, padding: spacing.lg },
+  scroll: { gap: spacing.md, paddingBottom: spacing.xxxl },
+  title: { fontFamily: fonts.displayBold, fontSize: 28, color: colors.t1 },
+  sub: { fontFamily: fonts.body, fontSize: 14, color: colors.t3, marginBottom: spacing.sm },
+  question: { fontFamily: fonts.bodyBold, fontSize: 16, color: colors.t1, marginBottom: spacing.md },
   option: {
-    padding: SPACING.md,
-    borderRadius: RADII.sm,
-    backgroundColor: COLORS.bg2,
-    marginBottom: SPACING.sm,
+    padding: spacing.md,
+    borderRadius: radii.sm,
+    backgroundColor: colors.bg2,
+    marginBottom: spacing.sm,
   },
-  optionText: { fontFamily: FONTS.body, fontSize: 15, color: COLORS.t1 },
+  optionText: { fontFamily: fonts.body, fontSize: 15, color: colors.t1 },
   degreeCard: {
-    backgroundColor: COLORS.bgCard,
-    borderRadius: RADII.md,
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.md,
     borderWidth: 1.5,
-    padding: SPACING.md,
+    padding: spacing.md,
     gap: 3,
-    marginBottom: SPACING.sm,
+    marginBottom: spacing.sm,
   },
-  degreeLabel: { fontFamily: FONTS.monoSemiBold, fontSize: 12, color: COLORS.sapphire, letterSpacing: 1 },
-  degreeFull: { fontFamily: FONTS.bodySemiBold, fontSize: 15, color: COLORS.t1 },
-  degreeSub: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.t3 },
-  degreeBonus: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.emerald, marginTop: 2 },
-  emptyBox: { alignItems: 'center', paddingVertical: SPACING.xl, gap: SPACING.sm },
-  emptyText: { fontFamily: FONTS.bodySemiBold, fontSize: 15, color: COLORS.t3 },
-  emptySub: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.t4, textAlign: 'center' },
+  degreeLabel: { fontFamily: fonts.monoSemiBold, fontSize: 12, color: colors.sapphire, letterSpacing: 1 },
+  degreeFull: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.t1 },
+  degreeSub: { fontFamily: fonts.body, fontSize: 11, color: colors.t3 },
+  degreeBonus: { fontFamily: fonts.body, fontSize: 11, color: colors.emerald, marginTop: 2 },
+  emptyBox: { alignItems: 'center', paddingVertical: spacing.xl, gap: spacing.sm },
+  emptyText: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.t3 },
+  emptySub: { fontFamily: fonts.body, fontSize: 12, color: colors.t4, textAlign: 'center' },
   skipBtn: {
-    marginTop: SPACING.md,
-    paddingVertical: SPACING.md,
-    borderRadius: RADII.md,
+    marginTop: spacing.md,
+    paddingVertical: spacing.md,
+    borderRadius: radii.md,
     borderWidth: 1.5,
-    borderColor: COLORS.sapphire,
+    borderColor: colors.sapphire,
     alignItems: 'center',
   },
-  skipText: { fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.sapphire },
+  skipText: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.sapphire },
   gpaCard: {
-    backgroundColor: COLORS.bgCard,
-    borderRadius: RADII.md,
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    padding: SPACING.md,
-    marginBottom: SPACING.lg,
+    borderColor: colors.border,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
     gap: 4,
   },
-  gpaLabel: { fontFamily: FONTS.bodySemiBold, fontSize: 10, color: COLORS.t4, letterSpacing: 1.5 },
-  gpaValue: { fontFamily: FONTS.displayBold, fontSize: 28, color: COLORS.sapphire },
-  teacherRow: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.t2, marginTop: 2 },
+  gpaLabel: { fontFamily: fonts.bodySemiBold, fontSize: 10, color: colors.t4, letterSpacing: 1.5 },
+  gpaValue: { fontFamily: fonts.displayBold, fontSize: 28, color: colors.sapphire },
+  teacherRow: { fontFamily: fonts.body, fontSize: 12, color: colors.t2, marginTop: 2 },
 });

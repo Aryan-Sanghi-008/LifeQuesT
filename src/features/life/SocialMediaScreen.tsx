@@ -3,11 +3,13 @@ import {
   View, Text, TextInput, Pressable, ScrollView, StyleSheet, Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS, FONTS, RADII, SPACING } from '@theme';
+import { useThemedStyles, useTheme } from '@theme';
 import { ScreenHeader } from '@components/ScreenHeader';
 import { useGameStore } from '@store/gameStore';
 
 export function SocialMediaScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const character = useGameStore(s => s.character);
   const createSocialPost = useGameStore(s => s.createSocialPost);
   const [content, setContent] = useState('');
@@ -43,7 +45,7 @@ export function SocialMediaScreen() {
               value={content}
               onChangeText={setContent}
               placeholder="What's happening in your life?"
-              placeholderTextColor={COLORS.t4}
+              placeholderTextColor={colors.t4}
               style={styles.input}
               multiline
               maxLength={280}
@@ -71,45 +73,45 @@ export function SocialMediaScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
+const createStyles = ({ colors, fonts, spacing, radii }: ReturnType<typeof useTheme>) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
   safe: { flex: 1 },
-  headerWrap: { paddingHorizontal: SPACING.lg },
-  scroll: { padding: SPACING.lg, gap: SPACING.md },
+  headerWrap: { paddingHorizontal: spacing.lg },
+  scroll: { padding: spacing.lg, gap: spacing.md },
   compose: {
-    backgroundColor: COLORS.bgCard,
-    borderRadius: RADII.md,
-    padding: SPACING.md,
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.md,
+    padding: spacing.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    gap: SPACING.sm,
+    borderColor: colors.border,
+    gap: spacing.sm,
   },
   input: {
-    fontFamily: FONTS.body,
+    fontFamily: fonts.body,
     fontSize: 15,
-    color: COLORS.t1,
+    color: colors.t1,
     minHeight: 80,
     textAlignVertical: 'top',
   },
   postBtn: {
     alignSelf: 'flex-end',
-    backgroundColor: COLORS.orchid,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
-    borderRadius: RADII.sm,
+    backgroundColor: colors.orchid,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.sm,
   },
-  postBtnText: { fontFamily: FONTS.bodySemiBold, fontSize: 13, color: COLORS.bg },
-  section: { fontFamily: FONTS.bodySemiBold, fontSize: 11, color: COLORS.t4, letterSpacing: 1.5, marginTop: SPACING.md },
-  empty: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.t4 },
+  postBtnText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.bg },
+  section: { fontFamily: fonts.bodySemiBold, fontSize: 11, color: colors.t4, letterSpacing: 1.5, marginTop: spacing.md },
+  empty: { fontFamily: fonts.body, fontSize: 13, color: colors.t4 },
   postCard: {
-    backgroundColor: COLORS.bgCard,
-    borderRadius: RADII.md,
-    padding: SPACING.md,
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.md,
+    padding: spacing.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     gap: 6,
   },
-  postMeta: { fontFamily: FONTS.body, fontSize: 10, color: COLORS.t4 },
-  postContent: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.t1 },
-  postDelta: { fontFamily: FONTS.monoSemiBold, fontSize: 11, color: COLORS.teal },
+  postMeta: { fontFamily: fonts.body, fontSize: 10, color: colors.t4 },
+  postContent: { fontFamily: fonts.body, fontSize: 14, color: colors.t1 },
+  postDelta: { fontFamily: fonts.monoSemiBold, fontSize: 11, color: colors.teal },
 });

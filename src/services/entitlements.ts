@@ -1,9 +1,9 @@
 import { doc, getDoc, setDoc, deleteField } from 'firebase/firestore';
 import { getFirestoreDb } from '@services/firebaseClient';
-import type { UserEntitlements } from '../utils/entitlementGrants';
+import type { UserEntitlements } from '@utils/entitlementGrants';
 
-export type { UserEntitlements } from '../utils/entitlementGrants';
-export { applyEntitlementsToCharacter, hasPendingGrants } from '../utils/entitlementGrants';
+export type { UserEntitlements } from '@utils/entitlementGrants';
+export { applyEntitlementsToCharacter, hasPendingGrants } from '@utils/entitlementGrants';
 
 function getDb() {
   return getFirestoreDb();

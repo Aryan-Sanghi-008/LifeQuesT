@@ -1,3 +1,7 @@
+// ─── Scenario ─────────────────────────────────────────────────────────────────
+
+export type ScenarioId = 'classic' | 'royal' | 'cyber' | 'crime' | 'fantasy';
+
 // ─── Life Stage ───────────────────────────────────────────────────────────────
 
 export type LifeStage =
@@ -450,6 +454,15 @@ export interface Character {
   unlockedDlcIds?: string[];
   dailyStreak?: number;
   lastActiveDate?: string;
+  scenarioId?: ScenarioId;
+  claimedStreakMilestones?: number[];
+  streakShieldCount?: number;
+  mysteryTickets?: number;
+  epicEventsUnlocked?: boolean;
+  legendaryCosmeticUnlocked?: boolean;
+  completedCollectionSetIds?: string[];
+  unlockedTitles?: string[];
+  activeTitle?: string;
 }
 
 // ─── Life Events ─────────────────────────────────────────────────────────────
@@ -482,7 +495,36 @@ export interface EventChoice {
   incrementsRelationships?: boolean;
   incrementsChildren?: boolean;
   grantsMemoryTags?: string[];
-  npcReaction?: { relationType: string; sentiment: 'positive' | 'negative' };
+  npcReaction?: { relationType: string; sentiment: 'positive' | 'negative' | 'overjoyed' | 'relieved' | 'grateful' | 'proud' | 'moved' | 'shocked' | 'hurt' | 'sad' | 'uncertain' | 'frustrated' | 'disappointed' | 'betrayed' | 'accepting' };
+}
+
+export type EventRarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+
+// ─── Collections ─────────────────────────────────────────────────────────────
+
+export type CollectionCategory = 'achievement' | 'cosmetic' | 'scenario' | 'badge' | 'life_moment';
+
+export interface CollectionSet {
+  id: string;
+  name: string;
+  description: string;
+  titleReward: string;
+  coinReward: number;
+  gemReward?: number;
+  accentColor: string;
+}
+
+export interface CollectionItem {
+  id: string;
+  category: CollectionCategory;
+  name: string;
+  description: string;
+  rarity?: EventRarity;
+  iconKey: string;
+  accentColor?: string;
+  setId?: string;
+  /** Machine-readable unlock rule evaluated by collectionsEngine */
+  unlockKey?: string;
 }
 
 export interface LifeEvent {
@@ -495,7 +537,7 @@ export interface LifeEvent {
   bankEffect?: number;
   category: EventCategory;
   color: string;
-  rarity?: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+  rarity?: EventRarity;
   choices?: EventChoice[];
   requiresTrait?: string;
   requiresStat?: Partial<Record<StatKey, number>>;
@@ -520,6 +562,7 @@ export interface LifeEvent {
   choiceMemoryTags?: Record<string, string[]>;
   timerSeconds?: number;
   defaultChoiceId?: string;
+  requiresScenario?: ScenarioId[];
 }
 
 export interface LifeEventRecord {
@@ -531,7 +574,7 @@ export interface LifeEventRecord {
   choiceMade?: string;
   category: EventCategory;
   color: string;
-  rarity?: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+  rarity?: EventRarity;
   timestamp: number;
 }
 
@@ -555,9 +598,11 @@ export type IAPProductId =
 // ─── Navigation ──────────────────────────────────────────────────────────────
 
 export type RootStackParamList = {
+  Onboarding: undefined;
+  AgeGate: undefined;
   Auth: undefined;
   SaveSlots: undefined;
-  CharacterCreate: { carriedStats?: Partial<CharacterStats> } | undefined;
+  CharacterCreate: { carriedStats?: Partial<CharacterStats>; scenarioId?: ScenarioId } | undefined;
   MainTabs: undefined;
   Death: undefined;
   Shop: undefined;
@@ -575,6 +620,12 @@ export type RootStackParamList = {
   WillEditor: undefined;
   LifeMuseum: undefined;
   WorldEvents: undefined;
+  Settings: undefined;
+  ScenarioPicker: undefined;
+  ScenarioDetail: { scenarioId: string };
+  Collections: undefined;
+  DailyRewards: undefined;
+  MysteryBox: undefined;
   ChallengeMode: undefined;
   Prestige: undefined;
   LiveOps: undefined;

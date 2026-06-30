@@ -2,7 +2,7 @@ import { View, Text, Pressable, ScrollView, StyleSheet, Alert } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { COLORS, FONTS, RADII, SPACING } from '@theme';
+import { useThemedStyles, useTheme } from '@theme';
 import { StatBar } from '@components/index';
 import { useGameStore } from '@store/gameStore';
 import { HOBBY_MAP } from '@data/hobbies';
@@ -10,6 +10,8 @@ import { getHobbyProgress, canPracticeHobby, getEligibleCompetitions } from '@en
 import type { RootStackParamList } from '@/types';
 
 export function HobbyDetailScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'HobbyDetail'>>();
   const character = useGameStore(s => s.character);
@@ -47,7 +49,7 @@ export function HobbyDetailScreen() {
 
         <View style={styles.levelCard}>
           <Text style={styles.levelLabel}>Level {progress.level} / {def.maxLevel}</Text>
-          <StatBar value={xpInLevel} color={COLORS.gold} height={10} />
+          <StatBar value={xpInLevel} color={colors.gold} height={10} />
           <Text style={styles.xpText}>{progress.xp} total XP · +{def.xpPerSession} per session</Text>
         </View>
 
@@ -78,42 +80,42 @@ export function HobbyDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
-  content: { padding: SPACING.xl, gap: SPACING.md },
-  category: { fontFamily: FONTS.bodySemiBold, fontSize: 10, color: COLORS.gold, letterSpacing: 2 },
-  title: { fontFamily: FONTS.displayBold, fontSize: 24, color: COLORS.t1 },
-  desc: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.t3, lineHeight: 20 },
+const createStyles = ({ colors, fonts, spacing, radii }: ReturnType<typeof useTheme>) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: spacing.xl, gap: spacing.md },
+  category: { fontFamily: fonts.bodySemiBold, fontSize: 10, color: colors.gold, letterSpacing: 2 },
+  title: { fontFamily: fonts.displayBold, fontSize: 24, color: colors.t1 },
+  desc: { fontFamily: fonts.body, fontSize: 14, color: colors.t3, lineHeight: 20 },
   levelCard: {
-    backgroundColor: COLORS.bgCard,
-    borderRadius: RADII.md,
-    padding: SPACING.lg,
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.md,
+    padding: spacing.lg,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    gap: SPACING.sm,
-    marginTop: SPACING.md,
+    borderColor: colors.border,
+    gap: spacing.sm,
+    marginTop: spacing.md,
   },
-  levelLabel: { fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.t1 },
-  xpText: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.t4 },
+  levelLabel: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.t1 },
+  xpText: { fontFamily: fonts.body, fontSize: 12, color: colors.t4 },
   compCard: {
-    backgroundColor: `${COLORS.emerald}10`,
-    borderRadius: RADII.md,
-    padding: SPACING.md,
+    backgroundColor: `${colors.emerald}10`,
+    borderRadius: radii.md,
+    padding: spacing.md,
     borderWidth: 1,
-    borderColor: `${COLORS.emerald}30`,
+    borderColor: `${colors.emerald}30`,
     gap: 4,
   },
-  compLabel: { fontFamily: FONTS.bodySemiBold, fontSize: 10, color: COLORS.emerald, letterSpacing: 1 },
-  compItem: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.t2 },
+  compLabel: { fontFamily: fonts.bodySemiBold, fontSize: 10, color: colors.emerald, letterSpacing: 1 },
+  compItem: { fontFamily: fonts.body, fontSize: 13, color: colors.t2 },
   btn: {
-    marginTop: SPACING.lg,
-    padding: SPACING.md,
-    borderRadius: RADII.md,
-    backgroundColor: COLORS.gold,
+    marginTop: spacing.lg,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: colors.gold,
     alignItems: 'center',
   },
   btnDisabled: { opacity: 0.4 },
-  btnText: { fontFamily: FONTS.bodySemiBold, fontSize: 15, color: COLORS.bg },
-  backBtn: { alignItems: 'center', padding: SPACING.md },
-  backText: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.t3 },
+  btnText: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.bg },
+  backBtn: { alignItems: 'center', padding: spacing.md },
+  backText: { fontFamily: fonts.body, fontSize: 14, color: colors.t3 },
 });

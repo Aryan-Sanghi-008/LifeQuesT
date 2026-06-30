@@ -7,36 +7,41 @@ export interface WorldEvent {
   duration: number;
 }
 
-const WORLD_EVENTS_POOL: Omit<WorldEvent, 'duration'>[] = [
+export const WORLD_EVENTS_POOL: WorldEvent[] = [
   {
     id: 'recession',
     title: 'Economic Recession',
     description: 'A global recession is underway. Property values are falling, and raises are harder to get.',
     type: 'recession',
+    duration: 3,
   },
   {
     id: 'pandemic',
     title: 'Global Pandemic',
     description: 'A health crisis has locked down the country. Health levels and general happiness are decreasing.',
     type: 'pandemic',
+    duration: 2,
   },
   {
     id: 'war',
     title: 'Regional Conflict',
     description: 'A military conflict has broken out. Taxes are temporarily raised to fund emergency services.',
     type: 'war',
+    duration: 4,
   },
   {
     id: 'housing_boom',
     title: 'Housing Market Boom',
     description: 'Real estate is in high demand! Property values are appreciating faster than usual.',
     type: 'housing_boom',
+    duration: 2,
   },
   {
     id: 'crypto_boom',
     title: 'Speculative Asset Rally',
     description: 'A crypto and stock market boom is yielding high investment returns.',
     type: 'crypto_boom',
+    duration: 1,
   },
 ];
 

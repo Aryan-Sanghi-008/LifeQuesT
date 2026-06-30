@@ -8,8 +8,8 @@ import { HomeScreen }    from '@features/life/HomeScreen';
 import { WorldScreen }   from '@features/life/WorldScreen';
 import { LifeScreen }    from '@features/life/LifeScreen';
 import { ProfileScreen } from '@features/life/ProfileScreen';
-import { GameErrorBoundary } from '../components/GameErrorBoundary';
-import { QuickActionsSheet } from '../components/QuickActionsSheet';
+import { withGameErrorBoundary } from './screenWrappers';
+import { QuickActionsSheet } from '@components/QuickActionsSheet';
 import Svg, { Path, Circle } from 'react-native-svg';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -170,15 +170,7 @@ function CustomTabBar({ state, navigation, onOpenQuickActions }: BottomTabBarPro
   );
 }
 
-const wrap = (Component: React.ComponentType<object>) => {
-  return function WrappedScreen(props: object) {
-    return (
-      <GameErrorBoundary>
-        <Component {...props} />
-      </GameErrorBoundary>
-    );
-  };
-};
+const wrap = withGameErrorBoundary;
 
 function DummyComponent() {
   return null;

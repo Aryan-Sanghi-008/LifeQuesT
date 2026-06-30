@@ -3,10 +3,10 @@ import { View, Text, StyleSheet, Pressable, ScrollView, Alert } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { COLORS, FONTS, RADII, SPACING } from '@theme';
+import { useThemedStyles, useTheme } from '@theme';
 import { useGameStore } from '../../store/gameStore';
-import { ScreenHeader } from '../../components/ScreenHeader';
-import { Card, GradientButton } from '../../components/index';
+import { ScreenHeader } from '@components/ScreenHeader';
+import { Card, GradientButton } from '@components/index';
 import { WillDetails, RootStackParamList } from '../../types';
 import Svg, { Path } from 'react-native-svg';
 
@@ -18,6 +18,8 @@ const WILL_TYPES = [
 ] as const;
 
 export function WillEditorScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const character = useGameStore(s => s.character);
   const setWill = useGameStore(s => s.setWill);
@@ -108,7 +110,7 @@ export function WillEditorScreen() {
                       </View>
                       {active && (
                         <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-                          <Path stroke={COLORS.teal} strokeWidth={2.5} strokeLinecap="round" d="M20 6L9 17l-5-5"/>
+                          <Path stroke={colors.teal} strokeWidth={2.5} strokeLinecap="round" d="M20 6L9 17l-5-5"/>
                         </Svg>
                       )}
                     </Pressable>
@@ -122,7 +124,7 @@ export function WillEditorScreen() {
             <GradientButton
               label="Save Will & Testament"
               onPress={handleSave}
-              colors={[COLORS.teal, COLORS.emerald]}
+              colors={[colors.teal, colors.emerald]}
               style={{ width: '100%' }}
             />
           </View>
@@ -132,29 +134,29 @@ export function WillEditorScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
+const createStyles = ({ colors, fonts, spacing, radii }: ReturnType<typeof useTheme>) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
   safe: { flex: 1 },
-  scroll: { padding: SPACING.md, gap: SPACING.md },
-  infoCard: { backgroundColor: `${COLORS.teal}08`, borderColor: `${COLORS.teal}25` },
-  infoText: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.t3, lineHeight: 18 },
-  sectionTitle: { fontFamily: FONTS.bodySemiBold, fontSize: 13, color: COLORS.t4, textTransform: 'uppercase', letterSpacing: 1.5, marginTop: SPACING.sm },
-  typeCard: { padding: SPACING.md, backgroundColor: COLORS.bgCard, borderRadius: RADII.md, borderWidth: 1.5, borderColor: COLORS.border },
-  typeCardActive: { borderColor: COLORS.teal, backgroundColor: `${COLORS.teal}08` },
-  row: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md },
-  radio: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: COLORS.t4, alignItems: 'center', justifyContent: 'center' },
-  radioActive: { borderColor: COLORS.teal },
-  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.teal },
-  typeTitle: { fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.t1 },
-  typeTextActive: { color: COLORS.teal },
-  typeDesc: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.t3, marginTop: 4, lineHeight: 16 },
-  heirSection: { gap: SPACING.sm },
-  noHeirText: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.t4, fontStyle: 'italic', paddingVertical: SPACING.sm },
-  heirRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: SPACING.md, backgroundColor: COLORS.bgCard, borderRadius: RADII.md, borderWidth: 1, borderColor: COLORS.border },
-  heirRowActive: { borderColor: COLORS.teal, backgroundColor: `${COLORS.teal}08` },
+  scroll: { padding: spacing.md, gap: spacing.md },
+  infoCard: { backgroundColor: `${colors.teal}08`, borderColor: `${colors.teal}25` },
+  infoText: { fontFamily: fonts.body, fontSize: 13, color: colors.t3, lineHeight: 18 },
+  sectionTitle: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.t4, textTransform: 'uppercase', letterSpacing: 1.5, marginTop: spacing.sm },
+  typeCard: { padding: spacing.md, backgroundColor: colors.bgCard, borderRadius: radii.md, borderWidth: 1.5, borderColor: colors.border },
+  typeCardActive: { borderColor: colors.teal, backgroundColor: `${colors.teal}08` },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  radio: { width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: colors.t4, alignItems: 'center', justifyContent: 'center' },
+  radioActive: { borderColor: colors.teal },
+  radioInner: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.teal },
+  typeTitle: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.t1 },
+  typeTextActive: { color: colors.teal },
+  typeDesc: { fontFamily: fonts.body, fontSize: 12, color: colors.t3, marginTop: 4, lineHeight: 16 },
+  heirSection: { gap: spacing.sm },
+  noHeirText: { fontFamily: fonts.body, fontSize: 12, color: colors.t4, fontStyle: 'italic', paddingVertical: spacing.sm },
+  heirRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.md, backgroundColor: colors.bgCard, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border },
+  heirRowActive: { borderColor: colors.teal, backgroundColor: `${colors.teal}08` },
   heirInfo: { gap: 2 },
-  heirName: { fontFamily: FONTS.bodySemiBold, fontSize: 13, color: COLORS.t1 },
-  heirDesc: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4 },
-  cta: { marginTop: SPACING.md },
+  heirName: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.t1 },
+  heirDesc: { fontFamily: fonts.body, fontSize: 11, color: colors.t4 },
+  cta: { marginTop: spacing.md },
 });
 export default WillEditorScreen;

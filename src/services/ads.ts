@@ -1,5 +1,5 @@
 import { AD_UNITS } from '../config/ads';
-import { isAdsNativeAvailable } from '../utils/nativeAvailability';
+import { isAdsNativeAvailable } from '@utils/nativeAvailability';
 
 type RewardedAd = import('react-native-google-mobile-ads').RewardedAd;
 type InterstitialAd = import('react-native-google-mobile-ads').InterstitialAd;

@@ -2,7 +2,7 @@ import { View, Text, Pressable, ScrollView, StyleSheet, Alert } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { COLORS, FONTS, RADII, SPACING } from '@theme';
+import { useThemedStyles, useTheme } from '@theme';
 import { NpcAvatar } from '@components/Avatars';
 import { StatBar } from '@components/index';
 import { useGameStore } from '@store/gameStore';
@@ -17,6 +17,8 @@ const ACTIONS = [
 ];
 
 export function PetCareScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'PetCare'>>();
   const character = useGameStore(s => s.character);
@@ -60,7 +62,7 @@ export function PetCareScreen() {
         {(['happiness', 'health', 'training'] as const).map(key => (
           <View key={key} style={styles.statRow}>
             <Text style={styles.statLabel}>{key.charAt(0).toUpperCase() + key.slice(1)}</Text>
-            <StatBar value={stats[key]} color={stats[key] >= 60 ? COLORS.teal : COLORS.gold} height={8} />
+            <StatBar value={stats[key]} color={stats[key] >= 60 ? colors.teal : colors.gold} height={8} />
             <Text style={styles.statValue}>{stats[key]}</Text>
           </View>
         ))}
@@ -83,28 +85,28 @@ export function PetCareScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
-  content: { padding: SPACING.xl, gap: SPACING.md },
-  header: { alignItems: 'center', gap: SPACING.sm, marginBottom: SPACING.md },
-  title: { fontFamily: FONTS.displayBold, fontSize: 22, color: COLORS.t1 },
-  sub: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.t3 },
+const createStyles = ({ colors, fonts, spacing, radii }: ReturnType<typeof useTheme>) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: spacing.xl, gap: spacing.md },
+  header: { alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md },
+  title: { fontFamily: fonts.displayBold, fontSize: 22, color: colors.t1 },
+  sub: { fontFamily: fonts.body, fontSize: 13, color: colors.t3 },
   statRow: { gap: 4 },
-  statLabel: { fontFamily: FONTS.bodySemiBold, fontSize: 11, color: COLORS.t4 },
-  statValue: { fontFamily: FONTS.monoSemiBold, fontSize: 11, color: COLORS.t2, alignSelf: 'flex-end' },
-  section: { fontFamily: FONTS.bodySemiBold, fontSize: 11, color: COLORS.t4, letterSpacing: 1.5, marginTop: SPACING.md },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.sm },
+  statLabel: { fontFamily: fonts.bodySemiBold, fontSize: 11, color: colors.t4 },
+  statValue: { fontFamily: fonts.monoSemiBold, fontSize: 11, color: colors.t2, alignSelf: 'flex-end' },
+  section: { fontFamily: fonts.bodySemiBold, fontSize: 11, color: colors.t4, letterSpacing: 1.5, marginTop: spacing.md },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   actionBtn: {
     width: '47%',
-    backgroundColor: COLORS.bgCard,
-    borderRadius: RADII.md,
-    padding: SPACING.md,
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.md,
+    padding: spacing.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
     gap: 4,
   },
-  actionLabel: { fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.t1 },
-  actionDesc: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4 },
-  backBtn: { alignItems: 'center', marginTop: SPACING.lg, padding: SPACING.md },
-  backText: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.t3 },
+  actionLabel: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.t1 },
+  actionDesc: { fontFamily: fonts.body, fontSize: 11, color: colors.t4 },
+  backBtn: { alignItems: 'center', marginTop: spacing.lg, padding: spacing.md },
+  backText: { fontFamily: fonts.body, fontSize: 14, color: colors.t3 },
 });

@@ -14,6 +14,18 @@ import { FINANCIAL_EVENTS } from './events/financialEvents';
 import { MILESTONE_EVENTS } from './events/milestoneEvents';
 import { MEMORY_CHAIN_EVENTS } from './events/memoryChainEvents';
 import { PHASE_A_DECISION_EVENTS } from './events/phaseADecisions';
+import { CAREER_EVENTS_EXPANDED } from './events/careerEventsExpanded';
+import { RELATIONSHIP_EVENTS_EXPANDED } from './events/relationshipEventsExpanded';
+import { HEALTH_EVENTS_EXPANDED } from './events/healthEventsExpanded';
+import { EDUCATION_EVENTS_EXPANDED } from './events/educationEventsExpanded';
+import { CRIME_EVENTS_EXPANDED } from './events/crimeEventsExpanded';
+import { FINANCIAL_EVENTS_EXPANDED } from './events/financialEventsExpanded';
+import { FAMILY_EVENTS } from './events/familyEvents';
+import { MILESTONE_EVENTS_EXPANDED } from './events/milestoneEventsExpanded';
+import { QUIRKY_EVENTS } from './events/quirkyEvents';
+import { TRAVEL_EVENTS } from './events/travelEvents';
+import { WORLD_EVENTS_EXPANDED } from './events/worldEventsExpanded';
+import { SCENARIO_EVENTS } from './events/scenarioEvents';
 import { ACHIEVEMENTS, ACHIEVEMENT_COIN_REWARDS } from './achievements';
 
 export { ACHIEVEMENTS, ACHIEVEMENT_COIN_REWARDS };
@@ -1141,6 +1153,19 @@ export const LIFE_EVENTS: LifeEvent[] = [
   ...MILESTONE_EVENTS,       // +20 milestone events
   ...MEMORY_CHAIN_EVENTS,
   ...PHASE_A_DECISION_EVENTS,
+  // ── Phase 5 event pool expansion ──────────────────────────────────────────
+  ...CAREER_EVENTS_EXPANDED,       // +60 career events
+  ...RELATIONSHIP_EVENTS_EXPANDED, // +55 relationship events
+  ...HEALTH_EVENTS_EXPANDED,       // +42 health events
+  ...EDUCATION_EVENTS_EXPANDED,    // +26 education events
+  ...CRIME_EVENTS_EXPANDED,        // +18 crime events
+  ...FINANCIAL_EVENTS_EXPANDED,    // +32 financial events
+  ...FAMILY_EVENTS,                // +30 family events
+  ...MILESTONE_EVENTS_EXPANDED,    // +22 milestone events
+  ...QUIRKY_EVENTS,                // +49 random/quirky events
+  ...TRAVEL_EVENTS,                // +26 travel events
+  ...WORLD_EVENTS_EXPANDED,        // +26 world events
+  ...SCENARIO_EVENTS,              // +50 scenario-gated events
 ];
 
 export const SEASON_PASS_TIERS = [

@@ -11,6 +11,7 @@ jest.mock('@services/persistence', () => ({
   setDailyBonusLastClaim: jest.fn(),
   getDailyQuestsProgress: jest.fn(() => null),
   setDailyQuestsProgress: jest.fn(),
+  saveGlobalPrestige: jest.fn(),
 }));
 
 jest.mock('@services/cloudSave', () => ({

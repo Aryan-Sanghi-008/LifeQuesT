@@ -1,13 +1,15 @@
 import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { COLORS, FONTS, RADII, SPACING } from '@theme';
+import { useThemedStyles, useTheme, SPACING } from '@theme';
 import { useGameStore } from "../../store/gameStore";
-import { ScreenHeader } from "../../components/ScreenHeader";
-import { Card, SectionLabel, Divider } from "../../components/index";
+import { ScreenHeader } from "@components/ScreenHeader";
+import { Card, SectionLabel, Divider } from "@components/index";
 import { CHALLENGES } from "../../engine/challengeEngine";
 import Svg, { Circle } from "react-native-svg";
 
 export function ChallengeModeScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const globalPrestige = useGameStore((s) => s.globalPrestige);
   const character = useGameStore((s) => s.character);
 
@@ -36,17 +38,17 @@ export function ChallengeModeScreen() {
                 return (
                   <Card style={[styles.challengeCard, styles.activeCard]}>
                     <View style={styles.headerRow}>
-                      <Text style={[styles.title, { color: COLORS.teal }]}>
+                      <Text style={[styles.title, { color: colors.teal }]}>
                         {active.title}
                       </Text>
                       <View
                         style={[
                           styles.badge,
-                          { backgroundColor: `${COLORS.teal}15` },
+                          { backgroundColor: `${colors.teal}15` },
                         ]}
                       >
                         <Text
-                          style={[styles.badgeText, { color: COLORS.teal }]}
+                          style={[styles.badgeText, { color: colors.teal }]}
                         >
                           ACTIVE
                         </Text>
@@ -63,7 +65,7 @@ export function ChallengeModeScreen() {
                           viewBox="0 0 24 24"
                           fill="none"
                         >
-                          <Circle cx="12" cy="12" r="3" fill={COLORS.teal} />
+                          <Circle cx="12" cy="12" r="3" fill={colors.teal} />
                         </Svg>
                         <Text style={styles.ruleText}>{rule}</Text>
                       </View>
@@ -99,7 +101,7 @@ export function ChallengeModeScreen() {
               >
                 <View style={styles.headerRow}>
                   <Text
-                    style={[styles.title, isCompleted && { color: COLORS.t4 }]}
+                    style={[styles.title, isCompleted && { color: colors.t4 }]}
                   >
                     {c.title}
                   </Text>
@@ -107,10 +109,10 @@ export function ChallengeModeScreen() {
                     <View
                       style={[
                         styles.badge,
-                        { backgroundColor: `${COLORS.gold}15` },
+                        { backgroundColor: `${colors.gold}15` },
                       ]}
                     >
-                      <Text style={[styles.badgeText, { color: COLORS.gold }]}>
+                      <Text style={[styles.badgeText, { color: colors.gold }]}>
                         COMPLETED
                       </Text>
                     </View>
@@ -118,10 +120,10 @@ export function ChallengeModeScreen() {
                     <View
                       style={[
                         styles.badge,
-                        { backgroundColor: `${COLORS.teal}15` },
+                        { backgroundColor: `${colors.teal}15` },
                       ]}
                     >
-                      <Text style={[styles.badgeText, { color: COLORS.teal }]}>
+                      <Text style={[styles.badgeText, { color: colors.teal }]}>
                         ACTIVE
                       </Text>
                     </View>
@@ -139,13 +141,13 @@ export function ChallengeModeScreen() {
                         cx="12"
                         cy="12"
                         r="3"
-                        fill={isCompleted ? COLORS.t4 : COLORS.t2}
+                        fill={isCompleted ? colors.t4 : colors.t2}
                       />
                     </Svg>
                     <Text
                       style={[
                         styles.ruleText,
-                        isCompleted && { color: COLORS.t4 },
+                        isCompleted && { color: colors.t4 },
                       ]}
                     >
                       {rule}
@@ -159,7 +161,7 @@ export function ChallengeModeScreen() {
                   <Text
                     style={[
                       styles.rewardLabel,
-                      isCompleted && { color: COLORS.t4 },
+                      isCompleted && { color: colors.t4 },
                     ]}
                   >
                     REWARD
@@ -167,7 +169,7 @@ export function ChallengeModeScreen() {
                   <Text
                     style={[
                       styles.rewardValue,
-                      isCompleted && { color: COLORS.t4 },
+                      isCompleted && { color: colors.t4 },
                     ]}
                   >
                     +{c.pointsReward} Prestige Pts
@@ -182,33 +184,33 @@ export function ChallengeModeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
+const createStyles = ({ colors, fonts, spacing, radii }: ReturnType<typeof useTheme>) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
   safe: { flex: 1 },
-  scroll: { padding: SPACING.md, gap: SPACING.md },
-  challengeCard: { padding: SPACING.md, borderColor: COLORS.border },
-  activeCard: { borderColor: COLORS.teal, backgroundColor: `${COLORS.teal}04` },
-  completedCard: { opacity: 0.65, borderColor: COLORS.border },
+  scroll: { padding: spacing.md, gap: spacing.md },
+  challengeCard: { padding: spacing.md, borderColor: colors.border },
+  activeCard: { borderColor: colors.teal, backgroundColor: `${colors.teal}04` },
+  completedCard: { opacity: 0.65, borderColor: colors.border },
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: SPACING.xs,
+    marginBottom: spacing.xs,
   },
-  title: { fontFamily: FONTS.bodySemiBold, fontSize: 16, color: COLORS.t1 },
-  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: RADII.sm },
-  badgeText: { fontFamily: FONTS.bodyBold, fontSize: 9, letterSpacing: 1 },
+  title: { fontFamily: fonts.bodySemiBold, fontSize: 16, color: colors.t1 },
+  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: radii.sm },
+  badgeText: { fontFamily: fonts.bodyBold, fontSize: 9, letterSpacing: 1 },
   desc: {
-    fontFamily: FONTS.body,
+    fontFamily: fonts.body,
     fontSize: 12,
-    color: COLORS.t3,
+    color: colors.t3,
     lineHeight: 18,
-    marginBottom: SPACING.xs,
+    marginBottom: spacing.xs,
   },
   rulesTitle: {
-    fontFamily: FONTS.bodySemiBold,
+    fontFamily: fonts.bodySemiBold,
     fontSize: 11,
-    color: COLORS.t4,
+    color: colors.t4,
     textTransform: "uppercase",
     letterSpacing: 1,
     marginBottom: 6,
@@ -219,22 +221,22 @@ const styles = StyleSheet.create({
     gap: 6,
     marginVertical: 3,
   },
-  ruleText: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.t2 },
+  ruleText: { fontFamily: fonts.body, fontSize: 12, color: colors.t2 },
   footerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
   rewardLabel: {
-    fontFamily: FONTS.body,
+    fontFamily: fonts.body,
     fontSize: 10,
-    color: COLORS.t4,
+    color: colors.t4,
     letterSpacing: 1.5,
   },
   rewardValue: {
-    fontFamily: FONTS.monoSemiBold,
+    fontFamily: fonts.monoSemiBold,
     fontSize: 12,
-    color: COLORS.gold3,
+    color: colors.gold3,
   },
 });
 export default ChallengeModeScreen;

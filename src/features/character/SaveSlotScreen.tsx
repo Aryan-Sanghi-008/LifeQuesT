@@ -3,15 +3,16 @@ import { View, Text, Pressable, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../types';
-import { COLORS, FONTS, SPACING } from '@theme';
+import { useThemedStyles, useTheme, SPACING } from '@theme';
 import { useGameStore } from '../../store/gameStore';
-import { GradientButton, Card } from '../../components/index';
+import { GradientButton, Card } from '@components/index';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'SaveSlots'>;
 };
 
 export function SaveSlotScreen({ navigation }: Props) {
+  const styles = useThemedStyles(createStyles);
   const slots = useGameStore(s => s.slotList);
   const slotsSynced = useGameStore(s => s.slotsSynced);
   const loadSlot = useGameStore(s => s.loadSlot);
@@ -112,14 +113,14 @@ export function SaveSlotScreen({ navigation }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
-  safe: { flex: 1, padding: SPACING.lg },
-  title: { fontFamily: FONTS.displayBold, fontSize: 28, color: COLORS.t1, marginBottom: SPACING.xs },
-  sub: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.t3, marginBottom: SPACING.xl },
-  card: { marginBottom: SPACING.md },
+const createStyles = ({ colors, fonts, spacing }: ReturnType<typeof useTheme>) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
+  safe: { flex: 1, padding: spacing.lg },
+  title: { fontFamily: fonts.displayBold, fontSize: 28, color: colors.t1, marginBottom: spacing.xs },
+  sub: { fontFamily: fonts.body, fontSize: 13, color: colors.t3, marginBottom: spacing.xl },
+  card: { marginBottom: spacing.md },
   row: { flexDirection: 'row', alignItems: 'center' },
-  slotName: { fontFamily: FONTS.bodySemiBold, fontSize: 16, color: COLORS.t1 },
-  slotMeta: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.t4, marginTop: 2 },
-  delete: { fontFamily: FONTS.bodySemiBold, fontSize: 12, color: COLORS.crimson },
+  slotName: { fontFamily: fonts.bodySemiBold, fontSize: 16, color: colors.t1 },
+  slotMeta: { fontFamily: fonts.body, fontSize: 12, color: colors.t4, marginTop: 2 },
+  delete: { fontFamily: fonts.bodySemiBold, fontSize: 12, color: colors.crimson },
 });

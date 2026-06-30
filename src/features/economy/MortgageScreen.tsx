@@ -2,7 +2,7 @@ import { View, Text, Pressable, ScrollView, StyleSheet, Alert } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { COLORS, FONTS, RADII, SPACING } from '@theme';
+import { useThemedStyles, useTheme } from '@theme';
 import { useGameStore } from '@store/gameStore';
 import { PROPERTY_MAP } from '@data/properties';
 import { calculateMortgagePayment } from '@engine/housingEngine';
@@ -10,6 +10,7 @@ import { formatCurrency } from '@utils/currency';
 import type { RootStackParamList } from '@/types';
 
 export function MortgageScreen() {
+  const styles = useThemedStyles(createStyles);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'Mortgage'>>();
   const character = useGameStore(s => s.character);
@@ -95,33 +96,33 @@ export function MortgageScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
-  content: { padding: SPACING.xl, gap: SPACING.md },
-  title: { fontFamily: FONTS.displayBold, fontSize: 22, color: COLORS.t1 },
-  tier: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.t4, letterSpacing: 1, marginBottom: SPACING.md },
-  row: { flexDirection: 'row', gap: SPACING.md },
+const createStyles = ({ colors, fonts, spacing, radii }: ReturnType<typeof useTheme>) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
+  content: { padding: spacing.xl, gap: spacing.md },
+  title: { fontFamily: fonts.displayBold, fontSize: 22, color: colors.t1 },
+  tier: { fontFamily: fonts.body, fontSize: 12, color: colors.t4, letterSpacing: 1, marginBottom: spacing.md },
+  row: { flexDirection: 'row', gap: spacing.md },
   metric: {
     flex: 1,
-    backgroundColor: COLORS.bgCard,
-    borderRadius: RADII.md,
-    padding: SPACING.md,
+    backgroundColor: colors.bgCard,
+    borderRadius: radii.md,
+    padding: spacing.md,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: colors.border,
   },
-  metricLabel: { fontFamily: FONTS.body, fontSize: 10, color: COLORS.t4 },
-  metricValue: { fontFamily: FONTS.monoSemiBold, fontSize: 14, color: COLORS.teal, marginTop: 4 },
-  details: { gap: 6, marginTop: SPACING.sm },
-  detailLine: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.t3 },
+  metricLabel: { fontFamily: fonts.body, fontSize: 10, color: colors.t4 },
+  metricValue: { fontFamily: fonts.monoSemiBold, fontSize: 14, color: colors.teal, marginTop: 4 },
+  details: { gap: 6, marginTop: spacing.sm },
+  detailLine: { fontFamily: fonts.body, fontSize: 13, color: colors.t3 },
   btn: {
-    marginTop: SPACING.lg,
-    padding: SPACING.md,
-    borderRadius: RADII.md,
-    backgroundColor: COLORS.teal,
+    marginTop: spacing.lg,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: colors.teal,
     alignItems: 'center',
   },
   btnDisabled: { opacity: 0.4 },
-  btnText: { fontFamily: FONTS.bodySemiBold, fontSize: 15, color: COLORS.bg },
-  backBtn: { alignItems: 'center', padding: SPACING.md },
-  backText: { fontFamily: FONTS.body, fontSize: 14, color: COLORS.t3 },
+  btnText: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.bg },
+  backBtn: { alignItems: 'center', padding: spacing.md },
+  backText: { fontFamily: fonts.body, fontSize: 14, color: colors.t3 },
 });

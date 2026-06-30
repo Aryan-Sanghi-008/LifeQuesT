@@ -104,6 +104,56 @@ export function WorldScreen() {
       route: "Leaderboard",
       color: colors.gold3,
     },
+    {
+      title: "World Events",
+      desc: "Monitor global events shaping your life — recessions, pandemics, booms.",
+      icon: (
+        <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+          <Path stroke={colors.health} strokeWidth={2} strokeLinecap="round"
+            d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </Svg>
+      ),
+      route: "WorldEvents",
+      color: colors.health,
+    },
+    {
+      title: "Scenarios",
+      desc: "Choose a life scenario — classic, royal, cyber, crime, or fantasy.",
+      icon: (
+        <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+          <Path stroke={colors.orchid} strokeWidth={2} strokeLinecap="round"
+            d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+          <Path stroke={colors.orchid} strokeWidth={2} strokeLinecap="round" d="M9 22V12h6v10" />
+        </Svg>
+      ),
+      route: "ScenarioPicker",
+      color: colors.orchid,
+    },
+    {
+      title: "Collections",
+      desc: "View your unlocked achievements, cosmetics, and badges.",
+      icon: (
+        <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+          <Path stroke={colors.sapphire} strokeWidth={2} strokeLinecap="round"
+            d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+        </Svg>
+      ),
+      route: "Collections",
+      color: colors.sapphire,
+    },
+    {
+      title: "Mystery Box",
+      desc: "Spin a weekly mystery box for coins, gems, and luck boosts.",
+      icon: (
+        <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+          <Path stroke={colors.gold} strokeWidth={2} strokeLinecap="round"
+            d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" />
+          <Path stroke={colors.gold} strokeWidth={2} strokeLinecap="round" d="M3.27 6.96L12 12.01l8.73-5.05M12 22.08V12" />
+        </Svg>
+      ),
+      route: "MysteryBox",
+      color: colors.gold,
+    },
   ];
 
   return (

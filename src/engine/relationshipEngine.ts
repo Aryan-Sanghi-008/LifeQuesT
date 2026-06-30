@@ -1,6 +1,6 @@
 import { Character, LifeEventRecord, Person, RelationType, RelationshipStage } from '../types';
 import { clamp } from './economyEngine';
-import { getRelationshipStageLabel as formatRelationshipStage } from '../utils/relationshipLabels';
+import { getRelationshipStageLabel as formatRelationshipStage } from '@utils/relationshipLabels';
 
 const FAMILY_TYPES: RelationType[] = ['mother', 'father', 'child'];
 const DECAY_THRESHOLDS = [40, 25] as const;

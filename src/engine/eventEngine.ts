@@ -1,4 +1,4 @@
-import { Character, LifeEvent } from '../types';
+import { Character, LifeEvent, EventRarity } from '../types';
 import { LIFE_EVENTS } from '../data/gameData';
 import { isEventBlockedByCrime, isInJail } from './crimeEngine';
 import { filterByMemoryEligibility } from './memoryEngine';
@@ -41,6 +41,10 @@ export function isEligible(
       const statVal = (character.stats as unknown as Record<string, number>)[k] ?? 0;
       if (statVal < (min as number)) return false;
     }
+  }
+  if (event.requiresScenario) {
+    const charScenario = character.scenarioId ?? 'classic';
+    if (!event.requiresScenario.includes(charScenario)) return false;
   }
   return true;
 }
@@ -126,4 +130,42 @@ export function consumeLuckBoost(isLucky: boolean, luckBoostsRemaining: number, 
   if (!hadChance || luckBoostsRemaining <= 0) return luckBoostsRemaining;
   if (!isLucky) return luckBoostsRemaining - 1;
   return luckBoostsRemaining;
+}
+
+const LEGENDARY_EVENT_IDS = new Set([
+  'ipo_windfall',
+  'bankruptcy',
+  'school_start',
+  'first_job',
+  'marriage',
+  'first_child',
+  'death_of_parent',
+]);
+
+/**
+ * Assigns a display rarity tier when event data omits `rarity`.
+ * Explicit `event.rarity` always wins.
+ */
+export function resolveEventRarity(event: LifeEvent): EventRarity {
+  if (event.rarity) return event.rarity;
+
+  const weight = event.weight ?? 10;
+  const bankMagnitude = Math.abs(event.bankEffect ?? 0);
+
+  if (LEGENDARY_EVENT_IDS.has(event.id)) return 'legendary';
+  if (event.oneTime && weight <= 2) return 'legendary';
+  if (event.chainId && (event.chainStep ?? 0) >= 3) return 'legendary';
+
+  if (event.oneTime) return 'epic';
+  if (event.chainId) return 'epic';
+  if (event.category === 'milestone') return 'epic';
+
+  if (weight <= 3 || bankMagnitude >= 75000) return 'rare';
+  if (event.category === 'crime') return 'rare';
+
+  if ((event.choices?.length ?? 0) > 0) return 'uncommon';
+  if (weight <= 6) return 'uncommon';
+  if (event.category === 'financial' && bankMagnitude >= 20000) return 'uncommon';
+
+  return 'common';
 }

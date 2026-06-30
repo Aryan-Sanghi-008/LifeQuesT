@@ -1,12 +1,14 @@
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS, FONTS, RADII, SPACING } from '@theme';
+import { useThemedStyles, useTheme, SPACING } from '@theme';
 import { useGameStore } from '../../store/gameStore';
-import { ScreenHeader } from '../../components/ScreenHeader';
-import { Card, SectionLabel, Divider } from '../../components/index';
-import { NpcAvatar } from '../../components/Avatars';
+import { ScreenHeader } from '@components/ScreenHeader';
+import { Card, SectionLabel, Divider } from '@components/index';
+import { NpcAvatar } from '@components/Avatars';
 
 export function FamilyTreeScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const character = useGameStore(s => s.character);
 
   if (!character) return null;
@@ -56,14 +58,14 @@ export function FamilyTreeScreen() {
               ))}
               <Divider />
               <View style={[styles.lineageRow, styles.activeLineageRow]}>
-                <View style={[styles.genBadge, { backgroundColor: COLORS.teal }]}>
+                <View style={[styles.genBadge, { backgroundColor: colors.teal }]}>
                   <Text style={styles.genText}>Gen {currentGen}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.lineageName, { color: COLORS.teal }]}>{character.name} (Active)</Text>
+                  <Text style={[styles.lineageName, { color: colors.teal }]}>{character.name} (Active)</Text>
                   <Text style={styles.lineageInfo}>Current character · Age {character.age}</Text>
                 </View>
-                <Text style={[styles.lineageWealth, { color: COLORS.teal }]}>
+                <Text style={[styles.lineageWealth, { color: colors.teal }]}>
                   ${character.bankBalance.toLocaleString()}
                 </Text>
               </View>
@@ -108,28 +110,28 @@ export function FamilyTreeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
+const createStyles = ({ colors, fonts, spacing, radii }: ReturnType<typeof useTheme>) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
   safe: { flex: 1 },
-  scroll: { padding: SPACING.md, gap: SPACING.sm },
-  founderCard: { padding: SPACING.xl, alignItems: 'center', gap: SPACING.sm, borderStyle: 'dashed', borderWidth: 1.5, borderColor: COLORS.border },
-  founderTitle: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4, textTransform: 'uppercase', letterSpacing: 1.5 },
-  founderName: { fontFamily: FONTS.displayBold, fontSize: 20, color: COLORS.teal },
-  founderDesc: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.t3, textAlign: 'center' },
-  lineageRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.md, paddingHorizontal: SPACING.sm },
-  activeLineageRow: { backgroundColor: `${COLORS.teal}08` },
-  genBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: RADII.sm, backgroundColor: COLORS.bgCard2 },
-  genText: { fontFamily: FONTS.bodyBold, fontSize: 10, color: COLORS.t1 },
-  lineageName: { fontFamily: FONTS.bodySemiBold, fontSize: 13, color: COLORS.t1 },
-  lineageInfo: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.t3, marginTop: 2 },
-  lineageCause: { fontFamily: FONTS.body, fontSize: 10, color: COLORS.t4, marginTop: 1 },
-  lineageWealth: { fontFamily: FONTS.monoSemiBold, fontSize: 12, color: COLORS.t3 },
-  familyRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.md, paddingVertical: SPACING.md, paddingHorizontal: SPACING.sm },
-  familyName: { fontFamily: FONTS.bodySemiBold, fontSize: 13, color: COLORS.t1 },
-  familyRel: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4 },
-  familyOcc: { fontFamily: FONTS.body, fontSize: 10, color: COLORS.t3, marginTop: 2 },
-  scoreBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: RADII.xs, backgroundColor: `${COLORS.teal}12` },
-  scoreText: { fontFamily: FONTS.monoSemiBold, fontSize: 10, color: COLORS.teal },
-  noFamilyText: { fontFamily: FONTS.body, fontSize: 12, color: COLORS.t4, fontStyle: 'italic', paddingVertical: SPACING.sm },
+  scroll: { padding: spacing.md, gap: spacing.sm },
+  founderCard: { padding: spacing.xl, alignItems: 'center', gap: spacing.sm, borderStyle: 'dashed', borderWidth: 1.5, borderColor: colors.border },
+  founderTitle: { fontFamily: fonts.body, fontSize: 11, color: colors.t4, textTransform: 'uppercase', letterSpacing: 1.5 },
+  founderName: { fontFamily: fonts.displayBold, fontSize: 20, color: colors.teal },
+  founderDesc: { fontFamily: fonts.body, fontSize: 13, color: colors.t3, textAlign: 'center' },
+  lineageRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md, paddingHorizontal: spacing.sm },
+  activeLineageRow: { backgroundColor: `${colors.teal}08` },
+  genBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: radii.sm, backgroundColor: colors.bgCard2 },
+  genText: { fontFamily: fonts.bodyBold, fontSize: 10, color: colors.t1 },
+  lineageName: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.t1 },
+  lineageInfo: { fontFamily: fonts.body, fontSize: 11, color: colors.t3, marginTop: 2 },
+  lineageCause: { fontFamily: fonts.body, fontSize: 10, color: colors.t4, marginTop: 1 },
+  lineageWealth: { fontFamily: fonts.monoSemiBold, fontSize: 12, color: colors.t3 },
+  familyRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md, paddingHorizontal: spacing.sm },
+  familyName: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.t1 },
+  familyRel: { fontFamily: fonts.body, fontSize: 11, color: colors.t4 },
+  familyOcc: { fontFamily: fonts.body, fontSize: 10, color: colors.t3, marginTop: 2 },
+  scoreBadge: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: radii.xs, backgroundColor: `${colors.teal}12` },
+  scoreText: { fontFamily: fonts.monoSemiBold, fontSize: 10, color: colors.teal },
+  noFamilyText: { fontFamily: fonts.body, fontSize: 12, color: colors.t4, fontStyle: 'italic', paddingVertical: spacing.sm },
 });
 export default FamilyTreeScreen;

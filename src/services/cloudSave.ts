@@ -4,7 +4,7 @@ import {
 import { getFirestoreDb } from '@services/firebaseClient';
 import { Character, SaveSlot, MAX_SAVE_SLOTS } from '../types';
 
-export { resolveSaveConflict, mergeSlotLists } from '../utils/saveSync';
+export { resolveSaveConflict, mergeSlotLists } from '@utils/saveSync';
 
 export interface CloudSavePayload {
   character: Character;

@@ -15,10 +15,10 @@ import {
   determineTraitsFromPersonality,
   crossoverDNA,
   crossoverPersonality,
-} from "../../utils/genetics";
+} from "@utils/genetics";
 import { TRAITS, COUNTRIES } from "../../data/gameData";
 import { getStartingBalance } from "../../data/countryEconomy";
-import { generateParents } from "../../utils/npcGenerator";
+import { generateParents } from "@utils/npcGenerator";
 import { clamp } from "../../engine/economyEngine";
 import {
   saveCharacterLocal,
@@ -29,11 +29,13 @@ import {
 } from "../../services/persistence";
 import { processCharacterDeath } from "../../engine/prestigeEngine";
 import { logEvent } from "../../services/analytics";
+import { handlePostAgeUpNotifications, syncGameRetentionNotifications } from "@services/notificationSync";
 import { runAgeUp } from "../../engine/ageUpEngine";
 import { runResolveDecision } from "../../engine/resolveDecisionEngine";
 import { isFocusConfirmedForAge } from "../../engine/focusEngine";
-import { hapticAgeUp, hapticDeath } from "../../services/haptics";
+import { hapticDeath, hapticAchievement } from "../../services/haptics";
 import { playSound } from "../../services/audio";
+import { useToastStore } from "../toastStore";
 import { buildLocalSlotList, incrementLoadGeneration } from "../storeHelpers";
 import { pickDailyQuests, updateQuestProgress } from "../../engine/questEngine";
 
@@ -66,9 +68,10 @@ function buildCharacter(data: CreateCharacterPayload): Character {
       : generateRandomDNA();
 
   const personality =
-    data.parentPersonality && data.partnerPersonality
+    data.personality ??
+    (data.parentPersonality && data.partnerPersonality
       ? crossoverPersonality(data.parentPersonality, data.partnerPersonality)
-      : generateRandomPersonality();
+      : generateRandomPersonality());
 
   if (data.traits.includes("prestige_genius_dna")) {
     dna.statPotentials.intelligence = 100;
@@ -243,6 +246,7 @@ function buildCharacter(data: CreateCharacterPayload): Character {
     updatedAt: Date.now(),
     dailyStreak: 1,
     lastActiveDate: new Date().toISOString().slice(0, 10),
+    scenarioId: data.scenarioId ?? 'classic',
   });
 }
 
@@ -353,6 +357,9 @@ export const createCharacterSlice: StateCreator<
       if (!isFocusConfirmedForAge(character)) return;
     }
 
+    const prevWorldEvents = character.activeWorldEvents ?? [];
+    const prevPeople = character.people;
+
     const today = new Date().toISOString().slice(0, 10);
     const lastDate = character.lastActiveDate;
     const currentStreak = character.dailyStreak ?? 1;
@@ -362,15 +369,31 @@ export const createCharacterSlice: StateCreator<
         const lastMs = new Date(lastDate).getTime();
         const todayMs = new Date(today).getTime();
         const diffDays = Math.round((todayMs - lastMs) / (1000 * 60 * 60 * 24));
-        if (diffDays === 1) {
+        const hoursSince = (Date.now() - lastMs) / 3600000;
+        if (diffDays === 1 || (diffDays === 2 && hoursSince <= 48)) {
           nextStreak = currentStreak + 1;
         } else {
-          nextStreak = 1;
+          // Attempt to consume a streak shield before resetting
+          const shieldConsumed = get().consumeStreakShieldIfAvailable();
+          nextStreak = shieldConsumed ? currentStreak : 1;
         }
       } else {
         nextStreak = 1;
       }
     }
+
+    const notifyStreakMilestone = () => {
+      const milestone = get().checkStreakMilestones();
+      if (milestone) {
+        set((s) => { s.showConfetti = true; });
+        hapticAchievement();
+        void playSound("achievement_unlock");
+        useToastStore.getState().showToast(
+          `🔥 ${milestone.label}: ${milestone.rewardLabel}!`,
+          "success",
+        );
+      }
+    };
 
     const outcome = runAgeUp(character);
 
@@ -383,7 +406,12 @@ export const createCharacterSlice: StateCreator<
         }
         s.lastAgeUpNotice = outcome.message;
       });
+      notifyStreakMilestone();
       void get()._persist();
+      void syncGameRetentionNotifications({
+        character: get().character,
+        dailyQuests: get().dailyQuests,
+      });
       return;
     }
 
@@ -407,7 +435,12 @@ export const createCharacterSlice: StateCreator<
       saveGlobalPrestige(prestigeRes.nextState);
       hapticDeath();
       void playSound("death");
+      notifyStreakMilestone();
       void get()._persist();
+      void syncGameRetentionNotifications({
+        character: get().character,
+        dailyQuests: get().dailyQuests,
+      });
       return;
     }
 
@@ -432,11 +465,12 @@ export const createCharacterSlice: StateCreator<
       });
     };
 
-    hapticAgeUp();
     void playSound("age_up");
 
     if (outcome.type === "pending_decision") {
       applyPatch(true);
+      notifyStreakMilestone();
+      get().checkCollectionSetRewards();
     } else {
       applyPatch(false);
       get()._checkAchievements();
@@ -451,8 +485,21 @@ export const createCharacterSlice: StateCreator<
       set((s) => {
         s.dailyQuests = updated;
       });
+      notifyStreakMilestone();
+      const completedSets = get().checkCollectionSetRewards();
+      if (completedSets.length > 0) {
+        useToastStore.getState().showToast(
+          `Collection complete: ${completedSets.map((s) => s.titleReward).join(', ')}!`,
+          'success',
+        );
+      }
     }
     void get()._persist();
+    void handlePostAgeUpNotifications(
+      { character: get().character, dailyQuests: get().dailyQuests },
+      prevWorldEvents,
+      prevPeople,
+    );
   },
 
   clearAgeUpNotice: () =>

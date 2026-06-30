@@ -14,6 +14,7 @@ import {
 import { writeWidgetSnapshot } from "../../services/widgetSnapshot";
 import { loadSaveFromCloud, syncSaveToCloud, deleteCloudSave } from "../../services/cloudSave";
 import { isCloudUser, buildLocalSlotList, getLoadGeneration, incrementLoadGeneration } from "../storeHelpers";
+import { syncGameRetentionNotifications } from "@services/notificationSync";
 
 export interface SaveSlice {
   activeSlotId: string;
@@ -112,6 +113,10 @@ export const createSaveSlice: StateCreator<
         s.globalPrestige = prestige;
         s.syncConflict = null;
         s.isHydrated = true;
+      });
+      void syncGameRetentionNotifications({
+        character: get().character,
+        dailyQuests: get().dailyQuests,
       });
     } catch {
       if (gen === getLoadGeneration()) {

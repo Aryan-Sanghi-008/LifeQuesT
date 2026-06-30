@@ -82,3 +82,14 @@ export async function openLegalUrlSafe(url: string, title: string): Promise<void
 }
 
 export { DEFAULT_PRIVACY_PATH, DEFAULT_TERMS_PATH };
+
+/** COPPA minimum age for account creation */
+export const MIN_ACCOUNT_AGE = 13;
+
+export function getAgeFromBirthYear(birthYear: number, now = new Date()): number {
+  return now.getFullYear() - birthYear;
+}
+
+export function isOldEnoughForAccount(birthYear: number, now = new Date()): boolean {
+  return getAgeFromBirthYear(birthYear, now) >= MIN_ACCOUNT_AGE;
+}

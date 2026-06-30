@@ -5,16 +5,16 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { COLORS, FONTS, RADII, SPACING } from '@theme';
+import { useThemedStyles, useTheme, FONTS, SPACING } from '@theme';
 import { useGameStore } from '../../store/gameStore';
 import { ACTIVITIES } from '../../data/gameData';
 import { HOBBY_CATALOG } from '../../data/hobbies';
 import { Activity, ActivityCategory, RootStackParamList } from '../../types';
-import { ScreenHeader } from '../../components/ScreenHeader';
-import { SectionLabel } from '../../components/index';
+import { ScreenHeader } from '@components/ScreenHeader';
+import { SectionLabel } from '@components/index';
 import { getHobbyProgress } from '../../engine/hobbyEngine';
 import Svg, { Path, Circle } from 'react-native-svg';
-import { formatCurrency } from '../../utils/currency';
+import { formatCurrency } from '@utils/currency';
 
 // ─── Category SVG icons ───────────────────────────────────────────────────────
 function CatIcon({ cat, color }: { cat: ActivityCategory; color: string }) {
@@ -31,18 +31,22 @@ function CatIcon({ cat, color }: { cat: ActivityCategory; color: string }) {
 }
 
 // ─── Category icon & color ────────────────────────────────────────────────────
-const CAT_META: Record<ActivityCategory, { color: string; label: string }> = {
-  mind:      { color: COLORS.sapphire, label: 'Mind'      },
-  body:      { color: COLORS.teal,     label: 'Body'      },
-  social:    { color: COLORS.orchid,   label: 'Social'    },
-  financial: { color: COLORS.gold,     label: 'Financial' },
-  illegal:   { color: COLORS.crimson,  label: 'Illegal'   },
-  health:    { color: COLORS.crimson,  label: 'Health'    },
-  misc:      { color: COLORS.gold3,    label: 'Misc'      },
+function getCatMeta(colors: ReturnType<typeof useTheme>['colors']): Record<ActivityCategory, { color: string; label: string }> {
+  return {
+  mind:      { color: colors.sapphire, label: 'Mind'      },
+  body:      { color: colors.teal,     label: 'Body'      },
+  social:    { color: colors.orchid,   label: 'Social'    },
+  financial: { color: colors.gold,     label: 'Financial' },
+  illegal:   { color: colors.crimson,  label: 'Illegal'   },
+  health:    { color: colors.crimson,  label: 'Health'    },
+  misc:      { color: colors.gold3,    label: 'Misc'      },
 };
+}
 
 // ─── Stat effect summary ──────────────────────────────────────────────────────
 function EffectChips({ activity, countryCode }: { activity: Activity; countryCode: string }) {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createEcStyles);
   const chips: Array<{ label: string; positive: boolean }> = [];
   if (activity.bankEffect) {
     const fmtAmt = formatCurrency(Math.abs(activity.bankEffect), countryCode);
@@ -57,20 +61,20 @@ function EffectChips({ activity, countryCode }: { activity: Activity; countryCod
   if (eff.karma)        chips.push({ label: `${eff.karma! > 0 ? '+' : ''}${eff.karma} Karma`, positive: (eff.karma ?? 0) > 0 });
 
   return (
-    <View style={ec.row}>
+    <View style={styles.row}>
       {chips.slice(0, 3).map((c, i) => (
-        <View key={i} style={[ec.chip, { backgroundColor: c.positive ? `${COLORS.teal}18` : `${COLORS.crimson}18` }]}>
-          <Text style={[ec.chipText, { color: c.positive ? COLORS.teal : COLORS.crimson }]}>{c.label}</Text>
+        <View key={i} style={[styles.chip, { backgroundColor: c.positive ? `${colors.teal}18` : `${colors.crimson}18` }]}>
+          <Text style={[styles.chipText, { color: c.positive ? colors.teal : colors.crimson }]}>{c.label}</Text>
         </View>
       ))}
     </View>
   );
 }
 
-const ec = StyleSheet.create({
+const createEcStyles = ({ fonts, radii }: ReturnType<typeof useTheme>) => StyleSheet.create({
   row:      { flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: 4 },
-  chip:     { paddingHorizontal: 6, paddingVertical: 2, borderRadius: RADII.xs },
-  chipText: { fontFamily: FONTS.monoSemiBold, fontSize: 9 },
+  chip:     { paddingHorizontal: 6, paddingVertical: 2, borderRadius: radii.xs },
+  chipText: { fontFamily: fonts.monoSemiBold, fontSize: 9 },
 });
 
 // ─── Activity Card ────────────────────────────────────────────────────────────
@@ -79,27 +83,29 @@ function ActivityCard({
   onPress,
   disabled,
   countryCode,
-}: { activity: Activity; onPress: () => void; disabled: boolean; countryCode: string }) {
-  const meta = CAT_META[activity.category];
+  catMeta,
+}: { activity: Activity; onPress: () => void; disabled: boolean; countryCode: string; catMeta: ReturnType<typeof getCatMeta> }) {
+  const styles = useThemedStyles(createAcStyles);
+  const meta = catMeta[activity.category];
   const hasCost = (activity.bankEffect ?? 0) < 0 || (activity.cost ?? 0) > 0;
 
   return (
     <Pressable
       onPress={disabled ? undefined : onPress}
-      style={({ pressed }) => [ac.card, { borderColor: `${meta.color}30` }, disabled && ac.disabled, pressed && { opacity: 0.85 }]}
+      style={({ pressed }) => [styles.card, { borderColor: `${meta.color}30` }, disabled && styles.disabled, pressed && { opacity: 0.85 }]}
       android_ripple={{ color: `${meta.color}15` }}
     >
-      <View style={[ac.iconWrap, { backgroundColor: `${meta.color}18` }]}>
+      <View style={[styles.iconWrap, { backgroundColor: `${meta.color}18` }]}>
         <CatIcon cat={activity.category} color={meta.color} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={ac.label}>{activity.label}</Text>
-        <Text style={ac.desc} numberOfLines={2}>{activity.description}</Text>
+        <Text style={styles.label}>{activity.label}</Text>
+        <Text style={styles.desc} numberOfLines={2}>{activity.description}</Text>
         <EffectChips activity={activity} countryCode={countryCode} />
       </View>
       {hasCost && (
-        <View style={[ac.costBadge, { borderColor: `${meta.color}40`, backgroundColor: `${meta.color}10` }]}>
-          <Text style={[ac.costText, { color: meta.color }]}>
+        <View style={[styles.costBadge, { borderColor: `${meta.color}40`, backgroundColor: `${meta.color}10` }]}>
+          <Text style={[styles.costText, { color: meta.color }]}>
             {activity.bankEffect && activity.bankEffect < 0
               ? formatCurrency(Math.abs(activity.bankEffect), countryCode)
               : `${activity.cost}c`}
@@ -110,22 +116,24 @@ function ActivityCard({
   );
 }
 
-const ac = StyleSheet.create({
-  card:      { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING.md, padding: SPACING.md, backgroundColor: COLORS.bgCard, borderRadius: RADII.md, borderWidth: 1.5, marginBottom: SPACING.sm },
+const createAcStyles = ({ colors, fonts, spacing, radii }: ReturnType<typeof useTheme>) => StyleSheet.create({
+  card:      { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md, padding: spacing.md, backgroundColor: colors.bgCard, borderRadius: radii.md, borderWidth: 1.5, marginBottom: spacing.sm },
   disabled:  { opacity: 0.4 },
-  iconWrap:  { width: 44, height: 44, borderRadius: RADII.sm, alignItems: 'center', justifyContent: 'center' },
-  label:     { fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.t1 },
-  desc:      { fontFamily: FONTS.body, fontSize: 11, color: COLORS.t3, marginTop: 2, lineHeight: 15 },
-  costBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: RADII.sm, borderWidth: 1, alignSelf: 'flex-start' },
-  costText:  { fontFamily: FONTS.monoSemiBold, fontSize: 11 },
+  iconWrap:  { width: 44, height: 44, borderRadius: radii.sm, alignItems: 'center', justifyContent: 'center' },
+  label:     { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.t1 },
+  desc:      { fontFamily: fonts.body, fontSize: 11, color: colors.t3, marginTop: 2, lineHeight: 15 },
+  costBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: radii.sm, borderWidth: 1, alignSelf: 'flex-start' },
+  costText:  { fontFamily: fonts.monoSemiBold, fontSize: 11 },
 });
 
-// ─── Category filter ──────────────────────────────────────────────────────────
-const ALL_CATS = ['all', ...Object.keys(CAT_META)] as const;
+const ALL_CAT_KEYS = ['mind', 'body', 'social', 'financial', 'illegal', 'health', 'misc'] as const;
+const ALL_CATS = ['all', ...ALL_CAT_KEYS] as const;
 type FilterCat = 'all' | ActivityCategory;
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export function ActivitiesScreen() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(createStyles);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const character        = useGameStore(s => s.character);
   const performActivity  = useGameStore(s => s.performActivity);
@@ -134,6 +142,7 @@ export function ActivitiesScreen() {
 
   if (!character) return null;
 
+  const catMeta = getCatMeta(colors);
   const { countryCode, age } = character;
   const eligibleHobbies = HOBBY_CATALOG.filter(h => age >= h.minAge).slice(0, 20);
   const eligible = ACTIVITIES.filter(a =>
@@ -199,9 +208,9 @@ export function ActivitiesScreen() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterContent}>
           {ALL_CATS.map(cat => {
             const active = cat === filter;
-            const meta = cat !== 'all' ? CAT_META[cat as ActivityCategory] : null;
+            const meta = cat !== 'all' ? catMeta[cat as ActivityCategory] : null;
             const label = cat === 'all' ? 'All' : meta!.label;
-            const color = meta?.color ?? COLORS.gold;
+            const color = meta?.color ?? colors.gold;
             return (
               <Pressable
                 key={cat}
@@ -210,7 +219,7 @@ export function ActivitiesScreen() {
               >
                 {/* Fixed-width icon slot keeps all chips the same width */}
                 <View style={styles.filterIconSlot}>
-                  {cat !== 'all' && <CatIcon cat={cat as ActivityCategory} color={active ? color : COLORS.t4} />}
+                  {cat !== 'all' && <CatIcon cat={cat as ActivityCategory} color={active ? color : colors.t4} />}
                 </View>
                 <Text style={[styles.filterLabel, active && { color, fontFamily: FONTS.bodyBold }]}>{label}</Text>
               </Pressable>
@@ -224,8 +233,8 @@ export function ActivitiesScreen() {
             <View style={styles.empty}>
               <View style={styles.emptyIconWrap}>
                 <Svg width={30} height={30} viewBox="0 0 24 24" fill="none">
-                  <Circle stroke={COLORS.t4} strokeWidth={1.5} cx="12" cy="12" r="10"/>
-                  <Path stroke={COLORS.t4} strokeWidth={1.5} strokeLinecap="round" d="M4.93 4.93l14.14 14.14"/>
+                  <Circle stroke={colors.t4} strokeWidth={1.5} cx="12" cy="12" r="10"/>
+                  <Path stroke={colors.t4} strokeWidth={1.5} strokeLinecap="round" d="M4.93 4.93l14.14 14.14"/>
                 </Svg>
               </View>
               <Text style={styles.emptyText}>No activities available right now.</Text>
@@ -238,6 +247,7 @@ export function ActivitiesScreen() {
                 onPress={() => handleActivity(a)}
                 disabled={false}
                 countryCode={countryCode}
+                catMeta={catMeta}
               />
             ))
           )}
@@ -274,28 +284,28 @@ export function ActivitiesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  root:         { flex: 1, backgroundColor: COLORS.bg },
+const createStyles = ({ colors, fonts, spacing, radii }: ReturnType<typeof useTheme>) => StyleSheet.create({
+  root:         { flex: 1, backgroundColor: colors.bg },
   safe:         { flex: 1 },
   column:       { flex: 1 },
-  headerWrap:   { paddingHorizontal: SPACING.lg, paddingTop: SPACING.md },
-  filterBar:    { borderBottomWidth: 1, borderBottomColor: COLORS.border, backgroundColor: COLORS.bg2 },
-  filterContent:{ flexDirection: 'row', gap: SPACING.sm, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm },
+  headerWrap:   { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
+  filterBar:    { borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.bg2 },
+  filterContent:{ flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingVertical: spacing.sm },
   contentScroll:{ flex: 1 },
-  filterChip:   { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: SPACING.md, height: 34, backgroundColor: COLORS.bgCard, borderRadius: RADII.full, borderWidth: 1, borderColor: COLORS.border, minWidth: 72, justifyContent: 'center' },
+  filterChip:   { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: spacing.md, height: 34, backgroundColor: colors.bgCard, borderRadius: radii.full, borderWidth: 1, borderColor: colors.border, minWidth: 72, justifyContent: 'center' },
   filterIconSlot: { width: 18, height: 18, alignItems: 'center', justifyContent: 'center' },
-  filterLabel:  { fontFamily: FONTS.bodySemiBold, fontSize: 12, color: COLORS.t3 },
-  scroll:       { paddingHorizontal: SPACING.lg, paddingTop: SPACING.md, paddingBottom: SPACING.lg },
-  empty:        { alignItems: 'center', paddingTop: SPACING.xxxl, gap: SPACING.md },
-  emptyIconWrap:{ width: 72, height: 72, borderRadius: 22, backgroundColor: COLORS.bg2, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center' },
-  emptyText:    { fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.t3 },
-  tabBar: { flexDirection: 'row', gap: SPACING.sm, paddingHorizontal: SPACING.lg, paddingBottom: SPACING.sm },
-  tabChip: { flex: 1, paddingVertical: 8, borderRadius: RADII.md, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' },
-  tabChipActive: { borderColor: COLORS.gold, backgroundColor: `${COLORS.gold}12` },
-  tabLabel: { fontFamily: FONTS.body, fontSize: 13, color: COLORS.t3 },
-  tabLabelActive: { fontFamily: FONTS.bodySemiBold, color: COLORS.gold },
-  hobbyRow: { flexDirection: 'row', alignItems: 'center', padding: SPACING.md, backgroundColor: COLORS.bgCard, borderRadius: RADII.md, borderWidth: 1, borderColor: COLORS.border, marginBottom: SPACING.sm },
-  hobbyName: { fontFamily: FONTS.bodySemiBold, fontSize: 14, color: COLORS.t1 },
-  hobbySub: { fontFamily: FONTS.body, fontSize: 11, color: COLORS.t4, marginTop: 2 },
-  hobbyXp: { fontFamily: FONTS.monoSemiBold, fontSize: 12, color: COLORS.gold },
+  filterLabel:  { fontFamily: fonts.bodySemiBold, fontSize: 12, color: colors.t3 },
+  scroll:       { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.lg },
+  empty:        { alignItems: 'center', paddingTop: spacing.xxxl, gap: spacing.md },
+  emptyIconWrap:{ width: 72, height: 72, borderRadius: 22, backgroundColor: colors.bg2, borderWidth: 1.5, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  emptyText:    { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.t3 },
+  tabBar: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, paddingBottom: spacing.sm },
+  tabChip: { flex: 1, paddingVertical: 8, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border, alignItems: 'center' },
+  tabChipActive: { borderColor: colors.gold, backgroundColor: `${colors.gold}12` },
+  tabLabel: { fontFamily: fonts.body, fontSize: 13, color: colors.t3 },
+  tabLabelActive: { fontFamily: fonts.bodySemiBold, color: colors.gold },
+  hobbyRow: { flexDirection: 'row', alignItems: 'center', padding: spacing.md, backgroundColor: colors.bgCard, borderRadius: radii.md, borderWidth: 1, borderColor: colors.border, marginBottom: spacing.sm },
+  hobbyName: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.t1 },
+  hobbySub: { fontFamily: fonts.body, fontSize: 11, color: colors.t4, marginTop: 2 },
+  hobbyXp: { fontFamily: fonts.monoSemiBold, fontSize: 12, color: colors.gold },
 });
