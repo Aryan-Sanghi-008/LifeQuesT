@@ -1,64 +1,53 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { View, Text, Pressable, Animated, StyleSheet } from 'react-native';
 import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MainTabParamList } from '../types';
 import { useTheme } from '@theme';
+import { HomeScreen }    from '@features/life/HomeScreen';
+import { WorldScreen }   from '@features/life/WorldScreen';
 import { LifeScreen }    from '@features/life/LifeScreen';
-import { PeopleScreen }  from '@features/people/PeopleScreen';
-import { CareerScreen }  from '@features/career/CareerScreen';
-import { AssetsScreen }  from '@features/economy/AssetsScreen';
 import { ProfileScreen } from '@features/life/ProfileScreen';
 import { GameErrorBoundary } from '../components/GameErrorBoundary';
-import Svg, { Path, Circle, Polyline, Rect } from 'react-native-svg';
+import { QuickActionsSheet } from '../components/QuickActionsSheet';
+import Svg, { Path, Circle } from 'react-native-svg';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
 const TAB_COLOR_KEYS: Record<string, keyof ReturnType<typeof useTheme>['colors']> = {
+  Home: 'emerald',
+  World: 'social',
   Life: 'sapphire',
-  People: 'catRelationship',
-  Career: 'catCareer',
-  Assets: 'catFinancial',
   Profile: 'catMilestone',
 };
+
+function IconHome({ active, color, muted }: { active: boolean; color: string; muted: string }) {
+  const c = active ? color : muted;
+  return (
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Path stroke={c} strokeWidth={active ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+      <Path stroke={c} strokeWidth={active ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round" d="M9 22V12h6v10"/>
+    </Svg>
+  );
+}
+
+function IconWorld({ active, color, muted }: { active: boolean; color: string; muted: string }) {
+  const c = active ? color : muted;
+  return (
+    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Circle cx="12" cy="12" r="10" stroke={c} strokeWidth={active ? 2.2 : 1.8}/>
+      <Path d="M2 12h20" stroke={c} strokeWidth={active ? 2.2 : 1.8}/>
+      <Path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" stroke={c} strokeWidth={active ? 2.2 : 1.8}/>
+    </Svg>
+  );
+}
 
 function IconLife({ active, color, muted }: { active: boolean; color: string; muted: string }) {
   const c = active ? color : muted;
   return (
     <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Path stroke={c} strokeWidth={active ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round" d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
-      <Polyline stroke={c} strokeWidth={active ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round" points="9 22 9 12 15 12 15 22"/>
-    </Svg>
-  );
-}
-
-function IconPeople({ active, color, muted }: { active: boolean; color: string; muted: string }) {
-  const c = active ? color : muted;
-  return (
-    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Circle stroke={c} strokeWidth={active ? 2.2 : 1.8} cx="9" cy="7" r="4"/>
-      <Path stroke={c} strokeWidth={active ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
-      <Path stroke={c} strokeWidth={active ? 2.2 : 1.8} strokeLinecap="round" d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
-    </Svg>
-  );
-}
-
-function IconCareer({ active, color, muted }: { active: boolean; color: string; muted: string }) {
-  const c = active ? color : muted;
-  return (
-    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Rect stroke={c} strokeWidth={active ? 2.2 : 1.8} x="2" y="7" width="20" height="14" rx="2"/>
-      <Path stroke={c} strokeWidth={active ? 2.2 : 1.8} strokeLinecap="round" d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>
-      <Path stroke={c} strokeWidth={active ? 2.2 : 1.8} strokeLinecap="round" d="M12 12v5M9 14.5l3-2.5 3 2.5"/>
-    </Svg>
-  );
-}
-
-function IconAssets({ active, color, muted }: { active: boolean; color: string; muted: string }) {
-  const c = active ? color : muted;
-  return (
-    <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-      <Path stroke={c} strokeWidth={active ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round" d="M3 22h18M3 10h18M5 6l7-4 7 4M4 10v12M20 10v12M8 10v12M16 10v12M12 10v12"/>
+      <Path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke={c} strokeWidth={active ? 2.2 : 1.8} strokeLinecap="round"/>
+      <Path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke={c} strokeWidth={active ? 2.2 : 1.8} strokeLinejoin="round"/>
     </Svg>
   );
 }
@@ -74,10 +63,9 @@ function IconProfile({ active, color, muted }: { active: boolean; color: string;
 }
 
 const ICON_MAP: Record<string, (active: boolean, color: string, muted: string) => React.ReactNode> = {
+  Home:    (a, c, m) => <IconHome    active={a} color={c} muted={m} />,
+  World:   (a, c, m) => <IconWorld   active={a} color={c} muted={m} />,
   Life:    (a, c, m) => <IconLife    active={a} color={c} muted={m} />,
-  People:  (a, c, m) => <IconPeople  active={a} color={c} muted={m} />,
-  Career:  (a, c, m) => <IconCareer  active={a} color={c} muted={m} />,
-  Assets:  (a, c, m) => <IconAssets  active={a} color={c} muted={m} />,
   Profile: (a, c, m) => <IconProfile active={a} color={c} muted={m} />,
 };
 
@@ -123,7 +111,7 @@ function TabButton({
   );
 }
 
-function CustomTabBar({ state, navigation }: BottomTabBarProps) {
+function CustomTabBar({ state, navigation, onOpenQuickActions }: BottomTabBarProps & { onOpenQuickActions: () => void }) {
   const insets = useSafeAreaInsets();
   const { colors, shadows } = useTheme();
 
@@ -135,11 +123,16 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
         backgroundColor: colors.bgCard,
         borderTopColor: colors.border,
         paddingBottom: insets.bottom > 0 ? insets.bottom : 12,
+        alignItems: 'center',
       },
     ]}>
       {state.routes.map((route, index) => {
         const isFocused = state.index === index;
         const onPress = () => {
+          if (route.name === 'QuickActions') {
+            onOpenQuickActions();
+            return;
+          }
           const event = navigation.emit({
             type: 'tabPress', target: route.key, canPreventDefault: true,
           });
@@ -147,6 +140,23 @@ function CustomTabBar({ state, navigation }: BottomTabBarProps) {
             navigation.navigate(route.name as keyof MainTabParamList);
           }
         };
+
+        if (route.name === 'QuickActions') {
+          return (
+            <Pressable
+              key={route.key}
+              onPress={onPress}
+              style={styles.fabBtn}
+            >
+              <View style={[styles.fabInner, { backgroundColor: colors.emerald, shadowColor: colors.emerald }]}>
+                <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+                  <Path stroke="#FFFFFF" strokeWidth={3} strokeLinecap="round" d="M12 5v14M5 12h14" />
+                </Svg>
+              </View>
+            </Pressable>
+          );
+        }
+
         return (
           <TabButton
             key={route.key}
@@ -170,18 +180,27 @@ const wrap = (Component: React.ComponentType<object>) => {
   };
 };
 
+function DummyComponent() {
+  return null;
+}
+
 export default function MainTabNavigator() {
+  const [quickActionsVisible, setQuickActionsVisible] = useState(false);
+
   return (
-    <Tab.Navigator
-      screenOptions={{ headerShown: false }}
-      tabBar={(props) => <CustomTabBar {...props} />}
-    >
-      <Tab.Screen name="Life"    component={wrap(LifeScreen)}    />
-      <Tab.Screen name="People"  component={wrap(PeopleScreen)}  />
-      <Tab.Screen name="Career"  component={wrap(CareerScreen)}  />
-      <Tab.Screen name="Assets"  component={wrap(AssetsScreen)}  />
-      <Tab.Screen name="Profile" component={wrap(ProfileScreen)} />
-    </Tab.Navigator>
+    <>
+      <Tab.Navigator
+        screenOptions={{ headerShown: false }}
+        tabBar={(props) => <CustomTabBar {...props} onOpenQuickActions={() => setQuickActionsVisible(true)} />}
+      >
+        <Tab.Screen name="Home"         component={wrap(HomeScreen)}    />
+        <Tab.Screen name="World"        component={wrap(WorldScreen)}   />
+        <Tab.Screen name="QuickActions" component={DummyComponent}      />
+        <Tab.Screen name="Life"         component={wrap(LifeScreen)}    />
+        <Tab.Screen name="Profile"      component={wrap(ProfileScreen)} />
+      </Tab.Navigator>
+      <QuickActionsSheet visible={quickActionsVisible} onClose={() => setQuickActionsVisible(false)} />
+    </>
   );
 }
 
@@ -219,5 +238,23 @@ const styles = StyleSheet.create({
     width: 4,
     height: 4,
     borderRadius: 2,
+  },
+  fabBtn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    top: -14,
+    height: 60,
+  },
+  fabInner: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 6,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
 });

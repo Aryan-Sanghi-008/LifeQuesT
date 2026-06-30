@@ -24,7 +24,8 @@ import DecisionSheet from "@components/DecisionSheet";
 import { FocusPhaseSheet } from "@components/FocusPhaseSheet";
 import { YearReviewCard } from "@components/YearReviewCard";
 import { YearReviewBanner } from "@components/YearReviewBanner";
-import { ScreenShell, GlassCard, ConfettiOverlay } from "@components/index";
+import { ScreenShell, GlassCard, ConfettiOverlay, StatDeltaChip } from "@components/index";
+import { ACHIEVEMENTS } from "@data/gameData";
 import { isFocusConfirmedForAge } from "@engine/focusEngine";
 import { LifeEventRecord, CharacterStats } from "@/types";
 import { maybeShowInterstitial } from "@services/ads";
@@ -524,6 +525,12 @@ export function LifeScreen() {
   const showConfetti = useGameStore((s) => s.showConfetti);
   const setShowConfetti = useGameStore((s) => s.setShowConfetti);
 
+  // Phase 5 States
+  const [activeDeltas, setActiveDeltas] = useState<Array<{ id: string; name: string; value: number }>>([]);
+  const [legendaryEventToShow, setLegendaryEventToShow] = useState<LifeEventRecord | null>(null);
+  const [unlockedAchievement, setUnlockedAchievement] = useState<string | null>(null);
+  const prevAchievementsRef = useRef<string[]>(character?.achievements ?? []);
+
   useEffect(() => {
     if (pendingAspirationPicker) {
       navigation.navigate("AspirationPicker");
@@ -535,6 +542,49 @@ export function LifeScreen() {
     const timer = setTimeout(() => clearAgeUpNotice(), 5000);
     return () => clearTimeout(timer);
   }, [lastAgeUpNotice, clearAgeUpNotice]);
+
+  useEffect(() => {
+    if (!character) return;
+
+    // 1. Detect Stat Deltas on Age Up
+    const review = character.lastYearReview;
+    if (review && review.age === character.age && review.statDeltas) {
+      const deltas = Object.entries(review.statDeltas)
+        .filter(([_, val]) => val !== 0)
+        .map(([key, val]) => ({
+          id: `${key}_${Date.now()}_${Math.random()}`,
+          name: key,
+          value: val as number,
+        }));
+      if (deltas.length > 0) {
+        setActiveDeltas(deltas);
+      }
+    }
+
+    // 2. Scan for Legendary Events in the newest age
+    const newEvents = character.eventHistory.filter((e) => e.age === character.age);
+    const legendary = newEvents.find((e) => e.rarity === "legendary");
+    if (legendary) {
+      setLegendaryEventToShow(legendary);
+    }
+
+    // 3. Detect newly unlocked achievements
+    const current = character.achievements ?? [];
+    const prev = prevAchievementsRef.current;
+    if (current.length > prev.length) {
+      const newlyUnlocked = current.filter((id) => !prev.includes(id));
+      if (newlyUnlocked.length > 0) {
+        setUnlockedAchievement(newlyUnlocked[0]);
+      }
+    }
+    prevAchievementsRef.current = current;
+  }, [character?.age, character?.achievements]);
+
+  const showYearReview = lifePhase === "review" && !!character?.lastYearReview;
+
+  useEffect(() => {
+    if (showYearReview) setYearReviewOpen(true);
+  }, [showYearReview, character?.lastYearReview?.age]);
 
   const handleAgeUp = useCallback(async () => {
     const wasAlive = useGameStore.getState().character?.isAlive;
@@ -608,11 +658,7 @@ export function LifeScreen() {
     lifePhase === "planning" &&
     character.age >= 13 &&
     !isFocusConfirmedForAge(character);
-  const showYearReview = lifePhase === "review" && character.lastYearReview;
 
-  useEffect(() => {
-    if (showYearReview) setYearReviewOpen(true);
-  }, [showYearReview, character.lastYearReview?.age]);
 
   const lifeDashboard = (
     <>
@@ -942,6 +988,107 @@ export function LifeScreen() {
         active={showConfetti}
         onAnimationEnd={() => setShowConfetti(false)}
       />
+
+      {/* Floating Stat Deltas Container */}
+      {activeDeltas.length > 0 && (
+        <View style={styles.deltasContainer} pointerEvents="none">
+          {activeDeltas.map((delta) => (
+            <StatDeltaChip
+              key={delta.id}
+              statName={delta.name}
+              value={delta.value}
+              onAnimationComplete={() => {
+                setActiveDeltas((prev) => prev.filter((d) => d.id !== delta.id));
+              }}
+            />
+          ))}
+        </View>
+      )}
+
+      {/* Legendary Event Cinematic Reveal Modal */}
+      <Modal
+        visible={!!legendaryEventToShow}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setLegendaryEventToShow(null)}
+      >
+        <View style={[styles.legendaryOverlay, { backgroundColor: "rgba(13, 17, 23, 0.96)" }]}>
+          <GlassCard style={[styles.legendaryCard, { borderColor: colors.gold, borderWidth: 1.5 }]}>
+            <View style={[styles.legendaryBadge, { backgroundColor: `${colors.gold}18` }]}>
+              <Text style={[styles.legendaryBadgeText, { color: colors.gold, fontFamily: fonts.bodyBold }]}>
+                ⭐ LEGENDARY MOMENT ⭐
+              </Text>
+            </View>
+
+            <Text style={[styles.legendaryTitle, { color: colors.t1, fontFamily: fonts.displayBlack }]}>
+              {legendaryEventToShow?.title}
+            </Text>
+
+            <Text style={[styles.legendaryDesc, { color: colors.t2, fontFamily: fonts.displayItal }]}>
+              "{legendaryEventToShow?.description}"
+            </Text>
+
+            <Pressable
+              onPress={() => setLegendaryEventToShow(null)}
+              style={[styles.legendaryBtn, { backgroundColor: colors.gold, borderRadius: radii.md }]}
+            >
+              <Text style={[styles.legendaryBtnText, { color: colors.bg, fontFamily: fonts.bodyBold }]}>
+                Embrace Destiny
+              </Text>
+            </Pressable>
+          </GlassCard>
+        </View>
+      </Modal>
+
+      {/* Achievement Unlocked Interruption Modal */}
+      <Modal
+        visible={!!unlockedAchievement}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setUnlockedAchievement(null)}
+      >
+        <View style={[styles.achievementOverlay, { backgroundColor: "rgba(0, 0, 0, 0.75)" }]}>
+          <View style={[styles.achievementCard, { backgroundColor: colors.bgCard, borderRadius: radii.md, borderColor: colors.border }]}>
+            <View style={[styles.achievementIconWrap, { backgroundColor: `${colors.gold}18` }]}>
+              <Svg width={40} height={40} viewBox="0 0 24 24" fill={colors.gold}>
+                <Path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+              </Svg>
+            </View>
+
+            <Text style={[styles.achievementHeader, { color: colors.gold, fontFamily: fonts.bodyBold }]}>
+              ACHIEVEMENT UNLOCKED
+            </Text>
+
+            {(() => {
+              const ach = ACHIEVEMENTS.find(a => a.id === unlockedAchievement);
+              if (!ach) return null;
+              return (
+                <>
+                  <Text style={[styles.achievementLabel, { color: colors.t1, fontFamily: fonts.bodyBold }]}>
+                    {ach.label}
+                  </Text>
+                  <Text style={[styles.achievementDesc, { color: colors.t3, fontFamily: fonts.body }]}>
+                    {ach.description}
+                  </Text>
+                </>
+              );
+            })()}
+
+            <Text style={[styles.achievementRewardText, { color: colors.emerald2, fontFamily: fonts.monoSemiBold }]}>
+              Reward: 🪙 +50 Coins & 💎 +2 Gems
+            </Text>
+
+            <Pressable
+              onPress={() => setUnlockedAchievement(null)}
+              style={[styles.achievementBtn, { backgroundColor: colors.emerald, borderRadius: radii.md }]}
+            >
+              <Text style={[styles.achievementBtnText, { color: "#FFFFFF", fontFamily: fonts.bodyBold }]}>
+                Awesome!
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </>
   );
 }
@@ -1045,4 +1192,104 @@ const styles = StyleSheet.create({
   empty: { paddingVertical: 32, alignItems: "center", justifyContent: "center" },
   emptyText: { fontSize: 14, textAlign: "center" },
   footerMeta: { fontSize: 11, marginTop: 4 },
+  deltasContainer: {
+    position: "absolute",
+    top: 180,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 9999,
+  },
+  legendaryOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  legendaryCard: {
+    width: "100%",
+    padding: 32,
+    alignItems: "center",
+    gap: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.05)",
+  },
+  legendaryBadge: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  legendaryBadgeText: {
+    fontSize: 12,
+    letterSpacing: 2,
+  },
+  legendaryTitle: {
+    fontSize: 26,
+    textAlign: "center",
+    lineHeight: 34,
+  },
+  legendaryDesc: {
+    fontSize: 16,
+    textAlign: "center",
+    lineHeight: 24,
+    fontStyle: "italic",
+  },
+  legendaryBtn: {
+    width: "100%",
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10,
+  },
+  legendaryBtnText: {
+    fontSize: 15,
+    letterSpacing: 1.5,
+  },
+  achievementOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  achievementCard: {
+    width: "100%",
+    padding: 24,
+    alignItems: "center",
+    borderWidth: 1.5,
+    gap: 14,
+  },
+  achievementIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  achievementHeader: {
+    fontSize: 11,
+    letterSpacing: 2,
+  },
+  achievementLabel: {
+    fontSize: 20,
+    textAlign: "center",
+  },
+  achievementDesc: {
+    fontSize: 13,
+    textAlign: "center",
+    lineHeight: 18,
+  },
+  achievementRewardText: {
+    fontSize: 13,
+    marginTop: 4,
+  },
+  achievementBtn: {
+    width: "100%",
+    paddingVertical: 12,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 8,
+  },
+  achievementBtnText: {
+    fontSize: 14,
+  },
 });

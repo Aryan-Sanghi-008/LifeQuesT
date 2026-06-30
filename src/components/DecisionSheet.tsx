@@ -1,11 +1,12 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useMemo } from "react";
 import { View, Text, Pressable, Animated, StyleSheet } from "react-native";
 import { BottomSheet } from "./BottomSheet";
-import { LifeEvent, EventChoice } from "../types";
+import { LifeEvent, EventChoice, Character } from "../types";
 import { useTheme } from "@theme";
 import Svg, { Path } from "react-native-svg";
 import { hapticDecision, hapticButtonPress } from "../services/haptics";
 import { playSound } from "../services/audio";
+import { useGameStore } from "@store/gameStore";
 
 interface DecisionSheetProps {
   event: LifeEvent | null;
@@ -14,7 +15,6 @@ interface DecisionSheetProps {
 }
 
 // ─── Choice Arrow Icon ────────────────────────────────────────────────────────
-
 function ChevronRight({ color }: { color: string }) {
   return (
     <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
@@ -30,7 +30,6 @@ function ChevronRight({ color }: { color: string }) {
 }
 
 // ─── Success Chance Bar ───────────────────────────────────────────────────────
-
 function SuccessBar({ chance }: { chance: number }) {
   const { colors, fonts } = useTheme();
   const width = useRef(new Animated.Value(0)).current;
@@ -84,7 +83,6 @@ const sb = StyleSheet.create({
 });
 
 // ─── Parse stat chips ─────────────────────────────────────────────────────────
-
 const STAT_LABELS: Record<string, string> = {
   health: "HP",
   happiness: "Joy",
@@ -97,14 +95,17 @@ const STAT_LABELS: Record<string, string> = {
   karma: "Karma",
 };
 
-function parseEffectChips(choice: EventChoice) {
+function parseEffectChips(choice: EventChoice, revealed: boolean) {
   const chips: Array<{ label: string; positive: boolean }> = [];
   Object.entries(choice.statEffect).forEach(([key, val]) => {
     if (!val) return;
     const lbl = STAT_LABELS[key];
     if (!lbl) return;
+    const sign = (val as number) > 0 ? "+" : "";
+    // Hide the actual value with a visual "?" placeholder if not pressed/revealed
+    const displayVal = revealed ? `${sign}${val}` : `??`;
     chips.push({
-      label: `${(val as number) > 0 ? "+" : ""}${val} ${lbl}`,
+      label: `${displayVal} ${lbl}`,
       positive: (val as number) > 0,
     });
   });
@@ -112,22 +113,36 @@ function parseEffectChips(choice: EventChoice) {
 }
 
 // ─── Choice Card ─────────────────────────────────────────────────────────────
-
 interface ChoiceCardProps {
   choice: EventChoice;
   onPress: () => void;
   index: number;
   accentColor: string;
+  character: Character | null;
 }
 
-function ChoiceCard({ choice, onPress, index, accentColor }: ChoiceCardProps) {
+function ChoiceCard({ choice, onPress, index, accentColor, character }: ChoiceCardProps) {
   const { colors, fonts, radii } = useTheme();
   const scale = useRef(new Animated.Value(1)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateYAnim = useRef(new Animated.Value(20)).current;
 
-  const chips = parseEffectChips(choice);
+  // Track if consequences are revealed (unblurred) during press and hold
+  const [revealed, setRevealed] = useState(false);
+
+  const chips = parseEffectChips(choice, revealed);
   const showChance = choice.successChance !== undefined;
+
+  // Fetch NPC Reaction sentiment
+  const npcReactionText = useMemo(() => {
+    if (!choice.npcReaction || !character) return null;
+    const reaction = choice.npcReaction;
+    const npc = character.people.find((p) => p.relationType === reaction.relationType);
+    if (!npc) return null;
+    const emoji = reaction.sentiment === "positive" ? "😊" : "😠";
+    const action = reaction.sentiment === "positive" ? "approves" : "disapproves";
+    return `${emoji} ${npc.name} (${reaction.relationType}) ${action}`;
+  }, [choice.npcReaction, character]);
 
   useEffect(() => {
     Animated.parallel([
@@ -156,9 +171,8 @@ function ChoiceCard({ choice, onPress, index, accentColor }: ChoiceCardProps) {
     >
       <Pressable
         onPress={onPress}
-        accessibilityRole="button"
-        accessibilityLabel={choice.text}
         onPressIn={() => {
+          setRevealed(true);
           Animated.spring(scale, {
             toValue: 0.97,
             useNativeDriver: true,
@@ -167,14 +181,17 @@ function ChoiceCard({ choice, onPress, index, accentColor }: ChoiceCardProps) {
           }).start();
           hapticButtonPress();
         }}
-        onPressOut={() =>
+        onPressOut={() => {
+          setRevealed(false);
           Animated.spring(scale, {
             toValue: 1,
             useNativeDriver: true,
             damping: 18,
             stiffness: 220,
-          }).start()
-        }
+          }).start();
+        }}
+        accessibilityRole="button"
+        accessibilityLabel={choice.text}
         android_ripple={{ color: `${accentColor}15` }}
         style={{ borderRadius: radii.md, overflow: "hidden" }}
       >
@@ -228,6 +245,13 @@ function ChoiceCard({ choice, onPress, index, accentColor }: ChoiceCardProps) {
               </Text>
             ) : null}
 
+            {/* NPC Reaction Preview */}
+            {npcReactionText && (
+              <Text style={[styles.npcReaction, { color: colors.t3, fontFamily: fonts.body }]}>
+                {npcReactionText}
+              </Text>
+            )}
+
             {chips.length > 0 && (
               <View style={styles.chips}>
                 {chips.map((chip, i) => (
@@ -260,6 +284,11 @@ function ChoiceCard({ choice, onPress, index, accentColor }: ChoiceCardProps) {
                     </Text>
                   </View>
                 ))}
+                {!revealed && (
+                  <Text style={[styles.holdHint, { color: colors.t4, fontFamily: fonts.body }]}>
+                    (Hold choice card to reveal)
+                  </Text>
+                )}
               </View>
             )}
 
@@ -274,7 +303,6 @@ function ChoiceCard({ choice, onPress, index, accentColor }: ChoiceCardProps) {
 }
 
 // ─── Event Icon ───────────────────────────────────────────────────────────────
-
 function EventIconBox({ color }: { color: string }) {
   return (
     <View style={[styles.iconOuter, { backgroundColor: `${color}12` }]}>
@@ -291,22 +319,55 @@ function EventIconBox({ color }: { color: string }) {
 }
 
 // ─── DecisionSheet ────────────────────────────────────────────────────────────
-
 export default function DecisionSheet({
   event,
   onChoice,
   onClose,
 }: DecisionSheetProps) {
   const { colors, fonts, spacing } = useTheme();
+  const character = useGameStore((s) => s.character);
   const [displayEvent, setDisplayEvent] = useState<LifeEvent | null>(null);
 
+  // Timer countdown states
+  const [timeLeft, setTimeLeft] = useState<number>(0);
+
   useEffect(() => {
-    if (event) setDisplayEvent(event);
+    if (event) {
+      setDisplayEvent(event);
+      if (event.timerSeconds) {
+        setTimeLeft(event.timerSeconds);
+      }
+    }
   }, [event]);
+
+  // Handle countdown logic
+  useEffect(() => {
+    if (!displayEvent || !displayEvent.timerSeconds || !event) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          // Auto submit choice
+          const defaultId = displayEvent.defaultChoiceId || (displayEvent.choices && displayEvent.choices[0]?.id);
+          if (defaultId) {
+            hapticDecision();
+            void playSound("decision_made");
+            onChoice(defaultId);
+          }
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [displayEvent, event, onChoice]);
 
   if (!displayEvent) return null;
 
   const accentColor = displayEvent.color ?? colors.gold;
+  const isTimerActive = event && displayEvent.timerSeconds && timeLeft > 0;
 
   return (
     <BottomSheet
@@ -341,6 +402,26 @@ export default function DecisionSheet({
         {displayEvent.description}
       </Text>
 
+      {/* Decision Timer Indicator */}
+      {isTimerActive && (
+        <View style={styles.timerWrapper}>
+          <Text style={[styles.timerText, { color: colors.crimson, fontFamily: fonts.monoSemiBold }]}>
+            ⏳ Make your choice: {timeLeft}s
+          </Text>
+          <View style={[styles.timerTrack, { backgroundColor: colors.bg2 }]}>
+            <View
+              style={[
+                styles.timerFill,
+                {
+                  backgroundColor: colors.crimson,
+                  width: `${(timeLeft / displayEvent.timerSeconds!) * 100}%`,
+                },
+              ]}
+            />
+          </View>
+        </View>
+      )}
+
       <View
         style={[
           styles.divider,
@@ -368,6 +449,7 @@ export default function DecisionSheet({
             choice={choice}
             index={i}
             accentColor={accentColor}
+            character={character}
             onPress={() => {
               hapticDecision();
               void playSound("decision_made");
@@ -444,9 +526,15 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
   },
+  npcReaction: {
+    fontSize: 11,
+    marginTop: 4,
+    fontStyle: "italic",
+  },
   chips: {
     flexDirection: "row",
     flexWrap: "wrap",
+    alignItems: "center",
     gap: 4,
     marginTop: 5,
   },
@@ -459,5 +547,28 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 9,
     letterSpacing: 0.2,
+  },
+  holdHint: {
+    fontSize: 9,
+    marginLeft: 4,
+  },
+  timerWrapper: {
+    width: "100%",
+    marginBottom: 16,
+    alignItems: "center",
+    gap: 6,
+  },
+  timerText: {
+    fontSize: 12,
+  },
+  timerTrack: {
+    width: "100%",
+    height: 6,
+    borderRadius: 3,
+    overflow: "hidden",
+  },
+  timerFill: {
+    height: "100%",
+    borderRadius: 3,
   },
 });

@@ -448,6 +448,8 @@ export interface Character {
   activeWorldEvents?: string[];
   will?: WillDetails;
   unlockedDlcIds?: string[];
+  dailyStreak?: number;
+  lastActiveDate?: string;
 }
 
 // ─── Life Events ─────────────────────────────────────────────────────────────
@@ -480,6 +482,7 @@ export interface EventChoice {
   incrementsRelationships?: boolean;
   incrementsChildren?: boolean;
   grantsMemoryTags?: string[];
+  npcReaction?: { relationType: string; sentiment: 'positive' | 'negative' };
 }
 
 export interface LifeEvent {
@@ -515,6 +518,8 @@ export interface LifeEvent {
   focusDomain?: FocusDomain;
   grantsMemoryTags?: string[];
   choiceMemoryTags?: Record<string, string[]>;
+  timerSeconds?: number;
+  defaultChoiceId?: string;
 }
 
 export interface LifeEventRecord {
@@ -573,6 +578,9 @@ export type RootStackParamList = {
   ChallengeMode: undefined;
   Prestige: undefined;
   LiveOps: undefined;
+  People: undefined;
+  Career: undefined;
+  Assets: undefined;
 };
 
 export interface SyncConflict {
@@ -582,10 +590,10 @@ export interface SyncConflict {
 }
 
 export type MainTabParamList = {
+  Home: undefined;
+  World: undefined;
+  QuickActions: undefined;
   Life: undefined;
-  People: undefined;
-  Career: undefined;
-  Assets: undefined;
   Profile: undefined;
 };
 

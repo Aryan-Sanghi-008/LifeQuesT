@@ -241,6 +241,8 @@ function buildCharacter(data: CreateCharacterPayload): Character {
     familyReputation: 50,
     createdAt: Date.now(),
     updatedAt: Date.now(),
+    dailyStreak: 1,
+    lastActiveDate: new Date().toISOString().slice(0, 10),
   });
 }
 
@@ -351,11 +353,34 @@ export const createCharacterSlice: StateCreator<
       if (!isFocusConfirmedForAge(character)) return;
     }
 
+    const today = new Date().toISOString().slice(0, 10);
+    const lastDate = character.lastActiveDate;
+    const currentStreak = character.dailyStreak ?? 1;
+    let nextStreak = currentStreak;
+    if (lastDate !== today) {
+      if (lastDate) {
+        const lastMs = new Date(lastDate).getTime();
+        const todayMs = new Date(today).getTime();
+        const diffDays = Math.round((todayMs - lastMs) / (1000 * 60 * 60 * 24));
+        if (diffDays === 1) {
+          nextStreak = currentStreak + 1;
+        } else {
+          nextStreak = 1;
+        }
+      } else {
+        nextStreak = 1;
+      }
+    }
+
     const outcome = runAgeUp(character);
 
     if (outcome.type === "jail_tick") {
       set((s) => {
-        if (s.character) s.character.criminalRecord = outcome.criminalRecord;
+        if (s.character) {
+          s.character.criminalRecord = outcome.criminalRecord;
+          s.character.dailyStreak = nextStreak;
+          s.character.lastActiveDate = today;
+        }
         s.lastAgeUpNotice = outcome.message;
       });
       void get()._persist();
@@ -374,6 +399,8 @@ export const createCharacterSlice: StateCreator<
       set((s) => {
         if (!s.character) return;
         Object.assign(s.character, outcome.patch);
+        s.character.dailyStreak = nextStreak;
+        s.character.lastActiveDate = today;
         s.globalPrestige = prestigeRes.nextState;
         s.isProcessing = false;
       });
@@ -388,6 +415,8 @@ export const createCharacterSlice: StateCreator<
       set((s) => {
         if (!s.character) return;
         Object.assign(s.character, outcome.patch);
+        s.character.dailyStreak = nextStreak;
+        s.character.lastActiveDate = today;
         outcome.newEventRecords.forEach((r) =>
           s.character!.eventHistory.push(r),
         );
@@ -412,7 +441,6 @@ export const createCharacterSlice: StateCreator<
       applyPatch(false);
       get()._checkAchievements();
       get().addSeasonXp(10);
-      const today = new Date().toISOString().slice(0, 10);
       const quests = get().dailyQuests.length
         ? get().dailyQuests
         : pickDailyQuests(today, 3, outcome.karma);

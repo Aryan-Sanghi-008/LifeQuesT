@@ -23,6 +23,9 @@ import { LifeMuseumScreen } from '@features/life/LifeMuseumScreen';
 import { ChallengeModeScreen } from '@features/character/ChallengeModeScreen';
 import { PrestigeScreen } from '@features/character/PrestigeScreen';
 import LiveOpsScreen from '@features/liveops/LiveOpsScreen';
+import { PeopleScreen } from '@features/people/PeopleScreen';
+import { CareerScreen } from '@features/career/CareerScreen';
+import { AssetsScreen } from '@features/economy/AssetsScreen';
 import { SyncConflictModal } from '../components/SyncConflictModal';
 import { useGameStore } from '../store/gameStore';
 import { resolveRootRoute } from './gamePhase';
@@ -72,6 +75,9 @@ export default function RootNavigator() {
         <Stack.Screen name="ChallengeMode" component={ChallengeModeScreen} options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="Prestige" component={PrestigeScreen} options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="LiveOps" component={LiveOpsScreen} options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="People" component={PeopleScreen} options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="Career" component={CareerScreen} options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="Assets" component={AssetsScreen} options={{ animation: 'slide_from_right' }} />
       </Stack.Navigator>
       <SyncConflictModal />
     </>
