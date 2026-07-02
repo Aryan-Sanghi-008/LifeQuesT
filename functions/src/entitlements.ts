@@ -10,6 +10,8 @@ export interface PurchaseGrants {
   gemsGrant?: number;
   luckBoostGrant?: number;
   reincarnationScroll?: boolean;
+  mysterySpinsGrant?: number;
+  unlockedScenarioIds?: string[];
 }
 
 const COIN_GRANTS: Record<string, number> = {
@@ -26,10 +28,39 @@ const LUCK_BOOST_GRANTS: Record<string, number> = {
   luck_boost: 3,
 };
 
-const AVATAR_PACK_STYLES: Record<string, string> = {
-  avatar_pack_adventurer: 'adventurer',
-  avatar_pack_lorelei: 'lorelei',
-  avatar_pack_bottts: 'bottts',
+const MYSTERY_SPIN_GRANTS: Record<string, number> = {
+  mystery_spins_3: 3,
+};
+
+const AVATAR_PACK_STYLES: Record<string, string[]> = {
+  avatar_pack_adventurer: ['adventurer', 'adventurer-neutral'],
+  avatar_pack_lorelei: ['lorelei', 'lorelei-neutral'],
+  avatar_pack_bottts: ['bottts'],
+  avatar_pack_notionists: ['notionists'],
+  avatar_pack_big_smile: ['big-smile'],
+  avatar_pack_wanderer: ['adventurer-neutral', 'lorelei-neutral'],
+  avatar_bundle_all: [
+    'adventurer',
+    'adventurer-neutral',
+    'lorelei',
+    'lorelei-neutral',
+    'bottts',
+    'notionists',
+    'big-smile',
+  ],
+};
+
+const SCENARIO_UNLOCKS: Record<string, string[]> = {
+  scenario_royal:     ['royal'],
+  scenario_crime:     ['crime'],
+  scenario_cyber:     ['cyber'],
+  scenario_medieval:  ['medieval'],
+  scenario_zombie:    ['zombie'],
+  scenario_mars:      ['mars'],
+  scenario_celebrity: ['celebrity'],
+  scenario_fantasy:   ['fantasy'],
+  scenario_political: ['political'],
+  scenario_pack_all:  ['royal', 'crime', 'cyber', 'medieval', 'zombie', 'mars', 'celebrity', 'fantasy', 'political'],
 };
 
 export function grantsForProduct(productId: string): PurchaseGrants {
@@ -39,6 +70,12 @@ export function grantsForProduct(productId: string): PurchaseGrants {
     grants.isPremium = true;
     grants.hasNoAds = true;
     grants.luckBoostGrant = 5;
+    grants.hasSeasonPass = true;
+  }
+  if (productId === 'starter_pack') {
+    grants.gemsGrant = 50;
+    grants.hasNoAds = true;
+    grants.unlockedScenarioIds = ['silver_spoon'];
   }
   if (productId === 'remove_ads') {
     grants.hasNoAds = true;
@@ -58,9 +95,15 @@ export function grantsForProduct(productId: string): PurchaseGrants {
   if (productId === 'season_pass') {
     grants.hasSeasonPass = true;
   }
-  const avatarStyle = AVATAR_PACK_STYLES[productId];
-  if (avatarStyle) {
-    grants.unlockedAvatarStyles = [avatarStyle];
+  const avatarStyles = AVATAR_PACK_STYLES[productId];
+  if (avatarStyles) {
+    grants.unlockedAvatarStyles = avatarStyles;
+  }
+  if (MYSTERY_SPIN_GRANTS[productId]) {
+    grants.mysterySpinsGrant = MYSTERY_SPIN_GRANTS[productId];
+  }
+  if (SCENARIO_UNLOCKS[productId]) {
+    grants.unlockedScenarioIds = SCENARIO_UNLOCKS[productId];
   }
 
   return grants;
@@ -77,9 +120,16 @@ export function grantsToUserPatch(grants: PurchaseGrants): Record<string, unknow
   if (grants.reincarnationScroll !== undefined) {
     patch.reincarnationScroll = grants.reincarnationScroll;
   }
+  if (grants.mysterySpinsGrant !== undefined) {
+    patch.mysterySpinsGrant = grants.mysterySpinsGrant;
+  }
   return patch;
 }
 
 export function avatarStylesForGrants(grants: PurchaseGrants): string[] {
   return grants.unlockedAvatarStyles ?? [];
+}
+
+export function scenarioIdsForGrants(grants: PurchaseGrants): string[] {
+  return grants.unlockedScenarioIds ?? [];
 }

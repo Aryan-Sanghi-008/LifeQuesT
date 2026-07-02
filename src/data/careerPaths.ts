@@ -2,6 +2,7 @@
 // 50+ career paths with full eligibility requirements and progression trees.
 
 import type { CareerSkillNode } from '../types';
+import type { ScenarioId } from '../types';
 
 export type CareerCategory =
   | 'technology'
@@ -60,6 +61,7 @@ export interface CareerPath {
   perks?: string[];
   stressLevel: number;              // 1–10
   workLifeBalance: number;          // 1–10 (10=best)
+  requiresScenario?: ScenarioId[];
 }
 
 // ─── Career Path Definitions ─────────────────────────────────────────────────
@@ -437,8 +439,18 @@ function getPhaseBCareers(): CareerPath[] {
   return _phaseBCareers;
 }
 
+function getScenarioCareers(): CareerPath[] {
+  if (!_scenarioCareers) {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    _scenarioCareers = require('./scenarioCareers').SCENARIO_CAREER_PATHS as CareerPath[];
+  }
+  return _scenarioCareers;
+}
+
+let _scenarioCareers: CareerPath[] | undefined;
+
 function allCareerPaths(): CareerPath[] {
-  return [...CAREER_PATHS, ...getPhaseBCareers()];
+  return [...CAREER_PATHS, ...getPhaseBCareers(), ...getScenarioCareers()];
 }
 
 export function getCareerById(id: string): CareerPath | undefined {

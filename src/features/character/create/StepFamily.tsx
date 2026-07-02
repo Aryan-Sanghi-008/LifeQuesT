@@ -4,6 +4,7 @@ import { useTheme } from "@theme";
 import { FadeInView } from "@components/index";
 import { ZODIACS, TRAITS } from "@data/gameData";
 import { PRESTIGE_TRAITS } from "@engine/prestigeEngine";
+import { DYNASTY_TRAIT_POOL } from "@data/dynastyShop";
 import { getCreateStyles } from "./styles";
 
 type StepFamilyProps = {
@@ -12,6 +13,8 @@ type StepFamilyProps = {
   traits: string[];
   toggleTrait: (id: string) => void;
   isPremium: boolean;
+  unlockedPrestigeTraitIds: string[];
+  hasDynastyTraitExpansion?: boolean;
 };
 
 export function StepFamily({
@@ -20,6 +23,8 @@ export function StepFamily({
   traits,
   toggleTrait,
   isPremium,
+  unlockedPrestigeTraitIds,
+  hasDynastyTraitExpansion = false,
 }: StepFamilyProps) {
   const { colors, fonts, radii, spacing, shadows } = useTheme();
   const styles = getCreateStyles(radii, spacing, shadows);
@@ -133,7 +138,8 @@ export function StepFamily({
 
         {PRESTIGE_TRAITS.map((pt) => {
           const active = traits.includes(pt.id);
-          const locked = !isPremium;
+          const unlocked = isPremium || unlockedPrestigeTraitIds.includes(pt.id);
+          const locked = !unlocked;
           return (
             <Pressable
               key={pt.id}
@@ -186,6 +192,31 @@ export function StepFamily({
             </Pressable>
           );
         })}
+        {hasDynastyTraitExpansion &&
+          TRAITS.filter((t) => (DYNASTY_TRAIT_POOL as readonly string[]).includes(t.id)).map((t) => {
+            const active = traits.includes(t.id);
+            return (
+              <Pressable
+                key={`dynasty_${t.id}`}
+                onPress={() => toggleTrait(t.id)}
+                style={[
+                  styles.traitCard,
+                  { backgroundColor: colors.bgCard, borderColor: colors.gold },
+                  active && {
+                    borderColor: `${colors.gold}80`,
+                    backgroundColor: `${colors.gold}08`,
+                  },
+                ]}
+              >
+                <Text style={[styles.traitLabel, { color: colors.gold, fontFamily: fonts.bodyBold }]}>
+                  {t.label}
+                </Text>
+                <Text style={[styles.traitDesc, { color: colors.t3, fontFamily: fonts.body }]}>
+                  {t.description}
+                </Text>
+              </Pressable>
+            );
+          })}
       </View>
     </FadeInView>
   );

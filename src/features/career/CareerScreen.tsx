@@ -10,6 +10,7 @@ import { ScreenShell } from "@components/ScreenShell";
 import { TabScreenHeader } from "@components/TabScreenHeader";
 import {
   getEligibleCareers,
+  getScenarioCareerBoard,
   checkCareerEligibility,
   getCountrySalary,
   getSkillTreeProgress,
@@ -17,7 +18,6 @@ import {
 import { getAllCareerPaths } from "../../data/careerPaths";
 import { resolveEducationLevelForDisplay } from "../../engine/educationEngine";
 import { listPursuableCertifications, getCertificationLabel } from "../../engine/certificationEngine";
-import { CAREER_PATHS } from "../../data/careerPaths";
 import { formatCurrency } from "@utils/currency";
 import Svg, { Path, Rect } from "react-native-svg";
 
@@ -568,6 +568,8 @@ function JobBoard() {
   const countryCode = character.countryCode ?? "IN";
 
   const eligible = getEligibleCareers(character).slice(0, 8);
+  const scenarioCareers = getScenarioCareerBoard(character);
+  const scenarioId = character.scenarioId ?? 'classic';
 
   return (
     <Card style={{ gap: spacing.sm }}>
@@ -715,10 +717,126 @@ function JobBoard() {
           );
         })
       )}
+      {scenarioCareers.length > 0 && (
+        <>
+          <Text
+            style={{
+              fontFamily: fonts.bodySemiBold,
+              fontSize: 10,
+              color: colors.t4,
+              letterSpacing: 2,
+              marginTop: spacing.sm,
+            }}
+          >
+            SCENARIO CAREERS
+          </Text>
+          {scenarioCareers.slice(0, 6).map(({ career, eligibility }, i) => {
+            const localSalary = getCountrySalary(career.baseSalary, countryCode);
+            const wrongScenario =
+              career.requiresScenario?.length &&
+              !career.requiresScenario.includes(scenarioId);
+            const isLocked = wrongScenario || !eligibility.eligible;
+            const row = (
+              <View
+                style={[
+                  styles.jobRow,
+                  isLocked && { opacity: 0.45 },
+                  i > 0 && { borderTopWidth: 1, borderTopColor: colors.border },
+                ]}
+              >
+                <View
+                  style={[
+                    styles.jobIcon,
+                    { backgroundColor: `${colors.catCareer}12` },
+                  ]}
+                >
+                  <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+                    <Rect
+                      stroke={colors.catCareer}
+                      strokeWidth={2}
+                      x="2"
+                      y="7"
+                      width="20"
+                      height="14"
+                      rx="2"
+                    />
+                    <Path
+                      stroke={colors.catCareer}
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"
+                    />
+                  </Svg>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={{
+                      fontFamily: fonts.bodySemiBold,
+                      fontSize: 14,
+                      color: colors.t1,
+                    }}
+                  >
+                    {career.label}
+                  </Text>
+                  <Text
+                    style={{
+                      fontFamily: fonts.body,
+                      fontSize: 11,
+                      color: colors.t4,
+                    }}
+                    numberOfLines={2}
+                  >
+                    {wrongScenario
+                      ? 'Not available in this scenario.'
+                      : eligibility.eligible
+                        ? career.company
+                        : eligibility.reason ?? career.company}
+                  </Text>
+                </View>
+                <View
+                  style={[
+                    styles.salaryBadge,
+                    {
+                      backgroundColor: `${colors.wealth}12`,
+                      borderColor: `${colors.wealth}25`,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={{
+                      fontFamily: fonts.monoSemiBold,
+                      fontSize: 12,
+                      color: colors.wealth,
+                    }}
+                  >
+                    {formatCurrency(localSalary, countryCode)}/yr
+                  </Text>
+                </View>
+              </View>
+            );
+            if (isLocked) {
+              return <View key={career.id}>{row}</View>;
+            }
+            return (
+              <Pressable
+                key={career.id}
+                onPress={() => {
+                  const r = applyForJob(career.id);
+                  Alert.alert(r.success ? "Hired!" : "Not This Time", r.message);
+                }}
+              >
+                {row}
+              </Pressable>
+            );
+          })}
+        </>
+      )}
       {(() => {
-        const locked = CAREER_PATHS.filter(
+        const locked = getAllCareerPaths().filter(
           (c) =>
-            c.isEntryLevel && !eligible.find((e) => e.career.id === c.id),
+            c.isEntryLevel &&
+            !c.requiresScenario?.length &&
+            !eligible.find((e) => e.career.id === c.id),
         ).slice(0, 3);
         if (locked.length === 0) return null;
         return (

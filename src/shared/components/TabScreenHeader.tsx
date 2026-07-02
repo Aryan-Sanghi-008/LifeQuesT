@@ -5,7 +5,7 @@ import { useTheme } from "@theme";
 
 interface TabScreenHeaderProps {
   title: string;
-  subtitle?: string;
+  subtitle?: ReactNode;
   accent: string;
   icon?: ReactNode;
   trailing?: ReactNode;
@@ -48,9 +48,13 @@ export function TabScreenHeader({
             {title}
           </Text>
           {subtitle ? (
-            <Text style={[styles.sub, { color: colors.t3, fontFamily: fonts.body }]}>
-              {subtitle}
-            </Text>
+            typeof subtitle === 'string' ? (
+              <Text style={[styles.sub, { color: colors.t3, fontFamily: fonts.body }]}>
+                {subtitle}
+              </Text>
+            ) : (
+              <View style={{ marginTop: 2 }}>{subtitle}</View>
+            )
           ) : null}
         </View>
         {trailing}

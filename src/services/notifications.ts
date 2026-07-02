@@ -14,6 +14,7 @@ import {
   buildNpcMilestoneBody,
   getAbsenceTriggerDate,
   shouldScheduleStreakRisk,
+  shouldCatchUpAbsenceNotification,
   resolveWorldEvent,
 } from './retentionNotifications';
 import { WorldEvent } from '@engine/worldEngine';
@@ -90,6 +91,22 @@ async function scheduleDate(
   channelId = 'retention',
 ): Promise<void> {
   await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
+  // Guard: past-date triggers crash on some devices — fire immediately instead
+  if (date <= new Date()) {
+    await Notifications.scheduleNotificationAsync({
+      identifier: `${id}-catchup-${Date.now()}`,
+      content: {
+        title,
+        body,
+        ...(Platform.OS === 'android' ? { channelId } : {}),
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
+        seconds: 2,
+      },
+    });
+    return;
+  }
   await Notifications.scheduleNotificationAsync({
     identifier: id,
     content: {
@@ -102,6 +119,14 @@ async function scheduleDate(
       date,
     },
   });
+}
+
+/** Returns 'granted' | 'denied' | 'undetermined' for display in Settings UI. */
+export async function getNotificationPermissionStatus(): Promise<'granted' | 'denied' | 'undetermined'> {
+  const { status } = await Notifications.getPermissionsAsync();
+  if (status === 'granted') return 'granted';
+  if (status === 'denied') return 'denied';
+  return 'undetermined';
 }
 
 export async function scheduleImmediate(
@@ -146,7 +171,7 @@ export async function syncRetentionNotifications(
 
   await scheduleDaily(
     RETENTION_NOTIFICATION_IDS.questReset,
-    'LifeQuesT',
+    'LifeQuest',
     buildQuestResetBody(snapshot.dailyQuests),
     8,
     0,
@@ -155,7 +180,7 @@ export async function syncRetentionNotifications(
   if (shouldScheduleStreakRisk(snapshot.dailyStreak, snapshot.lastActiveDate)) {
     await scheduleDaily(
       RETENTION_NOTIFICATION_IDS.streakRisk,
-      'LifeQuesT',
+      'LifeQuest',
       buildStreakRiskBody(snapshot.dailyStreak),
       23,
       0,
@@ -164,14 +189,22 @@ export async function syncRetentionNotifications(
   }
 
   if (snapshot.lastActiveDate) {
-    const absenceDate = getAbsenceTriggerDate(snapshot.lastActiveDate);
-    if (absenceDate) {
-      await scheduleDate(
+    if (shouldCatchUpAbsenceNotification(snapshot.lastActiveDate)) {
+      await scheduleImmediate(
         RETENTION_NOTIFICATION_IDS.absence,
-        'LifeQuesT',
+        'LifeQuest',
         buildAbsenceBody(snapshot.characterAge),
-        absenceDate,
       );
+    } else {
+      const absenceDate = getAbsenceTriggerDate(snapshot.lastActiveDate);
+      if (absenceDate) {
+        await scheduleDate(
+          RETENTION_NOTIFICATION_IDS.absence,
+          'LifeQuest',
+          buildAbsenceBody(snapshot.characterAge),
+          absenceDate,
+        );
+      }
     }
   }
 }
@@ -179,14 +212,14 @@ export async function syncRetentionNotifications(
 export async function notifyWorldEventStarted(eventId: string): Promise<void> {
   const event = resolveWorldEvent(eventId);
   if (!event || !getNotificationsEnabled()) return;
-  await scheduleImmediate('world-event', 'LifeQuesT', buildWorldEventBody(event));
+  await scheduleImmediate('world-event', 'LifeQuest', buildWorldEventBody(event));
 }
 
 export async function notifyNpcMilestone(person: Person): Promise<void> {
   if (!getNotificationsEnabled()) return;
   await scheduleImmediate(
     'npc-milestone',
-    'LifeQuesT',
+    'LifeQuest',
     buildNpcMilestoneBody(person),
   );
 }

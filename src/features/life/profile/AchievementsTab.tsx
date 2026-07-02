@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { View, Text } from "react-native";
 import { useTheme, useThemedStyles } from "@theme";
 import { SectionLabel } from "@components/index";
@@ -12,6 +13,13 @@ export function AchievementsTab({
   const { colors, fonts } = useTheme();
   const styles = useThemedStyles(createSectionStyles);
   const unlockedAch = achievements.length;
+  const rows = useMemo(
+    () => ACHIEVEMENTS.map((ach) => ({
+      ...ach,
+      unlocked: achievements.includes(ach.id),
+    })),
+    [achievements],
+  );
 
   return (
     <View style={styles.section}>
@@ -19,8 +27,8 @@ export function AchievementsTab({
         label={`Achievements (${unlockedAch}/${ACHIEVEMENTS.length})`}
       />
       <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
-        {ACHIEVEMENTS.map((ach) => {
-          const unlocked = achievements.includes(ach.id);
+        {rows.map((ach) => {
+          const unlocked = ach.unlocked;
           return (
             <View
               key={ach.id}

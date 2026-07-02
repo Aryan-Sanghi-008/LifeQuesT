@@ -34,6 +34,12 @@ jest.mock('@services/widgetSnapshot', () => ({
   writeWidgetSnapshot: jest.fn(),
 }));
 
+jest.mock('@store/toastStore', () => ({
+  useToastStore: {
+    getState: () => ({ showToast: jest.fn() }),
+  },
+}));
+
 jest.mock('@services/cloudSave', () => ({
   syncSaveToCloud: jest.fn(),
   pullCloudSaveIfNewer: jest.fn(),
@@ -48,6 +54,7 @@ jest.mock('@services/entitlements', () => ({
 }));
 
 import { createTestCharacter } from '../../../test/fixtures/character';
+import { DAILY_GAMEPLAY_COIN_CAP, getTodayKey } from '../../../engine/economyCapEngine';
 
 let useGameStore: typeof import('@store/gameStore').useGameStore;
 
@@ -120,6 +127,30 @@ describe('progressionSlice', () => {
     expect(result.ok).toBe(true);
     expect(result.day).toBe(1); // reset to day 1
     expect(mockSetLoginRewardDay).toHaveBeenCalledWith(2); // advance past day 1
+  });
+
+  it('claimLoginReward does NOT reset for yesterday calendar date (within grace)', () => {
+    // Yesterday's date always preserves the streak regardless of hours
+    // (calendar-date check in resolveMissedDay fires before hoursSince check)
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    mockGetLoginRewardLastClaim.mockReturnValue(yesterday.toISOString().slice(0, 10));
+    mockGetLoginRewardDay.mockReturnValue(5);
+
+    const state = useGameStore.getState().getLoginRewardState();
+    expect(state.day).toBe(5);
+  });
+
+  it('claimLoginReward resets when claim is 2+ calendar days old (beyond 24h grace)', () => {
+    // 2 calendar days ago at midnight = ~48h ago which exceeds the 24h grace window
+    const twoDaysAgo = new Date();
+    twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+    mockGetLoginRewardLastClaim.mockReturnValue(twoDaysAgo.toISOString().slice(0, 10));
+    mockGetLoginRewardDay.mockReturnValue(5);
+
+    const state = useGameStore.getState().getLoginRewardState();
+    // 48h > 24h grace → reset to 1
+    expect(state.day).toBe(1);
   });
 
   it('getLoginRewardState reflects missed-day reset without claiming', () => {
@@ -265,5 +296,107 @@ describe('progressionSlice', () => {
     const consumed = useGameStore.getState().consumeStreakShieldIfAvailable();
     expect(consumed).toBe(true);
     expect(useGameStore.getState().character?.streakShieldCount).toBe(1);
+  });
+
+  it('purchaseDynastyPerk debits legacy points and applies perk effects', () => {
+    useGameStore.setState((s) => {
+      s.globalPrestige = {
+        ...s.globalPrestige,
+        prestigePoints: 5000,
+        unlockedDynastyPerkIds: [],
+        dynastyStatBonusTier: 0,
+      };
+      return s;
+    });
+    const res = useGameStore.getState().purchaseDynastyPerk('dynasty_stat_lineage');
+    expect(res.ok).toBe(true);
+    const prestige = useGameStore.getState().globalPrestige;
+    expect(prestige.prestigePoints).toBe(3800);
+    expect(prestige.dynastyStatBonusTier).toBe(1);
+  });
+
+  it('claimQuestReward reports actual granted coins when daily cap applies', () => {
+    const today = getTodayKey();
+    useGameStore.setState((s) => {
+      if (s.character) {
+        s.character.coinsEarnedToday = DAILY_GAMEPLAY_COIN_CAP - 10;
+        s.character.coinsEarnDate = today;
+        s.character.coins = 0;
+      }
+      s.dailyQuests = [{
+        id: 'test_quest',
+        title: 'Test',
+        description: 'Test quest',
+        objectiveType: 'age_up',
+        target: 1,
+        progress: 1,
+        rewardCoins: 50,
+        claimed: false,
+      }];
+      return s;
+    });
+    const result = useGameStore.getState().claimQuestReward('test_quest');
+    expect(result.ok).toBe(true);
+    expect(result.message).toBe('Claimed 10 coins!');
+    expect(useGameStore.getState().character?.coins).toBe(10);
+  });
+
+  it('premium users earn 1.5x capped quest coins', () => {
+    const today = getTodayKey();
+    useGameStore.setState((s) => {
+      if (s.character) {
+        s.character.isPremium = true;
+        s.character.coinsEarnedToday = 0;
+        s.character.coinsEarnDate = today;
+        s.character.coins = 0;
+      }
+      s.dailyQuests = [{
+        id: 'premium_quest',
+        title: 'Premium',
+        description: 'Premium quest',
+        objectiveType: 'age_up',
+        target: 1,
+        progress: 1,
+        rewardCoins: 100,
+        claimed: false,
+      }];
+      return s;
+    });
+    const result = useGameStore.getState().claimQuestReward('premium_quest');
+    expect(result.ok).toBe(true);
+    expect(result.message).toBe('Claimed 150 coins!');
+    expect(useGameStore.getState().character?.coins).toBe(150);
+  });
+
+  it('claimSeasonTier uses capped gameplay coin grant', () => {
+    const today = getTodayKey();
+    useGameStore.setState((s) => {
+      if (s.character) {
+        s.character.hasSeasonPass = true;
+        s.character.seasonXp = 3000;
+        s.character.claimedSeasonTiers = [];
+        s.character.coins = 100;
+        s.character.coinsEarnedToday = DAILY_GAMEPLAY_COIN_CAP - 5;
+        s.character.coinsEarnDate = today;
+      }
+      return s;
+    });
+    const result = useGameStore.getState().claimSeasonTier(10);
+    expect(result.ok).toBe(true);
+    expect(useGameStore.getState().character?.coins).toBe(105);
+  });
+
+  it('addMysterySpins caps weekly ticket grants', () => {
+    const week = isoWeekKey();
+    useGameStore.setState((s) => {
+      if (s.character) {
+        s.character.mysteryTickets = 0;
+        s.character.ticketsEarnedThisWeek = 4;
+        s.character.ticketsEarnWeek = week;
+      }
+      return s;
+    });
+    useGameStore.getState().addMysterySpins(3);
+    expect(useGameStore.getState().character?.mysteryTickets).toBe(1);
   });
 });

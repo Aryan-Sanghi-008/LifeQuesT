@@ -3,16 +3,24 @@ import {
 } from 'firebase/firestore';
 import { getFirestoreDb } from '@services/firebaseClient';
 import { Character, SaveSlot, MAX_SAVE_SLOTS } from '../types';
+import { SAVE_SCHEMA_VERSION } from '@constants/saveSchema';
+import { simpleHash } from '@utils/checksum';
 
 export { resolveSaveConflict, mergeSlotLists } from '@utils/saveSync';
 
 export interface CloudSavePayload {
   character: Character;
   updatedAt: number;
+  version?: number;
+  checksum?: string;
 }
 
 function getDb() {
   return getFirestoreDb();
+}
+
+function slotRef(db: NonNullable<ReturnType<typeof getDb>>, uid: string, slotId: string) {
+  return doc(db, 'saves', uid, 'slots', slotId);
 }
 
 export function parseFirestoreUpdatedAt(value: unknown): number {
@@ -28,11 +36,15 @@ export async function syncSaveToCloud(uid: string, slotId: string, character: Ch
   const db = getDb();
   if (!db || uid.startsWith('local_guest_')) return;
 
-  const ref = doc(db, 'users', uid, 'saves', slotId);
+  const ref = slotRef(db, uid, slotId);
+  const checksum = simpleHash(character);
   await setDoc(ref, {
     character,
     updatedAt: character.updatedAt,
     updatedAtServer: serverTimestamp(),
+    lastSaved: serverTimestamp(),
+    version: SAVE_SCHEMA_VERSION,
+    checksum,
     name: character.name,
     age: character.age,
     isAlive: character.isAlive,
@@ -49,7 +61,7 @@ export async function loadSaveFromCloud(uid: string, slotId: string): Promise<Cl
   const db = getDb();
   if (!db || uid.startsWith('local_guest_')) return null;
 
-  const snap = await getDoc(doc(db, 'users', uid, 'saves', slotId));
+  const snap = await getDoc(slotRef(db, uid, slotId));
   if (!snap.exists()) return null;
   const data = snap.data();
   const character = data.character as Character | undefined;
@@ -62,6 +74,8 @@ export async function loadSaveFromCloud(uid: string, slotId: string): Promise<Cl
   return {
     character: { ...character, updatedAt },
     updatedAt,
+    version: typeof data.version === 'number' ? data.version : undefined,
+    checksum: typeof data.checksum === 'string' ? data.checksum : undefined,
   };
 }
 
@@ -69,7 +83,7 @@ export async function listCloudSlots(uid: string): Promise<SaveSlot[]> {
   const db = getDb();
   if (!db || uid.startsWith('local_guest_')) return [];
 
-  const col = collection(db, 'users', uid, 'saves');
+  const col = collection(db, 'saves', uid, 'slots');
   const snaps = await getDocs(col);
   const slots: SaveSlot[] = [];
 
@@ -110,5 +124,30 @@ export async function pullCloudSaveIfNewer(
 export async function deleteCloudSave(uid: string, slotId: string): Promise<void> {
   const db = getDb();
   if (!db || uid.startsWith('local_guest_')) return;
-  await deleteDoc(doc(db, 'users', uid, 'saves', slotId));
+  await deleteDoc(slotRef(db, uid, slotId));
+}
+
+/** Create users/{uid}.profile on first cloud sign-in (idempotent). */
+export async function ensureUserProfile(
+  uid: string,
+  displayName: string,
+  avatarUrl?: string | null,
+): Promise<void> {
+  const db = getDb();
+  if (!db || uid.startsWith('local_guest_')) return;
+
+  const ref = doc(db, 'users', uid);
+  const snap = await getDoc(ref);
+  const existingProfile = snap.data()?.profile as { createdAt?: unknown } | undefined;
+  if (existingProfile?.createdAt) return;
+
+  const profile: Record<string, unknown> = {
+    displayName: displayName.trim() || 'Player',
+    createdAt: serverTimestamp(),
+  };
+  if (avatarUrl?.trim()) {
+    profile.avatarUrl = avatarUrl.trim();
+  }
+
+  await setDoc(ref, { profile }, { merge: true });
 }

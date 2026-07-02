@@ -1,5 +1,6 @@
 import { View, Text, Pressable } from "react-native";
 import { useTheme } from "@theme";
+import { triggerTapFeedback } from "@services/gameFeedback";
 
 export type ProfileTab = "overview" | "stats" | "achievements" | "legacy";
 
@@ -31,7 +32,10 @@ export function ProfileTabBar({
         return (
           <Pressable
             key={tab.id}
-            onPress={() => onSelect(tab.id)}
+            onPress={() => {
+              triggerTapFeedback();
+              onSelect(tab.id);
+            }}
             style={{
               flex: 1,
               alignItems: "center",
@@ -42,7 +46,7 @@ export function ProfileTabBar({
           >
             <Text
               style={{
-                color: isActive ? colors.catMilestone : colors.t4,
+                color: isActive ? colors.catMilestone : colors.t2,
                 fontFamily: isActive ? fonts.bodyBold : fonts.body,
                 fontSize: 12,
               }}

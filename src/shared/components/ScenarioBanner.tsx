@@ -1,25 +1,19 @@
 import { View, Text, StyleSheet } from "react-native";
 import { useTheme } from "@theme";
+import { ScenarioId } from "@/types";
+import { SCENARIO_CATALOG } from "@data/scenarioCatalog";
 
 interface Props {
   scenarioName: string;
-  type: "royal" | "zombie" | "cyber" | "crime" | "fantasy" | "classic";
+  type: ScenarioId;
   description?: string;
 }
 
 export function ScenarioBanner({ scenarioName, type, description }: Props) {
   const { colors, fonts, radii } = useTheme();
 
-  const typeColors: Record<string, string> = {
-    royal: colors.scenarioRoyal,
-    zombie: colors.scenarioZombie,
-    cyber: colors.scenarioCyber,
-    crime: colors.scenarioCrime,
-    fantasy: colors.scenarioFantasy,
-    classic: colors.gold,
-  };
-
-  const accentColor = typeColors[type] ?? colors.sapphire;
+  const catalogEntry = SCENARIO_CATALOG.find((s) => s.id === type);
+  const accentColor = catalogEntry?.accentColor ?? colors.sapphire;
 
   return (
     <View
@@ -42,14 +36,19 @@ export function ScenarioBanner({ scenarioName, type, description }: Props) {
         >
           ACTIVE SCENARIO
         </Text>
-        <Text
-          style={[
-            styles.title,
-            { color: colors.t1, fontFamily: fonts.displayBold },
-          ]}
-        >
-          {scenarioName}
-        </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          {catalogEntry?.iconEmoji ? (
+            <Text style={{ fontSize: 16 }}>{catalogEntry.iconEmoji}</Text>
+          ) : null}
+          <Text
+            style={[
+              styles.title,
+              { color: colors.t1, fontFamily: fonts.displayBold },
+            ]}
+          >
+            {scenarioName}
+          </Text>
+        </View>
         {description && (
           <Text
             style={[
@@ -79,6 +78,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 12,
     flex: 1,
+    gap: 2,
   },
   tag: {
     fontSize: 9,

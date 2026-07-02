@@ -5,8 +5,11 @@ import {
   ScrollView,
   Pressable,
   StyleSheet,
-  Alert,
+  Dimensions,
 } from "react-native";
+import { useToastStore } from "@store/toastStore";
+
+const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme } from "@theme";
@@ -353,23 +356,28 @@ function InteractionSheet({
   return (
     <View style={is.overlay}>
       <Pressable
-        style={[is.backdrop, { backgroundColor: "rgba(15,23,42,0.50)" }]}
+        style={[is.backdrop, { backgroundColor: "rgba(15,23,42,0.60)" }]}
         onPress={onClose}
       />
+      {/* Fixed height container so ScrollView can use flex:1 */}
       <View
         style={[
           is.sheet,
           {
+            height: SCREEN_HEIGHT * 0.80,
             backgroundColor: colors.bgSheet,
             borderTopLeftRadius: radii.xl,
             borderTopRightRadius: radii.xl,
-            padding: spacing.xl,
-            gap: spacing.lg,
+            borderTopWidth: 1,
+            borderColor: colors.border,
           },
         ]}
       >
-        {/* Header */}
-        <View style={is.header}>
+        {/* Drag handle */}
+        <View style={[is.handle, { backgroundColor: colors.border }]} />
+
+        {/* Sticky header */}
+        <View style={[is.header, { paddingHorizontal: spacing.xl, paddingTop: spacing.md, paddingBottom: spacing.sm }]}>
           <NpcAvatar
             seed={person.avatarSeed}
             size={52}
@@ -378,11 +386,14 @@ function InteractionSheet({
             gender={person.gender as "male" | "female"}
           />
           <View style={{ flex: 1, gap: 3 }}>
-            <Text style={[is.name, { color: colors.t1, fontFamily: fonts.displayBold }]}>
+            <Text
+              style={[is.name, { color: colors.t1, fontFamily: fonts.displayBold }]}
+              numberOfLines={1}
+            >
               {person.name}
             </Text>
             <Text style={[is.sub, { color: colors.t3, fontFamily: fonts.body }]}>
-              Relationship: {person.relationshipScore}/100
+              Bond: {person.relationshipScore}/100
             </Text>
             {onCooldown && (
               <Text style={[is.cooldownHint, { color: colors.crimson, fontFamily: fonts.bodySemiBold }]}>
@@ -393,45 +404,52 @@ function InteractionSheet({
           </View>
         </View>
 
-        <NPCProfileSheet person={enrichPersonProfile(person)} />
+        {/* Scrollable profile + actions — flex:1 fills remaining sheet height */}
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: 40, gap: spacing.lg }}
+          showsVerticalScrollIndicator={false}
+        >
+          <NPCProfileSheet person={enrichPersonProfile(person)} />
 
-        {/* Actions grid */}
-        <View style={[is.grid, { gap: spacing.sm }]}>
-          {INTERACTIONS.map((i) => {
-            const meta = getInteraction(i.id);
-            const chancePct = meta ? Math.round(meta.successChance * 100) : 100;
-            return (
-              <Pressable
-                key={i.id}
-                onPress={() => !onCooldown && onInteract(i.id)}
-                disabled={onCooldown}
-                style={[
-                  is.btn,
-                  {
-                    backgroundColor: colors.bgCard2,
-                    borderRadius: radii.md,
-                    borderColor: colors.border,
-                    padding: spacing.sm,
-                  },
-                  onCooldown && is.btnDisabled,
-                ]}
-              >
-                <i.Icon />
-                <Text style={[is.btnLabel, { color: colors.t2, fontFamily: fonts.bodySemiBold }]}>
-                  {i.label}
-                </Text>
-                <Text style={[is.btnDesc, { color: colors.t4, fontFamily: fonts.body }]}>
-                  {i.desc}
-                </Text>
-                {!onCooldown && chancePct < 100 && (
-                  <Text style={[is.chanceHint, { color: colors.gold3 || "#D97706", fontFamily: fonts.monoSemiBold }]}>
-                    {chancePct}% success
+          {/* Actions grid */}
+          <View style={[is.grid, { gap: spacing.sm }]}>
+            {INTERACTIONS.map((i) => {
+              const meta = getInteraction(i.id);
+              const chancePct = meta ? Math.round(meta.successChance * 100) : 100;
+              return (
+                <Pressable
+                  key={i.id}
+                  onPress={() => !onCooldown && onInteract(i.id)}
+                  disabled={onCooldown}
+                  style={[
+                    is.btn,
+                    {
+                      backgroundColor: (colors as any).bgCard2 ?? colors.bgCard,
+                      borderRadius: radii.md,
+                      borderColor: colors.border,
+                      padding: spacing.sm,
+                    },
+                    onCooldown && is.btnDisabled,
+                  ]}
+                >
+                  <i.Icon />
+                  <Text style={[is.btnLabel, { color: colors.t2, fontFamily: fonts.bodySemiBold }]}>
+                    {i.label}
                   </Text>
-                )}
-              </Pressable>
-            );
-          })}
-        </View>
+                  <Text style={[is.btnDesc, { color: colors.t4, fontFamily: fonts.body }]}>
+                    {i.desc}
+                  </Text>
+                  {!onCooldown && chancePct < 100 && (
+                    <Text style={[is.chanceHint, { color: colors.gold3 ?? "#D97706", fontFamily: fonts.monoSemiBold }]}>
+                      {chancePct}% success
+                    </Text>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
+        </ScrollView>
       </View>
     </View>
   );
@@ -441,6 +459,7 @@ const is = StyleSheet.create({
   overlay: { position: "absolute", inset: 0, justifyContent: "flex-end" },
   backdrop: { ...StyleSheet.absoluteFill },
   sheet: {},
+  handle: { width: 36, height: 4, borderRadius: 2, alignSelf: "center", marginTop: 8, marginBottom: 4 },
   header: { flexDirection: "row", alignItems: "center", gap: 12 },
   name: { fontSize: 18 },
   sub: { fontSize: 12 },
@@ -473,7 +492,23 @@ function getGroup(rt: RelationType): string {
 
 export function PeopleScreen() {
   const { colors, fonts, spacing } = useTheme();
-  const styles = {} as Record<string, any>;
+  const styles = StyleSheet.create({
+    empty: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xxl ?? 32 },
+    emptyIconWrap: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      alignItems: "center",
+      justifyContent: "center",
+      borderWidth: 1,
+      marginBottom: spacing.sm,
+    },
+    emptyText: { fontSize: 16 },
+    emptyHint: { fontSize: 13 },
+    scroll: { paddingHorizontal: spacing.md, paddingTop: spacing.md, gap: spacing.md },
+    section: { gap: spacing.xs },
+    divider: { height: StyleSheet.hairlineWidth, marginHorizontal: spacing.md },
+  });
 
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -540,10 +575,12 @@ export function PeopleScreen() {
     return acc;
   }, {});
 
+  const showToast = useToastStore((s) => s.showToast);
+
   const handleInteract = (interactionId: string) => {
     if (!selected) return;
     const result = interactWithPerson(selected.id, interactionId);
-    Alert.alert(selected.name, result.message);
+    showToast(`${selected.name}: ${result.message}`, result.delta >= 0 ? "success" : "error");
     setSelected(null);
   };
 

@@ -8,6 +8,8 @@ interface Props {
   streak: number;
   shieldCount: number;
   claimedMilestones: number[];
+  gemBalance?: number;
+  onBuyShield?: () => void;
 }
 
 export function StreakDetailModal({
@@ -16,6 +18,8 @@ export function StreakDetailModal({
   streak,
   shieldCount,
   claimedMilestones,
+  gemBalance = 0,
+  onBuyShield,
 }: Props) {
   const { colors, fonts, radii, spacing } = useTheme();
 
@@ -76,6 +80,24 @@ export function StreakDetailModal({
           <Text style={[styles.hint, { color: colors.t4, fontFamily: fonts.body, fontSize: 11 }]}>
             Age up at least once per day to keep your streak. Miss a day? Use a Streak Shield from the Shop.
           </Text>
+
+          {onBuyShield && (
+            <Pressable
+              onPress={onBuyShield}
+              style={[styles.closeBtn, {
+                backgroundColor: gemBalance >= 50 ? `${colors.sapphire}18` : colors.bg2,
+                borderWidth: 1,
+                borderColor: colors.border,
+              }]}
+            >
+              <Text style={{ color: colors.t1, fontFamily: fonts.bodySemiBold }}>
+                🛡️ Buy Streak Shield — 💎 50
+              </Text>
+              <Text style={{ color: colors.t4, fontFamily: fonts.body, fontSize: 10, marginTop: 2 }}>
+                You have {gemBalance} gems
+              </Text>
+            </Pressable>
+          )}
 
           <Pressable
             onPress={onClose}

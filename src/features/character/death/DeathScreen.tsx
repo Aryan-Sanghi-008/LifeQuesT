@@ -1,11 +1,17 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, Alert } from 'react-native';
+import { useShallow } from 'zustand/react/shallow';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@theme';
 import { useGameStore } from '@store/gameStore';
+import { resetSessionState } from '@navigation/sessionState';
 import { GradientButton } from '@components/index';
+import { SupportLifeQuestButton } from '@shared/components/SupportLifeQuestButton';
+import { calculateDynastyScore } from '@engine/legacyEngine';
+import { computeNetWorth } from '@engine/economyEngine';
 import { computeLeaderboardScore, submitLeaderboardScore } from '@services/leaderboard';
 import { evaluateChallenge } from '@engine/challengeEngine';
+import { maybeShowDeathInterstitial } from '@services/ads';
 import { TombstoneHero } from './TombstoneHero';
 import { LifeSummaryCard } from './LifeSummaryCard';
 import { DeathStatInfographic } from './DeathStatInfographic';
@@ -15,12 +21,20 @@ import { HeirSelectionSheet } from './HeirSelectionSheet';
 import { DeathShareCard } from './DeathShareCard';
 
 export function DeathScreen() {
-  const { colors, spacing } = useTheme();
-  const character = useGameStore((s) => s.character);
+  const { colors, spacing, fonts } = useTheme();
+  const character = useGameStore(useShallow((s) => s.character));
   const globalPrestige = useGameStore((s) => s.globalPrestige);
   const reincarnate = useGameStore((s) => s.reincarnate);
+  const resetGame = useGameStore((s) => s.resetGame);
+  const playAsHeir = useGameStore((s) => s.playAsHeir);
 
   const [selectedHeirId, setSelectedHeirId] = useState<string | null>(null);
+
+  useEffect(() => {
+    useGameStore.setState((s) => {
+      s.livesEndedSinceAd += 1;
+    });
+  }, []);
 
   const deathAge = useMemo(() => character?.deathAge ?? character?.age ?? 0, [character]);
   const country = useMemo(() => character?.countryCode ?? 'IN', [character]);
@@ -55,11 +69,61 @@ export function DeathScreen() {
     [character],
   );
 
+  const dynastyScore = useMemo(
+    () => (character ? calculateDynastyScore(character) : 0),
+    [character],
+  );
+
+  const handleReincarnate = useCallback(async () => {
+    await maybeShowDeathInterstitial();
+    reincarnate();
+  }, [reincarnate]);
+
+  const handleStartOver = useCallback(() => {
+    Alert.alert(
+      'End This Life?',
+      'This will clear your current life and return you to the slot selection screen.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Start Over',
+          style: 'destructive',
+          onPress: () => {
+            void (async () => {
+              await maybeShowDeathInterstitial();
+              resetSessionState();
+              await resetGame();
+            })();
+          },
+        },
+      ],
+    );
+  }, [resetGame]);
+
+  const handleContinueAsHeir = useCallback(async () => {
+    if (!selectedHeirId) {
+      Alert.alert('Select an Heir', 'Choose a child or family member to continue your legacy.');
+      return;
+    }
+    await maybeShowDeathInterstitial();
+    const result = playAsHeir(selectedHeirId);
+    if (!result.ok) {
+      Alert.alert('Cannot Continue', result.message);
+      return;
+    }
+    Alert.alert('Legacy Continues', 'You are now playing as your chosen heir.');
+  }, [playAsHeir, selectedHeirId]);
+
   const handleSubmitScore = useCallback(async () => {
     if (!character) return;
     try {
       await submitLeaderboardScore({
-        score, lifeAge: deathAge, country, displayName: character.name, avatarSeed: character.avatarSeed,
+        score,
+        lifeAge: deathAge,
+        country,
+        displayName: character.name,
+        avatarSeed: character.avatarSeed,
+        netWorth: computeNetWorth(character),
       });
       Alert.alert('Submitted', 'Leaderboard score submitted.');
     } catch {
@@ -73,12 +137,17 @@ export function DeathScreen() {
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
       <SafeAreaView style={styles.safe}>
         <ScrollView contentContainerStyle={[styles.scroll, { padding: spacing.xl }]} showsVerticalScrollIndicator={false}>
-          <TombstoneHero name={character.name} birthYear={character.birthYear} deathAge={deathAge} />
+          <TombstoneHero
+            name={character.name}
+            birthYear={character.birthYear}
+            deathAge={deathAge}
+            tombstoneStyleId={character.tombstoneStyleId}
+          />
           <LifeSummaryCard character={character} deathAge={deathAge} />
           <DeathStatInfographic stats={infographicStats} />
           <BestMomentsGallery events={character.eventHistory} />
           <LegacySection
-            dynastyScore={score}
+            dynastyScore={dynastyScore}
             prestigeLevel={globalPrestige.prestigeLevel}
             lifetimeEarnings={lifetimeEarnings}
             country={country}
@@ -99,14 +168,23 @@ export function DeathScreen() {
 
           <HeirSelectionSheet character={character} onSelectHeir={setSelectedHeirId} />
           {selectedHeirId && (
-            <Text style={{ color: colors.t4, fontFamily: 'System', fontSize: 12, textAlign: 'center' }}>
-              Heir selected for reincarnation
+            <Text style={{ color: colors.t4, fontFamily: fonts.body, fontSize: 12, textAlign: 'center' }}>
+              Heir selected — continue your bloodline or reincarnate fresh
             </Text>
           )}
 
           <DeathShareCard character={character} deathAge={deathAge} score={score} country={country} />
 
           <View style={{ gap: spacing.sm, marginTop: spacing.sm }}>
+            {selectedHeirId && (
+              <GradientButton
+                label="Continue as Heir"
+                onPress={() => void handleContinueAsHeir()}
+                colors={[colors.emerald, colors.teal ?? colors.emerald]}
+                textColor="#FFFFFF"
+                style={{ width: '100%' }}
+              />
+            )}
             <Pressable
               onPress={handleSubmitScore}
               style={[styles.outlineBtn, { borderColor: colors.sapphire, borderRadius: 12, backgroundColor: `${colors.sapphire}12` }]}
@@ -115,11 +193,18 @@ export function DeathScreen() {
             </Pressable>
             <GradientButton
               label="Reincarnate"
-              onPress={reincarnate}
+              onPress={() => void handleReincarnate()}
               colors={[colors.gold, colors.gold3 ?? colors.gold]}
               textColor="#FFFFFF"
               style={{ width: '100%' }}
             />
+            <SupportLifeQuestButton label="LifeQuest Plus — Active" compact />
+            <Pressable
+              onPress={handleStartOver}
+              style={[styles.outlineBtn, { borderColor: colors.crimson, borderRadius: 12, backgroundColor: `${colors.crimson}10` }]}
+            >
+              <Text style={{ color: colors.crimson, fontFamily: 'System', fontSize: 14, fontWeight: '600' }}>End Life &amp; Start Over</Text>
+            </Pressable>
           </View>
         </ScrollView>
       </SafeAreaView>

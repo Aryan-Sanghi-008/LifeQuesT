@@ -1,8 +1,15 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
-import { grantsForProduct, grantsToUserPatch, avatarStylesForGrants } from './entitlements';
+import { grantsForProduct, grantsToUserPatch, avatarStylesForGrants, scenarioIdsForGrants } from './entitlements';
 import { verifyGooglePlayPurchase, isAllowUnverifiedIap } from './verifyGooglePlay';
 import { verifyAppStorePurchase } from './verifyAppStore';
+import {
+  updateLeaderboardEntry,
+  fetchLeaderboardEntries,
+  cleanupStaleSaves,
+  DEFAULT_SEASON_ID,
+  type LeaderboardPayload,
+} from './leaderboard';
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -108,6 +115,7 @@ export const verifyPurchase = functions.https.onCall(async (data, context) => {
   const grants = grantsForProduct(productId);
   const userPatch = grantsToUserPatch(grants);
   const avatarStyles = avatarStylesForGrants(grants);
+  const scenarioIds = scenarioIdsForGrants(grants);
 
   const batch = db.batch();
   batch.set(purchaseRef, {
@@ -117,10 +125,13 @@ export const verifyPurchase = functions.https.onCall(async (data, context) => {
     verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
-  if (Object.keys(userPatch).length > 0 || avatarStyles.length > 0) {
+  if (Object.keys(userPatch).length > 0 || avatarStyles.length > 0 || scenarioIds.length > 0) {
     const patch: Record<string, unknown> = { ...userPatch };
     if (avatarStyles.length > 0) {
       patch.unlockedAvatarStyles = admin.firestore.FieldValue.arrayUnion(...avatarStyles);
+    }
+    if (scenarioIds.length > 0) {
+      patch.unlockedScenarioIds = admin.firestore.FieldValue.arrayUnion(...scenarioIds);
     }
     batch.set(userRef, patch, { merge: true });
   }
@@ -129,45 +140,47 @@ export const verifyPurchase = functions.https.onCall(async (data, context) => {
   return { ok: true, grants };
 });
 
-interface LeaderboardPayload {
-  score: number;
-  lifeAge: number;
-  country: string;
-  displayName: string;
-  avatarSeed: string;
-}
-
 export const updateLeaderboard = functions.https.onCall(async (data, context) => {
   if (!context.auth) {
     throw new functions.https.HttpsError('unauthenticated', 'Sign in required.');
   }
 
-  const { score, lifeAge, country, displayName, avatarSeed } = data as LeaderboardPayload;
-  if (typeof score !== 'number' || typeof lifeAge !== 'number') {
+  const payload = data as LeaderboardPayload;
+  if (typeof payload.score !== 'number' || typeof payload.lifeAge !== 'number') {
     throw new functions.https.HttpsError('invalid-argument', 'score and lifeAge required.');
   }
 
-  const uid = context.auth.uid;
-  await db.collection('leaderboard').doc(uid).set({
-    uid,
-    score,
-    lifeAge,
-    country: country ?? 'Unknown',
-    displayName: displayName ?? 'Anonymous',
-    avatarSeed: avatarSeed ?? uid,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  }, { merge: true });
-
-  return { ok: true };
+  return updateLeaderboardEntry(db, context.auth.uid, payload);
 });
 
 export const getLeaderboard = functions.https.onCall(async (data) => {
-  const limit = Math.min((data as { limit?: number }).limit ?? 50, 100);
-  const snap = await db.collection('leaderboard')
-    .orderBy('score', 'desc')
-    .limit(limit)
-    .get();
-
-  const entries = snap.docs.map(d => d.data());
-  return { entries };
+  const payload = data as { limit?: number; seasonId?: string };
+  const limit = payload.limit ?? 50;
+  const seasonId = payload.seasonId;
+  return fetchLeaderboardEntries(db, limit, seasonId ?? DEFAULT_SEASON_ID);
 });
+
+export const cleanupOldSaves = functions.pubsub.schedule('every 24 hours').onRun(async () => {
+  await cleanupStaleSaves(db);
+  return null;
+});
+
+export const archiveLiveOpsOnSeasonChange = functions.firestore
+  .document('liveops/current')
+  .onWrite(async (change) => {
+    if (!change.before.exists || !change.after.exists) return null;
+
+    const before = change.before.data() as { season?: { id?: string } } | undefined;
+    const after = change.after.data() as { season?: { id?: string } } | undefined;
+    const beforeId = before?.season?.id;
+    const afterId = after?.season?.id;
+
+    if (!beforeId || !afterId || beforeId === afterId) return null;
+
+    await db.collection('liveops_history').doc(beforeId).set({
+      ...before,
+      archivedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return null;
+  });

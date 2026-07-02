@@ -1,10 +1,12 @@
-import { Character, AvatarStyleId } from '@/types';
+import { Character, AvatarStyleId, GlobalPrestigeState, ScenarioId } from '@/types';
+import { FREE_SCENARIO_IDS } from '@/data/scenarioCatalog';
 
 export interface UserEntitlements {
   isPremium?: boolean;
   hasNoAds?: boolean;
   hasSeasonPass?: boolean;
   unlockedAvatarStyles?: AvatarStyleId[];
+  unlockedScenarioIds?: ScenarioId[];
   coinsGrant?: number;
   gemsGrant?: number;
   luckBoostGrant?: number;
@@ -43,6 +45,22 @@ export function applyEntitlementsToCharacter(
   }
   if (entitlements.reincarnationScroll) next.hasReincarnationScroll = true;
 
+  return next;
+}
+
+export function applyEntitlementsToGlobalPrestige(
+  prestige: GlobalPrestigeState,
+  entitlements: UserEntitlements,
+): GlobalPrestigeState {
+  const next = { ...prestige };
+  if (entitlements.unlockedScenarioIds?.length) {
+    const merged = new Set<ScenarioId>([
+      ...(next.unlockedScenarioIds ?? []),
+      ...FREE_SCENARIO_IDS,
+      ...entitlements.unlockedScenarioIds,
+    ]);
+    next.unlockedScenarioIds = Array.from(merged);
+  }
   return next;
 }
 

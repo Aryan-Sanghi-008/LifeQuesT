@@ -7,15 +7,19 @@ import { ScreenHeader } from "@components/ScreenHeader";
 import { Card, SectionLabel } from "@components/index";
 import { ACHIEVEMENTS } from "../../data/gameData";
 import { calculateDynastyScore } from "../../engine/legacyEngine";
+import { DYNASTY_CREST_LABELS } from "../../data/dynastyShop";
 import Svg, { Path, Circle } from "react-native-svg";
 
 export function LifeMuseumScreen() {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
   const character = useGameStore((s) => s.character);
+  const globalPrestige = useGameStore((s) => s.globalPrestige);
   const [activeTab, setActiveTab] = useState<"relics" | "decisions">("relics");
 
   if (!character) return null;
+
+  const crestId = character.familyCrestId ?? globalPrestige.familyCrestId;
 
   const currentGen = character.generation ?? 1;
   const dynastyScore = (character.dynastyScore ?? 0) + calculateDynastyScore(character);
@@ -80,6 +84,13 @@ export function LifeMuseumScreen() {
               {/* ── Dynasty Summary ── */}
               <Card style={styles.summaryCard}>
                 <Text style={styles.dynastyTitle}>DYNASTY RATING</Text>
+                {crestId ? (
+                  <View style={[styles.crestBadge, { borderColor: `${colors.gold}55`, backgroundColor: `${colors.gold}12` }]}>
+                    <Text style={[styles.crestBadgeText, { color: colors.gold, fontFamily: FONTS.bodyBold }]}>
+                      {DYNASTY_CREST_LABELS[crestId] ?? crestId} Crest
+                    </Text>
+                  </View>
+                ) : null}
                 <Text style={styles.dynastyScore}>{dynastyScore.toLocaleString()}</Text>
                 <View style={styles.row}>
                   <View style={styles.metric}>
@@ -189,6 +200,8 @@ const createStyles = ({ colors, fonts, spacing, radii }: ReturnType<typeof useTh
   scroll: { padding: spacing.md, gap: spacing.md },
   summaryCard: { padding: spacing.xl, alignItems: "center", backgroundColor: `${colors.gold}08`, borderColor: `${colors.gold}25` },
   dynastyTitle: { fontFamily: fonts.body, fontSize: 11, color: colors.gold, letterSpacing: 2 },
+  crestBadge: { marginTop: spacing.xs, paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: radii.full, borderWidth: 1 },
+  crestBadgeText: { fontSize: 11, letterSpacing: 0.5 },
   dynastyScore: { fontFamily: fonts.displayBlack, fontSize: 44, color: colors.gold, marginVertical: spacing.xs },
   row: { flexDirection: "row", width: "100%", justifyContent: "center", gap: spacing.xl, marginTop: spacing.sm },
   metric: { alignItems: "center" },

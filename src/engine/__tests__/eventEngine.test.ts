@@ -2,6 +2,7 @@ import {
   hasJob, isEligible, applySuccessChance, consumeLuckBoost, getEligibleEvents,
   getWeightedEligibleEvents,
   pickWeightedEvents, getGuaranteedMilestones, resolveEventRarity,
+  preloadAllEventPacks,
 } from '@engine/eventEngine';
 import type { Character, LifeEvent } from '../../types';
 import { createTestCharacter } from '../../test/fixtures/character';
@@ -9,6 +10,10 @@ import { createTestCharacter } from '../../test/fixtures/character';
 const baseCharacter: Character = createTestCharacter({
   traits: ['lucky'],
   luckBoostsRemaining: 2,
+});
+
+beforeAll(async () => {
+  await preloadAllEventPacks();
 });
 
 describe('hasJob', () => {
@@ -239,5 +244,43 @@ describe('scenario eligibility filtering', () => {
     const noScenario = createTestCharacter({ age: 30 });
     delete (noScenario as Partial<typeof noScenario>).scenarioId;
     expect(isEligible(royalEvent, 30, [], noScenario)).toBe(false);
+  });
+
+  it('rags_to_riches events are only eligible for rags_to_riches characters', () => {
+    const ragsEvent: LifeEvent = {
+      id: 'rtr_test', title: 'Rags Test', description: '',
+      minAge: 18, maxAge: 60, statEffect: {}, category: 'random', weight: 5, color: '#F97316',
+      requiresScenario: ['rags_to_riches'],
+    };
+    const ragsChar = createTestCharacter({ age: 30, scenarioId: 'rags_to_riches' });
+    const classicChar = createTestCharacter({ age: 30, scenarioId: 'classic' });
+    const silverChar = createTestCharacter({ age: 30, scenarioId: 'silver_spoon' });
+    expect(isEligible(ragsEvent, 30, [], ragsChar)).toBe(true);
+    expect(isEligible(ragsEvent, 30, [], classicChar)).toBe(false);
+    expect(isEligible(ragsEvent, 30, [], silverChar)).toBe(false);
+  });
+
+  it('zombie events are only eligible for zombie characters', () => {
+    const zombieEvent: LifeEvent = {
+      id: 'zom_test', title: 'Zombie Test', description: '',
+      minAge: 16, maxAge: 70, statEffect: {}, category: 'random', weight: 5, color: '#4D7C0F',
+      requiresScenario: ['zombie'],
+    };
+    const zombieChar = createTestCharacter({ age: 30, scenarioId: 'zombie' });
+    const classicChar = createTestCharacter({ age: 30, scenarioId: 'classic' });
+    expect(isEligible(zombieEvent, 30, [], zombieChar)).toBe(true);
+    expect(isEligible(zombieEvent, 30, [], classicChar)).toBe(false);
+  });
+
+  it('political events are only eligible for political characters', () => {
+    const politicalEvent: LifeEvent = {
+      id: 'pol_test', title: 'Political Test', description: '',
+      minAge: 22, maxAge: 70, statEffect: {}, category: 'career', weight: 5, color: '#1D4ED8',
+      requiresScenario: ['political'],
+    };
+    const politicalChar = createTestCharacter({ age: 30, scenarioId: 'political' });
+    const royalChar = createTestCharacter({ age: 30, scenarioId: 'royal' });
+    expect(isEligible(politicalEvent, 30, [], politicalChar)).toBe(true);
+    expect(isEligible(politicalEvent, 30, [], royalChar)).toBe(false);
   });
 });

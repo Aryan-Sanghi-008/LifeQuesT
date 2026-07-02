@@ -6,6 +6,8 @@ import { RootStackParamList } from '../../types';
 import { useThemedStyles, useTheme, SPACING } from '@theme';
 import { useGameStore } from '../../store/gameStore';
 import { GradientButton, Card } from '@components/index';
+import { CharacterNameText } from '@shared/components/CharacterNameText';
+import { markSlotSelected } from '@navigation/sessionState';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'SaveSlots'>;
@@ -27,6 +29,7 @@ export function SaveSlotScreen({ navigation }: Props) {
   }, [user, refreshSlotList]);
 
   const handleSelect = async (slotId: string, empty: boolean) => {
+    markSlotSelected();
     if (empty) {
       useGameStore.setState({
         activeSlotId: slotId,
@@ -70,7 +73,11 @@ export function SaveSlotScreen({ navigation }: Props) {
                 accessibilityLabel={empty ? `Empty slot ${slot.slotId}, start new life` : `Load ${slot.name}, age ${slot.age}`}
               >
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.slotName}>{empty ? 'Empty Slot' : slot.name}</Text>
+                  {empty ? (
+                    <Text style={styles.slotName}>Empty Slot</Text>
+                  ) : (
+                    <CharacterNameText name={slot.name} style={styles.slotName} />
+                  )}
                   <Text style={styles.slotMeta}>
                     {empty 
                       ? 'Start a new life' 
@@ -96,6 +103,7 @@ export function SaveSlotScreen({ navigation }: Props) {
           label="New Life"
           accessibilityLabel="Start a new life"
           onPress={() => {
+            markSlotSelected();
             const empty = slots.find(s => s.updatedAt === 0);
             const slotId = empty?.slotId ?? '0';
             useGameStore.setState({

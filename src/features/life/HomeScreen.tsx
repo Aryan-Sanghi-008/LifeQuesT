@@ -1,24 +1,26 @@
 import { useEffect, useState, useRef } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Pressable,
-  Alert,
-} from "react-native";
+import { View, Text, StyleSheet, ScrollView } from "react-native";
+import { useToastStore } from "@store/toastStore";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useGameStore } from "@store/gameStore";
 import { useTheme } from "@theme";
-import { GlassCard, ScreenShell, Card, StreakBadge, ScenarioBanner } from "@components/index";
+import { GlassCard, ScreenShell, Card, StreakBadge, ScenarioBanner, FeedbackPressable } from "@components/index";
 import { StreakDetailModal } from "@components/StreakDetailModal";
+import { triggerTapFeedback } from "@services/gameFeedback";
 import { XPBar } from "@components/XPBar";
 import { AvatarByCharacter } from "@components/Avatars";
+import { CharacterNameText } from "@shared/components/CharacterNameText";
 import { getSeasonPassLevel } from "@utils/seasonPassHelper";
 import { WORLD_EVENTS_POOL } from "@engine/worldEngine";
 import { CHALLENGES } from "@engine/challengeEngine";
 import { SCENARIOS } from "@data/scenarios";
+import { DynastyProgressCard } from "@features/retention/DynastyProgressCard";
+import { LegacyNudgeCard } from "@features/retention/LegacyNudgeCard";
+import {
+  DAILY_GAMEPLAY_COIN_CAP,
+  getGameplayCoinsEarnedToday,
+} from "@engine/economyCapEngine";
 
 function getTimeGreeting(): string {
   const hour = new Date().getHours();
@@ -47,6 +49,17 @@ export function HomeScreen() {
   const loadDailyQuests = useGameStore((s) => s.loadDailyQuests);
   const claimQuestReward = useGameStore((s) => s.claimQuestReward);
   const getLoginRewardState = useGameStore((s) => s.getLoginRewardState);
+  const claimLoginReward = useGameStore((s) => s.claimLoginReward);
+  const canSpinMysteryBox = useGameStore((s) => s.canSpinMysteryBox);
+  const canSpinMysteryBoxWithTicket = useGameStore((s) => s.canSpinMysteryBoxWithTicket);
+  const mysteryTickets = useGameStore((s) => s.character?.mysteryTickets ?? 0);
+  const coinsEarnedToday = character
+    ? getGameplayCoinsEarnedToday(character)
+    : 0;
+  const atDailyCoinCap = coinsEarnedToday >= DAILY_GAMEPLAY_COIN_CAP;
+  const purchaseStreakShield = useGameStore((s) => s.purchaseStreakShield);
+
+  const showToast = useToastStore((s) => s.showToast);
 
   const [countdown, setCountdown] = useState(getMidnightCountdown);
   const [streakModalOpen, setStreakModalOpen] = useState(false);
@@ -80,6 +93,8 @@ export function HomeScreen() {
   const { level, currentXp, maxXp } = getSeasonPassLevel(character.seasonXp ?? 0);
 
   const { day: rewardDay, claimed: rewardClaimed } = getLoginRewardState();
+  const mysterySpinAvailable = canSpinMysteryBox();
+  const mysteryTicketSpinAvailable = canSpinMysteryBoxWithTicket();
 
   const doneQuests = dailyQuests.filter((q) => q.progress >= q.target).length;
 
@@ -94,13 +109,23 @@ export function HomeScreen() {
     ? activeChallenge.title
     : "No active challenge — browse catalog";
 
+  const handleClaimLoginReward = () => {
+    if (rewardClaimed) {
+      navigation.navigate("DailyRewards" as never);
+      return;
+    }
+    const result = claimLoginReward();
+    showToast(result.message, result.ok ? "success" : "error");
+  };
+
+  const handleBuyStreakShield = () => {
+    const result = purchaseStreakShield();
+    showToast(result.message, result.ok ? "success" : "error");
+  };
+
   const handleClaimQuest = (questId: string) => {
     const res = claimQuestReward(questId);
-    if (res.ok) {
-      Alert.alert("Success", res.message);
-    } else {
-      Alert.alert("Claim Failed", res.message);
-    }
+    showToast(res.message, res.ok ? "success" : "error");
   };
 
   return (
@@ -113,27 +138,31 @@ export function HomeScreen() {
         {/* Header Strip */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <View style={[styles.avatarRing, { borderColor: colors.gold }]}>
-              <AvatarByCharacter character={character} size={50} />
+            <View style={[styles.avatarRing, { borderColor: colors.gold, backgroundColor: colors.bgCard }]}>
+              <AvatarByCharacter character={character} size={50} clipCircular />
             </View>
             <View style={styles.profileText}>
               <Text style={[styles.welcome, { color: colors.t3, fontFamily: fonts.body }]}>
                 {getTimeGreeting()},
               </Text>
-              <Text style={[styles.name, { color: colors.t1, fontFamily: fonts.bodyBold }]}>
-                {character.name}
-              </Text>
-              <Text style={[styles.subText, { color: colors.t3, fontFamily: fonts.body }]}>
+              <CharacterNameText
+                name={character.name}
+                style={[styles.name, { fontFamily: fonts.bodyBold }]}
+              />
+              <Text style={[styles.subText, { color: colors.t3, fontFamily: fonts.body }]} numberOfLines={1} ellipsizeMode="tail">
                 Age {character.age} · {character.countryFlag} {character.country}
               </Text>
             </View>
           </View>
           <View style={styles.headerRight}>
             <StreakBadge
-              count={character.dailyStreak ?? 1}
+              count={character.dailyStreak ?? 0}
               shieldCount={character.streakShieldCount ?? 0}
               showMilestoneProgress
-              onPress={() => setStreakModalOpen(true)}
+              onPress={() => {
+                triggerTapFeedback();
+                setStreakModalOpen(true);
+              }}
             />
           </View>
         </View>
@@ -144,7 +173,7 @@ export function HomeScreen() {
           return (
             <View style={{ paddingHorizontal: spacing.lg }}>
               <ScenarioBanner
-                type={scenarioData.bannerType}
+                type={scenarioData.id}
                 scenarioName={scenarioData.name}
                 description={scenarioData.tagline}
               />
@@ -171,7 +200,7 @@ export function HomeScreen() {
 
         {/* Active World Event Banner */}
         {activeEventIds.length > 0 && activeEvent && (
-          <Pressable
+          <FeedbackPressable
             onPress={() => navigation.navigate("WorldEvents")}
             style={[styles.worldEventCard, { backgroundColor: `${colors.health}12`, borderColor: colors.health, borderRadius: radii.md }]}
           >
@@ -186,7 +215,7 @@ export function HomeScreen() {
             <Text style={[styles.worldEventDesc, { color: colors.t2, fontFamily: fonts.body }]} numberOfLines={2}>
               {activeEvent.description}
             </Text>
-          </Pressable>
+          </FeedbackPressable>
         )}
 
         {/* Season Pass Progress Card */}
@@ -202,20 +231,32 @@ export function HomeScreen() {
             </View>
           </View>
           <XPBar level={level} currentXp={currentXp} maxXp={maxXp} />
-          {!character.hasSeasonPass && (
-            <Pressable
-              onPress={() => navigation.navigate("Shop")}
-              style={[styles.buyPassBtn, { backgroundColor: colors.gold, borderRadius: radii.sm }]}
-            >
-              <Text style={[styles.buyPassText, { color: colors.bgCard, fontFamily: fonts.bodyBold }]}>
-                Unlock Premium Pass
-              </Text>
-            </Pressable>
-          )}
+          <FeedbackPressable
+            onPress={() => navigation.navigate("Shop")}
+            style={[styles.buyPassBtn, {
+              backgroundColor: character.hasSeasonPass ? `${colors.teal}18` : colors.gold,
+              borderRadius: radii.sm,
+              borderWidth: character.hasSeasonPass ? 1 : 0,
+              borderColor: `${colors.teal}40`,
+            }]}
+          >
+            <Text style={[styles.buyPassText, {
+              color: character.hasSeasonPass ? colors.teal : colors.bgCard,
+              fontFamily: fonts.bodyBold,
+            }]}>
+              {character.hasSeasonPass ? "Visit Life Store" : "Unlock Premium Pass"}
+            </Text>
+          </FeedbackPressable>
         </Card>
 
+        {/* Dynasty Legacy Progress Card */}
+        <View style={{ paddingHorizontal: 0 }}>
+          <DynastyProgressCard />
+          <LegacyNudgeCard />
+        </View>
+
         {/* Daily Rewards Summary Card */}
-        <Pressable onPress={() => navigation.navigate("DailyRewards" as never)}>
+        <FeedbackPressable onPress={handleClaimLoginReward}>
           <Card style={styles.sectionCard}>
             <View style={styles.dailyBonusContent}>
               <View style={[styles.giftBox, { backgroundColor: rewardClaimed ? colors.bg2 : `${colors.gold}15` }]}>
@@ -228,7 +269,7 @@ export function HomeScreen() {
                 <Text style={[styles.bonusDesc, { color: colors.t3, fontFamily: fonts.body }]}>
                   {rewardClaimed
                     ? `Resets in ${countdown}`
-                    : "Tap to view your 7-day reward calendar."}
+                    : "Tap to claim your 30-day login reward."}
                 </Text>
               </View>
               <View style={[styles.claimBonusBtn, {
@@ -239,15 +280,15 @@ export function HomeScreen() {
                   color: rewardClaimed ? colors.t4 : "#FFFFFF",
                   fontFamily: fonts.bodyBold,
                 }]}>
-                  {rewardClaimed ? "Claimed" : "View"}
+                  {rewardClaimed ? "Claimed" : "Claim"}
                 </Text>
               </View>
             </View>
           </Card>
-        </Pressable>
+        </FeedbackPressable>
 
         {/* Mystery Box summary card */}
-        <Pressable onPress={() => navigation.navigate("MysteryBox" as never)}>
+        <FeedbackPressable onPress={() => navigation.navigate("MysteryBox" as never)}>
           <Card style={styles.sectionCard}>
             <View style={styles.dailyBonusContent}>
               <View style={[styles.giftBox, { backgroundColor: `${colors.orchid}12` }]}>
@@ -258,20 +299,32 @@ export function HomeScreen() {
                   Weekly Mystery Box
                 </Text>
                 <Text style={[styles.bonusDesc, { color: colors.t3, fontFamily: fonts.body }]}>
-                  Spin once a week for coins, gems, or luck boosts.
+                  {mysterySpinAvailable
+                    ? "Free weekly spin available!"
+                    : mysteryTicketSpinAvailable
+                      ? `${mysteryTickets} ticket${mysteryTickets === 1 ? "" : "s"} ready to spin.`
+                      : mysteryTickets > 0
+                        ? `Free spin used · ${mysteryTickets} ticket${mysteryTickets === 1 ? "" : "s"} left`
+                        : "Free spin used this week — check back soon."}
                 </Text>
               </View>
-              <View style={[styles.claimBonusBtn, { backgroundColor: `${colors.orchid}12`, borderRadius: radii.sm }]}>
-                <Text style={[styles.claimBonusText, { color: colors.orchid, fontFamily: fonts.bodyBold }]}>
-                  Spin
+              <View style={[styles.claimBonusBtn, {
+                backgroundColor: mysterySpinAvailable || mysteryTicketSpinAvailable ? colors.orchid : `${colors.orchid}12`,
+                borderRadius: radii.sm,
+              }]}>
+                <Text style={[styles.claimBonusText, {
+                  color: mysterySpinAvailable || mysteryTicketSpinAvailable ? "#FFFFFF" : colors.orchid,
+                  fontFamily: fonts.bodyBold,
+                }]}>
+                  {mysterySpinAvailable ? "Spin" : mysteryTicketSpinAvailable ? "Use Ticket" : "View"}
                 </Text>
               </View>
             </View>
           </Card>
-        </Pressable>
+        </FeedbackPressable>
 
         {/* Challenges Card */}
-        <Pressable onPress={() => navigation.navigate("ChallengeMode" as never)}>
+        <FeedbackPressable onPress={() => navigation.navigate("ChallengeMode" as never)}>
           <Card style={styles.sectionCard}>
             <View style={styles.dailyBonusContent}>
               <View style={[styles.giftBox, { backgroundColor: `${colors.catCareer}12` }]}>
@@ -292,7 +345,7 @@ export function HomeScreen() {
               </View>
             </View>
           </Card>
-        </Pressable>
+        </FeedbackPressable>
 
         {/* Daily Quests Card */}
         <Card style={styles.sectionCard}>
@@ -306,6 +359,10 @@ export function HomeScreen() {
               </Text>
             )}
           </View>
+          <Text style={[styles.dailyEarnCap, { color: atDailyCoinCap ? colors.gold : colors.t3, fontFamily: fonts.mono }]}>
+            Daily earn: {coinsEarnedToday.toLocaleString()} / {DAILY_GAMEPLAY_COIN_CAP.toLocaleString()}
+            {atDailyCoinCap ? ' · Resets tomorrow' : ''}
+          </Text>
           <View style={styles.questsList}>
             {dailyQuests.length === 0 ? (
               <Text style={[styles.noQuests, { color: colors.t3, fontFamily: fonts.body }]}>
@@ -351,7 +408,7 @@ export function HomeScreen() {
                       <Text style={[styles.questReward, { color: colors.emerald2, fontFamily: fonts.monoSemiBold }]}>
                         🪙 {quest.rewardCoins}
                       </Text>
-                      <Pressable
+                      <FeedbackPressable
                         onPress={() => handleClaimQuest(quest.id)}
                         disabled={!isComplete || quest.claimed}
                         style={[
@@ -381,7 +438,7 @@ export function HomeScreen() {
                         >
                           {quest.claimed ? "Claimed" : isComplete ? "Claim" : "Locked"}
                         </Text>
-                      </Pressable>
+                      </FeedbackPressable>
                     </View>
                   </View>
                 );
@@ -397,6 +454,8 @@ export function HomeScreen() {
       streak={character.dailyStreak ?? 0}
       shieldCount={character.streakShieldCount ?? 0}
       claimedMilestones={character.claimedStreakMilestones ?? []}
+      gemBalance={character.gems}
+      onBuyShield={handleBuyStreakShield}
     />
   </>
   );
@@ -429,10 +488,14 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   avatarRing: {
-    borderRadius: 28,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     borderWidth: 2,
     padding: 2,
     overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
   },
   profileText: {
     gap: 2,
@@ -549,6 +612,11 @@ const styles = StyleSheet.create({
   },
   questsList: {
     gap: 12,
+  },
+  dailyEarnCap: {
+    fontSize: 11,
+    marginTop: 6,
+    letterSpacing: 0.3,
   },
   noQuests: {
     fontSize: 13,

@@ -7,50 +7,64 @@ Backend team owns: `src/services/`, `functions/`, Firebase config, Firestore sec
 | Service | Responsibility |
 |---------|--------------|
 | `auth.ts` | Firebase Auth (Google + anonymous), `AppUser` normalization |
-| `persistence.ts` | MMKV + AsyncStorage save slot management |
-| `cloudSave.ts` | Firestore character sync (non-critical path) |
+| `persistence.ts` | MMKV on native; AsyncStorage + web fallback store on web/Expo Go |
+| `cloudSave.ts` | Firestore character sync at `saves/{uid}/slots/{slotId}` |
+| `userBootstrap.ts` | Single-read sign-in bootstrap (profile, entitlements, settings) |
+| `settingsSync.ts` | Cloud-authoritative settings sync (theme, audio, notifications) |
+| `liveOpsConfig.ts` | Fetch `liveops/current`, MMKV cache (1h TTL), hydrate `liveOpsEngine` |
+| `remoteConfig.ts` | Firebase Remote Config defaults + typed getters |
 | `analytics.ts` | Firebase Analytics event logging |
-| `ads.ts` | Google Mobile Ads init + interstitial serving |
+| `ads.ts` | Google Mobile Ads; death-flow interstitial + rewarded placements |
 | `iap.ts` | react-native-iap product fetch + purchase flow |
+| `leaderboard.ts` | Season-scoped leaderboard callables |
 
-## Firebase Project Structure
+## Firestore Collections
+
 ```
-Firestore Collections:
-  users/{uid}/
-    saves/{slotId}         # Character save data (JSON string)
-    profile/{uid}          # Display name, avatar (future leaderboard)
-  leaderboard/{docId}      # Aggregated top scores (future)
-  purchases/{transactionId} # Verified IAP records (idempotency)
+users/{uid}/
+  profile: { displayName, avatarUrl?, createdAt }
+  settings: { colorScheme, appThemeId, notificationsEnabled, soundEnabled, ... }
+  purchases/{transactionId}                # IAP idempotency (CF only write)
+  activeSlotId, displayName, entitlements fields on user doc
+
+saves/{uid}/slots/{slotId}               # character, version, checksum, lastSaved
+
+leaderboard/{uid}                          # legacy flat entries (dual-write)
+leaderboard/{seasonId}/entries/{uid}       # season-scoped leaderboard
+
+liveops/current                            # active season config (read: auth)
+liveops_history/{seasonId}                 # archived season snapshots (CF only write)
 ```
 
 ## Cloud Functions Deployed
 | Function | Trigger | Purpose |
 |----------|---------|---------|
 | `verifyPurchase` | onCall | Verify IAP receipt with Google/Apple |
-| `updateLeaderboard` | onCall | Submit score after character death |
-| `cleanupOldSaves` | Scheduled | Archive old inactive saves |
+| `updateLeaderboard` | onCall | Submit score; dual-write flat + season entry |
+| `getLeaderboard` | onCall | Query season entries; fallback to flat collection |
+| `cleanupOldSaves` | Scheduled (24h) | Delete stale `saves/*/slots/*` older than 90 days |
+| `archiveLiveOpsOnSeasonChange` | onWrite `liveops/current` | Archive prior season to `liveops_history/{seasonId}` |
+
+## Remote Config Keys (client defaults)
+| Key | Default | Consumer |
+|-----|---------|----------|
+| `interstitial_every_n_ageups` | `3` | Death-flow interstitial cadence |
+| `starter_pack_enabled` | `true` | `shouldShowStarterOffer()` |
+| `daily_reward_multiplier` | `1` | `claimLoginReward` coin grants |
+| `featured_scenario_id` | `classic` | `ScenarioPickerScreen` fallback when LiveOps unset |
 
 ## Deployment Process
 ```bash
-# Deploy all Cloud Functions
-cd functions && npm run build && firebase deploy --only functions
+npm run deploy:backend
+# equivalent: firebase deploy --only firestore:rules,firestore:indexes,functions
 
-# Deploy Firestore rules only
-firebase deploy --only firestore:rules
+# Seed LiveOps: import scripts/seed-liveops-current.json → liveops/current
+# Or run: .\scripts\seed-liveops.ps1
 
-# Full backend deploy
-firebase deploy
+# Register Remote Config defaults in Firebase console before production
 ```
 
 ## Monitoring
-- Firebase Console → Functions → Logs (check for errors after deploy)
-- Analytics → Events (verify events are firing from app)
-- Firestore → Usage (monitor read/write costs)
-
-## Future Backend Features
-- Push notifications (FCM) — daily play reminders
-- Leaderboard with aggregation Cloud Function
-- A/B testing via Remote Config
-- Dynamic event library from Firestore (no app update needed)
-- Purchase receipt validation hardening (jailbreak detection)
-- Daily reward Cloud Function (server-authoritative)
+- Firebase Console → Functions → Logs
+- Analytics → Events
+- Firestore → Usage

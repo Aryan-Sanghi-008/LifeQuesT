@@ -26,9 +26,9 @@ import { QUIRKY_EVENTS } from './events/quirkyEvents';
 import { TRAVEL_EVENTS } from './events/travelEvents';
 import { WORLD_EVENTS_EXPANDED } from './events/worldEventsExpanded';
 import { SCENARIO_EVENTS } from './events/scenarioEvents';
-import { ACHIEVEMENTS, ACHIEVEMENT_COIN_REWARDS } from './achievements';
+import { ACHIEVEMENTS, ACHIEVEMENT_COIN_REWARDS, ACHIEVEMENT_GEM_REWARDS } from './achievements';
 
-export { ACHIEVEMENTS, ACHIEVEMENT_COIN_REWARDS };
+export { ACHIEVEMENTS, ACHIEVEMENT_COIN_REWARDS, ACHIEVEMENT_GEM_REWARDS };
 
 // ─── Avatars (legacy) ─────────────────────────────────────────────────────────
 export const AVATARS: Array<{ id: AvatarId; label: string }> = [
@@ -40,16 +40,54 @@ export const AVATARS: Array<{ id: AvatarId; label: string }> = [
 
 // ─── Countries ───────────────────────────────────────────────────────────────
 export const COUNTRIES = [
-  { code: 'IN', flag: '🇮🇳', name: 'India',     wealthMod: 0   },
-  { code: 'US', flag: '🇺🇸', name: 'USA',       wealthMod: 20  },
-  { code: 'GB', flag: '🇬🇧', name: 'UK',        wealthMod: 15  },
-  { code: 'JP', flag: '🇯🇵', name: 'Japan',     wealthMod: 12  },
-  { code: 'BR', flag: '🇧🇷', name: 'Brazil',    wealthMod: -5  },
-  { code: 'NG', flag: '🇳🇬', name: 'Nigeria',   wealthMod: -10 },
-  { code: 'DE', flag: '🇩🇪', name: 'Germany',   wealthMod: 18  },
-  { code: 'AU', flag: '🇦🇺', name: 'Australia', wealthMod: 15  },
-  { code: 'SG', flag: '🇸🇬', name: 'Singapore', wealthMod: 22  },
-  { code: 'AE', flag: '🇦🇪', name: 'UAE',       wealthMod: 25  },
+  // Asia
+  { code: 'IN', flag: '🇮🇳', name: 'India',         wealthMod: 0   },
+  { code: 'CN', flag: '🇨🇳', name: 'China',          wealthMod: 8   },
+  { code: 'JP', flag: '🇯🇵', name: 'Japan',          wealthMod: 12  },
+  { code: 'KR', flag: '🇰🇷', name: 'South Korea',    wealthMod: 12  },
+  { code: 'SG', flag: '🇸🇬', name: 'Singapore',      wealthMod: 22  },
+  { code: 'MY', flag: '🇲🇾', name: 'Malaysia',       wealthMod: 5   },
+  { code: 'TH', flag: '🇹🇭', name: 'Thailand',       wealthMod: 2   },
+  { code: 'VN', flag: '🇻🇳', name: 'Vietnam',        wealthMod: -2  },
+  { code: 'PH', flag: '🇵🇭', name: 'Philippines',    wealthMod: -3  },
+  { code: 'ID', flag: '🇮🇩', name: 'Indonesia',      wealthMod: 0   },
+  { code: 'PK', flag: '🇵🇰', name: 'Pakistan',       wealthMod: -8  },
+  { code: 'BD', flag: '🇧🇩', name: 'Bangladesh',     wealthMod: -10 },
+  // Middle East
+  { code: 'AE', flag: '🇦🇪', name: 'UAE',            wealthMod: 25  },
+  { code: 'SA', flag: '🇸🇦', name: 'Saudi Arabia',   wealthMod: 20  },
+  { code: 'TR', flag: '🇹🇷', name: 'Turkey',         wealthMod: 3   },
+  { code: 'IL', flag: '🇮🇱', name: 'Israel',         wealthMod: 18  },
+  // Europe
+  { code: 'GB', flag: '🇬🇧', name: 'United Kingdom', wealthMod: 15  },
+  { code: 'DE', flag: '🇩🇪', name: 'Germany',        wealthMod: 18  },
+  { code: 'FR', flag: '🇫🇷', name: 'France',         wealthMod: 16  },
+  { code: 'ES', flag: '🇪🇸', name: 'Spain',          wealthMod: 12  },
+  { code: 'IT', flag: '🇮🇹', name: 'Italy',          wealthMod: 12  },
+  { code: 'NL', flag: '🇳🇱', name: 'Netherlands',    wealthMod: 18  },
+  { code: 'SE', flag: '🇸🇪', name: 'Sweden',         wealthMod: 20  },
+  { code: 'NO', flag: '🇳🇴', name: 'Norway',         wealthMod: 22  },
+  { code: 'CH', flag: '🇨🇭', name: 'Switzerland',    wealthMod: 25  },
+  { code: 'PL', flag: '🇵🇱', name: 'Poland',         wealthMod: 8   },
+  { code: 'RU', flag: '🇷🇺', name: 'Russia',         wealthMod: 5   },
+  // Americas
+  { code: 'US', flag: '🇺🇸', name: 'USA',            wealthMod: 20  },
+  { code: 'CA', flag: '🇨🇦', name: 'Canada',         wealthMod: 18  },
+  { code: 'MX', flag: '🇲🇽', name: 'Mexico',         wealthMod: 0   },
+  { code: 'BR', flag: '🇧🇷', name: 'Brazil',         wealthMod: -5  },
+  { code: 'AR', flag: '🇦🇷', name: 'Argentina',      wealthMod: -2  },
+  { code: 'CO', flag: '🇨🇴', name: 'Colombia',       wealthMod: -5  },
+  { code: 'CL', flag: '🇨🇱', name: 'Chile',          wealthMod: 2   },
+  // Africa
+  { code: 'NG', flag: '🇳🇬', name: 'Nigeria',        wealthMod: -10 },
+  { code: 'ZA', flag: '🇿🇦', name: 'South Africa',   wealthMod: -5  },
+  { code: 'EG', flag: '🇪🇬', name: 'Egypt',          wealthMod: -5  },
+  { code: 'KE', flag: '🇰🇪', name: 'Kenya',          wealthMod: -8  },
+  { code: 'GH', flag: '🇬🇭', name: 'Ghana',          wealthMod: -8  },
+  { code: 'ET', flag: '🇪🇹', name: 'Ethiopia',       wealthMod: -12 },
+  // Oceania
+  { code: 'AU', flag: '🇦🇺', name: 'Australia',      wealthMod: 15  },
+  { code: 'NZ', flag: '🇳🇿', name: 'New Zealand',    wealthMod: 15  },
 ];
 
 // ─── Zodiac Signs ────────────────────────────────────────────────────────────
@@ -1169,14 +1207,14 @@ export const LIFE_EVENTS: LifeEvent[] = [
 ];
 
 export const SEASON_PASS_TIERS = [
-  { tier: 1, xpRequired: 0, rewardCoins: 50 },
-  { tier: 2, xpRequired: 100, rewardCoins: 75 },
-  { tier: 3, xpRequired: 250, rewardCoins: 100, rewardLuckBoosts: 1 },
-  { tier: 4, xpRequired: 450, rewardCoins: 125 },
-  { tier: 5, xpRequired: 700, rewardCoins: 150, rewardGems: 5 },
-  { tier: 6, xpRequired: 1000, rewardCoins: 175 },
-  { tier: 7, xpRequired: 1350, rewardCoins: 200, rewardLuckBoosts: 1 },
-  { tier: 8, xpRequired: 1750, rewardCoins: 225 },
-  { tier: 9, xpRequired: 2200, rewardCoins: 250, rewardGems: 10 },
-  { tier: 10, xpRequired: 2700, rewardCoins: 500, rewardLuckBoosts: 2 },
+  { tier: 1, xpRequired: 0, rewardCoins: 45 },
+  { tier: 2, xpRequired: 100, rewardCoins: 65 },
+  { tier: 3, xpRequired: 250, rewardCoins: 85, rewardLuckBoosts: 1 },
+  { tier: 4, xpRequired: 450, rewardCoins: 105 },
+  { tier: 5, xpRequired: 700, rewardCoins: 125, rewardGems: 5, rewardTickets: 1 },
+  { tier: 6, xpRequired: 1000, rewardCoins: 150 },
+  { tier: 7, xpRequired: 1350, rewardCoins: 170, rewardLuckBoosts: 1 },
+  { tier: 8, xpRequired: 1750, rewardCoins: 195 },
+  { tier: 9, xpRequired: 2200, rewardCoins: 215, rewardGems: 10 },
+  { tier: 10, xpRequired: 2700, rewardCoins: 425, rewardLuckBoosts: 2, rewardTickets: 1 },
 ];

@@ -1,6 +1,7 @@
 import type { Character, WillDetails, FamilyLineageEntry, Person } from '../types';
 import { computeNetWorth } from './economyEngine';
 import { generateRandomDNA, generateRandomPersonality } from '@utils/genetics';
+import { applyDynastyStatMultiplier } from './economyCapEngine';
 
 export function calculateDynastyScore(character: Character): number {
   const gen = character.generation ?? 1;
@@ -93,7 +94,15 @@ export function distributeInheritance(
   return dist;
 }
 
-export function continueAsHeir(parent: Character, heirId: string): Character {
+export function continueAsHeir(
+  parent: Character,
+  heirId: string,
+  options?: {
+    hasBloodlineBond?: boolean;
+    dynastyStatBonusTier?: number;
+    familyCrestId?: string;
+  },
+): Character {
   const heirNPC = parent.people.find(p => p.id === heirId && p.isAlive);
   if (!heirNPC) {
     throw new Error('Selected heir is not alive or not found.');
@@ -177,21 +186,42 @@ export function continueAsHeir(parent: Character, heirId: string): Character {
     }
   });
 
+  if (options?.hasBloodlineBond && familyLineage.length > 0) {
+    const ancestor = familyLineage[familyLineage.length - 1];
+    nextPeople.push({
+      id: `bloodline_${ancestor.name}_${Date.now()}`,
+      name: ancestor.name,
+      age: Math.max(heirNPC.age + 20, ancestor.lifespan),
+      gender: 'other',
+      relationType: 'friend',
+      relationshipScore: 70,
+      avatarSeed: ancestor.name,
+      isAlive: true,
+      occupation: 'Family Ancestor',
+      archetypeId: 'bloodline_ancestor',
+      goals: ['Guide the bloodline'],
+    });
+  }
+
   // 5. Generate starting stats/caps for the new heir character
   const dna = heirNPC.dna ?? generateRandomDNA();
   const personality = heirNPC.personality ?? generateRandomPersonality();
 
-  const stats = {
-    health: Math.min(90, 80 + Math.floor(Math.random() * 11)),
-    happiness: 80,
-    intelligence: dna.statPotentials?.intelligence ?? 60,
-    wealth: Math.min(100, Math.round(startingCash / 10000)),
-    fitness: 60,
-    looks: dna.statPotentials?.looks ?? 50,
-    social: 50,
-    ambition: personality.conscientiousness ?? 50,
-    mentalHealth: 80,
-  };
+  const stats = applyDynastyStatMultiplier(
+    {
+      health: Math.min(90, 80 + Math.floor(Math.random() * 11)),
+      happiness: 80,
+      intelligence: dna.statPotentials?.intelligence ?? 60,
+      wealth: Math.min(100, Math.round(startingCash / 10000)),
+      fitness: 60,
+      looks: dna.statPotentials?.looks ?? 50,
+      social: 50,
+      ambition: personality.conscientiousness ?? 50,
+      mentalHealth: 80,
+    },
+    options?.dynastyStatBonusTier ?? 0,
+    generation,
+  );
 
   const currentYear = new Date().getFullYear();
 
@@ -251,6 +281,7 @@ export function continueAsHeir(parent: Character, heirId: string): Character {
     dynastyScore,
     familyLineage,
     activeWorldEvents: [],
+    familyCrestId: options?.familyCrestId ?? parent.familyCrestId,
     createdAt: Date.now(),
     updatedAt: Date.now(),
   };

@@ -6,6 +6,7 @@ import { applySuccessChance, consumeLuckBoost } from "../../engine/eventEngine";
 import { applyEffect, computeNetWorth } from "../../engine/economyEngine";
 import { generatePet } from "@utils/npcGenerator";
 import { recordCrime } from "../../engine/crimeEngine";
+import { isFeatureEnabled, getActivityFeatureGate } from "../../engine/scenarioEngine";
 import { updateQuestProgress, pickDailyQuests } from "../../engine/questEngine";
 import { setDailyQuestsProgress, saveCharacterLocal } from "../../services/persistence";
 import { validateFocusAllocation } from "../../engine/focusEngine";
@@ -54,6 +55,10 @@ export const createActivitySlice: StateCreator<
 
     const activity = ACTIVITIES.find((a) => a.id === activityId);
     if (!activity) return { success: false, message: "Unknown activity." };
+    const featureGate = getActivityFeatureGate(activity.id, activity.category);
+    if (featureGate && !isFeatureEnabled(character, featureGate)) {
+      return { success: false, message: "This activity isn't available in your scenario." };
+    }
     if (character.age < activity.minAge || character.age > activity.maxAge) {
       return {
         success: false,
@@ -241,10 +246,17 @@ export const createActivitySlice: StateCreator<
     const { character } = get();
     if (!character) return { ok: false, message: "No character." };
     try {
-      const newChar = continueAsHeir(character, heirId);
+      const prestige = get().globalPrestige;
+      const hasBloodlineBond = (prestige.unlockedDynastyPerkIds ?? []).includes('dynasty_bloodline_bond');
+      const newChar = continueAsHeir(character, heirId, {
+        hasBloodlineBond,
+        dynastyStatBonusTier: prestige.dynastyStatBonusTier ?? 0,
+        familyCrestId: prestige.familyCrestId,
+      });
       set((s) => {
         s.character = newChar;
         s.pendingDecision = null;
+        s.pendingReincarnation = false;
         s.sessionAges = 0;
         s.slotList = buildLocalSlotList();
       });
@@ -254,6 +266,8 @@ export const createActivitySlice: StateCreator<
       const slotId = get().activeSlotId;
       saveCharacterLocal(newChar, slotId);
       void get()._persist();
+      // Check dynasty milestones after generation bump
+      get().checkDynastyMilestones();
       return { ok: true };
     } catch (e: any) {
       return {

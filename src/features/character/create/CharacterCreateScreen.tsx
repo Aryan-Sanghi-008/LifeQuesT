@@ -26,6 +26,7 @@ import { useTheme } from "@theme";
 import { GradientButton } from "@components/index";
 import { ZODIACS } from "@data/gameData";
 import { useCharacter } from "../hooks/useCharacter";
+import { useGameStore } from "@store/gameStore";
 import {
   STEP_COUNT,
   STEP_LABELS,
@@ -52,6 +53,11 @@ export function CharacterCreateScreen({ navigation, route }: Props) {
 
   const { createCharacter, character, carriedStatsForCreate: carriedFromStore } = useCharacter();
   const isPremium = character?.isPremium ?? false;
+  const unlockedPrestigeTraitIds = useGameStore((s) => s.globalPrestige.unlockedTraitIds ?? []);
+  const hasDynastyTraitExpansion = useGameStore((s) =>
+    (s.globalPrestige.unlockedDynastyPerkIds ?? []).includes('dynasty_trait_expansion'),
+  );
+  const familyCrestId = useGameStore((s) => s.globalPrestige.familyCrestId);
   const carriedStats = carriedFromStore ?? route.params?.carriedStats;
   const scenarioId = route.params?.scenarioId;
   const insets = useSafeAreaInsets();
@@ -200,6 +206,7 @@ export function CharacterCreateScreen({ navigation, route }: Props) {
             traits={traits}
             personality={personality}
             selectedScenario={selectedScenario}
+            familyCrestId={familyCrestId}
           />
 
           <ScrollView
@@ -238,6 +245,8 @@ export function CharacterCreateScreen({ navigation, route }: Props) {
                   traits={traits}
                   toggleTrait={toggleTrait}
                   isPremium={isPremium}
+                  unlockedPrestigeTraitIds={unlockedPrestigeTraitIds}
+                  hasDynastyTraitExpansion={hasDynastyTraitExpansion}
                 />
               )}
               {step === 3 && (

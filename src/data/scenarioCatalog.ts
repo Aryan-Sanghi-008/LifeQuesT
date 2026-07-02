@@ -1,0 +1,262 @@
+import { ScenarioId, CharacterStats, IAPProductId, ScenarioFeature } from '../types';
+
+export interface ScenarioDef {
+  id: ScenarioId;
+  name: string;
+  tagline: string;
+  description: string;
+  iconEmoji: string;
+  accentColor: string;
+  worldEra: 'modern' | 'ancient' | 'medieval' | 'future' | 'alternate';
+  difficulty: 'easy' | 'normal' | 'hard' | 'chaos';
+  isPremium: boolean;
+  iapProductId?: IAPProductId;
+  wealthMultiplier: number;
+  statBonuses: Partial<CharacterStats>;
+  startingCountry?: string;
+  startingAge?: number;
+  currencyName: string;
+  priceLabel?: string;
+  allowedFeatures?: ScenarioFeature[];
+  disabledFeatures?: ScenarioFeature[];
+  exclusiveCareerIds?: string[];
+  exclusiveNPCArchetypes?: string[];
+  initialScenarioData?: Record<string, unknown>;
+}
+
+export const FREE_SCENARIO_IDS: ScenarioId[] = ['classic', 'rags_to_riches', 'silver_spoon'];
+
+export const PREMIUM_SCENARIO_IDS: ScenarioId[] = [
+  'royal', 'crime', 'cyber', 'medieval', 'zombie',
+  'mars', 'celebrity', 'fantasy', 'political',
+];
+
+export const SCENARIO_CATALOG: ScenarioDef[] = [
+  // ── Free ─────────────────────────────────────────────────────────────────────
+  {
+    id: 'classic',
+    name: 'Classic Life',
+    tagline: 'The original LifeQuest experience',
+    description: 'Live a modern life from birth to death. Go to school, find love, build a career, raise a family, and leave a legacy. Every decision shapes who you become.',
+    iconEmoji: '🏡',
+    accentColor: '#3B82F6',
+    worldEra: 'modern',
+    difficulty: 'normal',
+    isPremium: false,
+    wealthMultiplier: 1.0,
+    statBonuses: {},
+    currencyName: 'Coins',
+  },
+  {
+    id: 'rags_to_riches',
+    name: 'Rags to Riches',
+    tagline: 'Born with nothing. Build everything.',
+    description: 'Start destitute in a developing nation with almost no money and limited opportunities. Every coin earned is a victory. The world owes you nothing.',
+    iconEmoji: '🪙',
+    accentColor: '#F97316',
+    worldEra: 'modern',
+    difficulty: 'hard',
+    isPremium: false,
+    wealthMultiplier: 0.01,
+    statBonuses: { fitness: 5 },
+    startingCountry: 'NG',
+    currencyName: 'Coins',
+  },
+  {
+    id: 'silver_spoon',
+    name: 'Silver Spoon',
+    tagline: 'Born into privilege. Live up to it.',
+    description: 'Start in an elite family with immense wealth and crushing social expectations. Prestige events fire frequently. Scandal waits around every corner.',
+    iconEmoji: '🥄',
+    accentColor: '#C084FC',
+    worldEra: 'modern',
+    difficulty: 'easy',
+    isPremium: false,
+    wealthMultiplier: 10,
+    statBonuses: { social: 10, looks: 5 },
+    currencyName: 'Coins',
+  },
+  // ── Premium ───────────────────────────────────────────────────────────────────
+  {
+    id: 'royal',
+    name: 'Royal Dynasty',
+    tagline: 'Born into power. Rule wisely.',
+    description: 'Start as a noble heir to a royal family. Navigate palace politics, arrange marriages, wage diplomatic wars, and build an empire that spans generations.',
+    iconEmoji: '👑',
+    accentColor: '#F59E0B',
+    worldEra: 'medieval',
+    difficulty: 'hard',
+    isPremium: true,
+    iapProductId: 'scenario_royal',
+    wealthMultiplier: 10,
+    statBonuses: { social: 15, ambition: 10 },
+    currencyName: 'Coins',
+    exclusiveCareerIds: ['royal_heir', 'court_advisor', 'monarch'],
+    exclusiveNPCArchetypes: ['royal_courtier', 'royal_guard'],
+    disabledFeatures: ['crime_activities'],
+    initialScenarioData: { courtStanding: 50 },
+    priceLabel: '$2.99',
+  },
+  {
+    id: 'crime',
+    name: 'Criminal Empire',
+    tagline: 'Power. Money. Consequences.',
+    description: 'Build a criminal organization from the ground up. Run operations, evade law enforcement, and bribe officials — but one wrong move brings it crashing down.',
+    iconEmoji: '🔫',
+    accentColor: '#EF4444',
+    worldEra: 'modern',
+    difficulty: 'chaos',
+    isPremium: true,
+    iapProductId: 'scenario_crime',
+    wealthMultiplier: 0.5,
+    statBonuses: { ambition: 10, social: 5 },
+    currencyName: 'Coins',
+    exclusiveCareerIds: ['mob_enforcer', 'crime_boss'],
+    exclusiveNPCArchetypes: ['crime_lieutenant', 'crime_informant'],
+    priceLabel: '$2.99',
+  },
+  {
+    id: 'cyber',
+    name: 'Cyber Future',
+    tagline: 'In 2087, humanity uploaded everything.',
+    description: 'Live in a hyper-connected megacity where AI governs policy, augmentations replace medicine, and reputation is currency. Hack, trade, and survive.',
+    iconEmoji: '🤖',
+    accentColor: '#06B6D4',
+    worldEra: 'future',
+    difficulty: 'normal',
+    isPremium: true,
+    iapProductId: 'scenario_cyber',
+    wealthMultiplier: 1.2,
+    statBonuses: { intelligence: 10, fitness: -5 },
+    currencyName: 'Credits',
+    exclusiveCareerIds: ['netrunner'],
+    exclusiveNPCArchetypes: ['cyber_fixer', 'cyber_corp_agent'],
+    disabledFeatures: ['real_estate'],
+    initialScenarioData: { neuralSync: 1 },
+    priceLabel: '$3.99',
+  },
+  {
+    id: 'medieval',
+    name: 'Medieval Kingdom',
+    tagline: 'Peasant or lord — your choice.',
+    description: 'Born in the Middle Ages where plague, war, and famine are constant companions. Survive, rise through the feudal system, and carve your name into history.',
+    iconEmoji: '⚔️',
+    accentColor: '#92400E',
+    worldEra: 'medieval',
+    difficulty: 'hard',
+    isPremium: true,
+    iapProductId: 'scenario_medieval',
+    wealthMultiplier: 0.8,
+    statBonuses: { fitness: 10, intelligence: -5 },
+    currencyName: 'Gold',
+    exclusiveCareerIds: ['knight', 'blacksmith'],
+    exclusiveNPCArchetypes: ['medieval_squire', 'medieval_guildmaster'],
+    disabledFeatures: ['stocks', 'social_media', 'university'],
+    initialScenarioData: { rank: 'peasant' },
+    priceLabel: '$2.99',
+  },
+  {
+    id: 'zombie',
+    name: 'Zombie Apocalypse',
+    tagline: 'Survive. Build. Protect.',
+    description: 'The world ended six months ago. Resources are scarce, trust is rarer, and the dead keep walking. Build a base, gather survivors, and outlast the collapse.',
+    iconEmoji: '🧟',
+    accentColor: '#4D7C0F',
+    worldEra: 'alternate',
+    difficulty: 'chaos',
+    isPremium: true,
+    iapProductId: 'scenario_zombie',
+    wealthMultiplier: 0.3,
+    statBonuses: { fitness: 15, health: -10 },
+    currencyName: 'Supplies',
+    exclusiveCareerIds: ['scavenger_leader'],
+    exclusiveNPCArchetypes: ['zombie_survivor', 'zombie_medic'],
+    disabledFeatures: ['stocks', 'real_estate', 'business', 'university'],
+    initialScenarioData: { baseLevel: 1, supplies: 50 },
+    priceLabel: '$2.99',
+  },
+  {
+    id: 'mars',
+    name: 'Mars Colony',
+    tagline: 'Red planet, new rules.',
+    description: 'Earth is overcrowded. You volunteered for the third Mars mission. Terraform, build, love, and mourn under a rust-red sky 225 million kilometers from home.',
+    iconEmoji: '🚀',
+    accentColor: '#DC2626',
+    worldEra: 'future',
+    difficulty: 'hard',
+    isPremium: true,
+    iapProductId: 'scenario_mars',
+    wealthMultiplier: 1.5,
+    statBonuses: { intelligence: 10, social: -5 },
+    startingCountry: 'US',
+    currencyName: 'Credits',
+    exclusiveCareerIds: ['colony_engineer'],
+    exclusiveNPCArchetypes: ['mars_colonist', 'mars_commander'],
+    initialScenarioData: { habitatIntegrity: 100 },
+    priceLabel: '$3.99',
+  },
+  {
+    id: 'celebrity',
+    name: 'Celebrity Child',
+    tagline: 'Born famous. Stay sane.',
+    description: 'Your parents are A-list celebrities. You never asked for the spotlight, but it found you at birth. Paparazzi, privilege, pressure, and the very real risk of it all going wrong.',
+    iconEmoji: '⭐',
+    accentColor: '#EC4899',
+    worldEra: 'modern',
+    difficulty: 'normal',
+    isPremium: true,
+    iapProductId: 'scenario_celebrity',
+    wealthMultiplier: 5,
+    statBonuses: { social: 10, looks: 10, mentalHealth: -10 },
+    currencyName: 'Coins',
+    exclusiveCareerIds: ['child_star'],
+    exclusiveNPCArchetypes: ['celebrity_agent', 'celebrity_paparazzi'],
+    disabledFeatures: ['crime_activities'],
+    initialScenarioData: { fameLevel: 25 },
+    priceLabel: '$1.99',
+  },
+  {
+    id: 'fantasy',
+    name: 'Fantasy Kingdom',
+    tagline: 'Magic is real. Use it wisely.',
+    description: 'In a realm of guilds, dragons, and ancient prophecies, you are born with a rare gift. Master your power, forge alliances, and shape the fate of the realm.',
+    iconEmoji: '🧙',
+    accentColor: '#7C3AED',
+    worldEra: 'alternate',
+    difficulty: 'normal',
+    isPremium: true,
+    iapProductId: 'scenario_fantasy',
+    wealthMultiplier: 1.0,
+    statBonuses: { intelligence: 10, ambition: 5 },
+    currencyName: 'Gold',
+    exclusiveCareerIds: ['career_alchemist', 'career_wizard_apprentice', 'guild_adventurer'],
+    exclusiveNPCArchetypes: ['fantasy_mage', 'fantasy_guild_recruiter'],
+    disabledFeatures: ['stocks', 'social_media'],
+    initialScenarioData: { magicAffinity: 10 },
+    priceLabel: '$3.99',
+  },
+  {
+    id: 'political',
+    name: 'Political Dynasty',
+    tagline: 'Elections. Deals. Power.',
+    description: 'Born into a political family, you are groomed for office from childhood. Navigate scandals, forge coalitions, and build a dynasty that shapes generations of policy.',
+    iconEmoji: '🏛️',
+    accentColor: '#1D4ED8',
+    worldEra: 'modern',
+    difficulty: 'hard',
+    isPremium: true,
+    iapProductId: 'scenario_political',
+    wealthMultiplier: 3,
+    statBonuses: { social: 15, ambition: 10 },
+    currencyName: 'Coins',
+    exclusiveCareerIds: ['campaign_manager'],
+    exclusiveNPCArchetypes: ['political_lobbyist', 'political_rival'],
+    disabledFeatures: ['crime_activities'],
+    initialScenarioData: { pollStanding: 40 },
+    priceLabel: '$2.99',
+  },
+];
+
+export function getScenarioDef(id: ScenarioId): ScenarioDef {
+  return SCENARIO_CATALOG.find((s) => s.id === id) ?? SCENARIO_CATALOG[0];
+}

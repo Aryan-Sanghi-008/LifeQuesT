@@ -1,4 +1,4 @@
-import { resolveSaveConflict } from '@utils/saveSync';
+import { resolveSaveConflict, reconcileLocalAndCloudSave } from '@utils/saveSync';
 import { createTestCharacter } from '../../test/fixtures/character';
 
 const makeChar = (id: string, updatedAt: number) => createTestCharacter({
@@ -34,5 +34,44 @@ describe('resolveSaveConflict', () => {
     const cloud = makeChar('cloud', 200);
     expect(resolveSaveConflict(local, cloud, 100, 200)?.id).toBe('cloud');
     expect(resolveSaveConflict(local, cloud, 300, 200)?.id).toBe('local');
+  });
+
+  it('prefers higher version when checksums differ', () => {
+    const local = makeChar('local', 100);
+    const cloud = makeChar('cloud', 100);
+    expect(
+      resolveSaveConflict(local, cloud, 100, 100, {
+        localVersion: 1,
+        cloudVersion: 2,
+        localChecksum: 'a',
+        cloudChecksum: 'b',
+      })?.id,
+    ).toBe('cloud');
+  });
+});
+
+describe('reconcileLocalAndCloudSave', () => {
+  it('returns conflict when checksums differ within 60s', () => {
+    const local = makeChar('local', 1000);
+    const cloud = makeChar('cloud', 1050);
+    const result = reconcileLocalAndCloudSave(local, cloud, {
+      updatedAt: 1050,
+      checksum: 'cloud-checksum',
+    });
+    expect(result.action).toBe('conflict');
+  });
+
+  it('auto-picks winner when timestamps differ beyond 60s', () => {
+    const local = makeChar('local', 1000);
+    const cloud = makeChar('cloud', 200000);
+    const result = reconcileLocalAndCloudSave(local, cloud, {
+      updatedAt: 200000,
+      version: 2,
+      checksum: 'cloud-checksum',
+    });
+    expect(result.action).toBe('use');
+    if (result.action === 'use') {
+      expect(result.character.id).toBe('cloud');
+    }
   });
 });

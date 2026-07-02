@@ -9,6 +9,9 @@ describe('prestigeEngine', () => {
     totalLivesLived: 0,
     completedChallengeIds: [],
     unlockedTraitIds: [],
+    unlockedScenarioIds: ['classic'],
+    unlockedDynastyPerkIds: [],
+    dynastyStatBonusTier: 0,
   };
 
   it('calculates prestige level correctly', () => {

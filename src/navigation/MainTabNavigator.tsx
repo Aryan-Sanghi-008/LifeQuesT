@@ -10,6 +10,7 @@ import { LifeScreen }    from '@features/life/LifeScreen';
 import { ProfileScreen } from '@features/life/ProfileScreen';
 import { withGameErrorBoundary } from './screenWrappers';
 import { QuickActionsSheet } from '@components/QuickActionsSheet';
+import { triggerTapFeedback } from '@services/gameFeedback';
 import Svg, { Path, Circle } from 'react-native-svg';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -79,6 +80,9 @@ function TabButton({
   const accentColor = colors[TAB_COLOR_KEYS[routeName] ?? 'sapphire'];
 
   const handlePress = () => {
+    if (!isFocused) {
+      triggerTapFeedback();
+    }
     Animated.sequence([
       Animated.spring(scale, { toValue: 0.88, useNativeDriver: true, damping: 12, stiffness: 300 }),
       Animated.spring(scale, { toValue: 1, useNativeDriver: true, damping: 14, stiffness: 260 }),
@@ -145,7 +149,10 @@ function CustomTabBar({ state, navigation, onOpenQuickActions }: BottomTabBarPro
           return (
             <Pressable
               key={route.key}
-              onPress={onPress}
+              onPress={() => {
+                triggerTapFeedback();
+                onPress();
+              }}
               style={styles.fabBtn}
             >
               <View style={[styles.fabInner, { backgroundColor: colors.emerald, shadowColor: colors.emerald }]}>

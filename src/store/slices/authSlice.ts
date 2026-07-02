@@ -3,13 +3,18 @@ import { GameStore } from "../types";
 import { AppUser } from "../../types";
 import { isCloudUser, buildLocalSlotList } from "../storeHelpers";
 import {
-  fetchUserEntitlements,
   applyEntitlementsToCharacter,
+  applyEntitlementsToGlobalPrestige,
   hasPendingGrants,
   clearConsumedGrants,
 } from "../../services/entitlements";
+import { saveGlobalPrestige } from "../../services/persistence";
 import { listCloudSlots } from "../../services/cloudSave";
 import { mergeSlotLists } from "@utils/saveSync";
+import { bootstrapCloudUser } from "@services/userBootstrap";
+import { applyCloudSettings, bindSettingsCloudSync } from "@services/settingsSync";
+
+let settingsSyncUnsub: (() => void) | null = null;
 
 export interface AuthSlice {
   user: AppUser | null;
@@ -34,6 +39,11 @@ export const createAuthSlice: StateCreator<
     }),
 
   onUserChanged: async (user) => {
+    if (settingsSyncUnsub) {
+      settingsSyncUnsub();
+      settingsSyncUnsub = null;
+    }
+
     set((s) => {
       s.user = user;
     });
@@ -46,9 +56,31 @@ export const createAuthSlice: StateCreator<
     }
 
     try {
-      const entitlements = await fetchUserEntitlements(user!.uid);
+      const bootstrap = await bootstrapCloudUser(
+        user!.uid,
+        user!.displayName ?? 'Player',
+        user!.photoURL,
+      );
+
+      if (bootstrap.settings) {
+        applyCloudSettings(bootstrap.settings);
+      }
+
+      settingsSyncUnsub = bindSettingsCloudSync(user!.uid);
+
+      const entitlements = bootstrap.entitlements;
       if (entitlements) {
-        const { character } = get();
+        const { character, globalPrestige } = get();
+        if (entitlements.unlockedScenarioIds?.length) {
+          const updatedPrestige = applyEntitlementsToGlobalPrestige(
+            globalPrestige,
+            entitlements,
+          );
+          set((s) => {
+            s.globalPrestige = updatedPrestige;
+          });
+          saveGlobalPrestige(updatedPrestige);
+        }
         if (character) {
           const updated = applyEntitlementsToCharacter(
             character,
@@ -64,7 +96,7 @@ export const createAuthSlice: StateCreator<
         }
       }
     } catch (e) {
-      console.warn("[entitlements] hydrate failed", e);
+      console.warn("[auth] bootstrap failed", e);
     }
 
     await get().refreshSlotList();

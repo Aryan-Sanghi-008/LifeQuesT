@@ -1,7 +1,8 @@
 import { Platform } from 'react-native';
-import { IAPProductId } from '../types';
+import { IAPProductId, AvatarStyleId } from '../types';
 import { isIapNativeAvailable } from '@utils/nativeAvailability';
 import { IAP_CLIENT_GRANTS } from '../data/iapCatalog';
+import { setStarterOfferPurchased } from './persistence';
 
 const PRODUCT_IDS: IAPProductId[] = [
   'premium_monthly',
@@ -17,6 +18,38 @@ const PRODUCT_IDS: IAPProductId[] = [
   'avatar_pack_adventurer',
   'avatar_pack_lorelei',
   'avatar_pack_bottts',
+  'avatar_pack_notionists',
+  'avatar_pack_big_smile',
+  'avatar_pack_wanderer',
+  'avatar_bundle_all',
+  'cosmetic_theme_dark_slate',
+  'cosmetic_theme_midnight',
+  'cosmetic_theme_sunrise',
+  'cosmetic_tombstone_gothic',
+  'cosmetic_tombstone_modern',
+  'cosmetic_tombstone_angelic',
+  'cosmetic_event_vintage',
+  'cosmetic_event_neon',
+  'cosmetic_event_watercolor',
+  'cosmetic_font_serif',
+  'cosmetic_font_script',
+  'cosmetic_font_mono',
+  'cosmetic_sound_minimal',
+  'cosmetic_sound_jazz',
+  'cosmetic_sound_cinematic',
+  'cosmetic_sound_lofi',
+  'mystery_spins_3',
+  'scenario_royal',
+  'scenario_crime',
+  'scenario_cyber',
+  'scenario_medieval',
+  'scenario_zombie',
+  'scenario_mars',
+  'scenario_celebrity',
+  'scenario_fantasy',
+  'scenario_political',
+  'scenario_pack_all',
+  'starter_pack',
 ];
 
 type Product = import('@iaptic/react-native-iap').Product;
@@ -95,7 +128,7 @@ export function setupPurchaseListeners(
 }
 
 function isConsumable(productId: string): boolean {
-  return ['coins_small', 'coins_medium', 'coins_large', 'gems_small', 'luck_boost', 'reincarnation_scroll'].includes(productId);
+  return ['coins_small', 'coins_medium', 'coins_large', 'gems_small', 'luck_boost', 'reincarnation_scroll', 'mystery_spins_3'].includes(productId);
 }
 
 export function applyPurchaseToStore(
@@ -108,7 +141,14 @@ export function applyPurchaseToStore(
     addLuckBoost: (n: number) => void;
     useReincarnationScroll: () => void;
     setSeasonPass?: (v: boolean) => void;
-    unlockAvatarStyle?: (style: 'adventurer' | 'lorelei' | 'bottts') => void;
+    unlockAvatarStyle?: (style: AvatarStyleId) => void;
+    unlockAvatarStyles?: (styles: AvatarStyleId[]) => void;
+    unlockAllAvatarStyles?: () => void;
+    grantCosmeticUnlock?: (cosmeticId: string) => void;
+    applyCosmetic?: (cosmeticId: string) => { ok: boolean; message: string };
+    addMysterySpins?: (n: number) => void;
+    unlockScenario?: (scenarioId: import('../types').ScenarioId) => void;
+    unlockAllPremiumScenarios?: () => void;
   },
 ): void {
   const grants = IAP_CLIENT_GRANTS[productId as IAPProductId];
@@ -122,6 +162,16 @@ export function applyPurchaseToStore(
   if (grants.reincarnationScroll) store.useReincarnationScroll();
   if (grants.seasonPass) store.setSeasonPass?.(true);
   if (grants.avatarStyle) store.unlockAvatarStyle?.(grants.avatarStyle);
+  if (grants.avatarStyles?.length) store.unlockAvatarStyles?.(grants.avatarStyles);
+  if (grants.unlockAllAvatarStyles) store.unlockAllAvatarStyles?.();
+  if (grants.unlockCosmeticId) {
+    store.grantCosmeticUnlock?.(grants.unlockCosmeticId);
+    store.applyCosmetic?.(grants.unlockCosmeticId);
+  }
+  if (grants.mysterySpins) store.addMysterySpins?.(grants.mysterySpins);
+  if (grants.unlockScenario) store.unlockScenario?.(grants.unlockScenario);
+  if (grants.unlockAllScenarios) store.unlockAllPremiumScenarios?.();
+  if (productId === 'starter_pack') setStarterOfferPurchased(true);
 }
 
 export async function verifyPurchaseOnServer(

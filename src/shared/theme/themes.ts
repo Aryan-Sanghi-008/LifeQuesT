@@ -172,7 +172,7 @@ export const DARK_COLORS = {
   t1: "#F0F6FC",           // Primary text (near-white)
   t2: "#B1BAC4",           // Secondary text
   t3: "#8B949E",           // Muted text
-  t4: "#484F58",           // Placeholder / label text
+  t4: "#6E7681",           // Placeholder / label text (raised from #484F58 for contrast)
 
   // ─── Borders ────────────────────────────────────────────────────────────────
   border:  "#30363D",      // Dark border
@@ -186,6 +186,54 @@ export const DARK_COLORS = {
   shadowCard: "rgba(0,0,0,0.25)",
   shadowStrong: "rgba(0,0,0,0.40)",
 } as const;
+
+export type AppThemeId = 'default' | 'dark_slate' | 'midnight' | 'sunrise';
+
+export const APP_THEME_VARIANTS: Record<Exclude<AppThemeId, 'default'>, Record<string, string>> = {
+  dark_slate: {
+    bg: '#0F1419',
+    bg2: '#1A2332',
+    bgCard: '#1E293B',
+    bgCard2: '#334155',
+    gold: '#38BDF8',
+    gold2: '#7DD3FC',
+    gold3: '#0284C7',
+  },
+  midnight: {
+    bg: '#020617',
+    bg2: '#0F172A',
+    bgCard: '#1E293B',
+    bgCard2: '#0F172A',
+    sapphire: '#6366F1',
+    sapphire2: '#4F46E5',
+    gold: '#818CF8',
+    gold2: '#A5B4FC',
+    gold3: '#4338CA',
+  },
+  sunrise: {
+    bg: '#FFF7ED',
+    bg2: '#FFEDD5',
+    bgCard: '#FFFFFF',
+    bgCard2: '#FED7AA',
+    gold: '#EA580C',
+    gold2: '#FB923C',
+    gold3: '#C2410C',
+    t1: '#431407',
+    t2: '#7C2D12',
+    t3: '#9A3412',
+  },
+};
+
+export function applyThemeVariant<T extends Record<string, string>>(
+  base: T,
+  themeId: AppThemeId,
+  isDark: boolean,
+): T {
+  if (themeId === 'default') return base;
+  if (themeId === 'sunrise' && isDark) return base;
+  if (themeId !== 'sunrise' && !isDark) return base;
+  return { ...base, ...APP_THEME_VARIANTS[themeId] };
+}
 
 // ─── Fonts ───────────────────────────────────────────────────────────────────
 export const FONTS = {

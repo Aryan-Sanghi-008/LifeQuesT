@@ -2,6 +2,7 @@ import { useRef, useEffect, useMemo } from "react";
 import { View, Text, Animated, StyleSheet } from "react-native";
 import { LifeEventRecord, EventCategory, ScenarioId } from "@/types";
 import { useTheme } from "@theme";
+import { useEquippedEventSkin } from "@shared/hooks/useEquippedEventSkin";
 import Svg, { Path, Circle, Rect } from "react-native-svg";
 import { RarityBadge } from "./RarityBadge";
 import { RarityEventCard } from "./RarityEventCard";
@@ -191,6 +192,7 @@ interface EventCardProps {
 
 export default function EventCard({ event, isNew = false, staggerIndex = 0, activeScenarioId }: EventCardProps) {
   const { colors, fonts } = useTheme();
+  const eventSkin = useEquippedEventSkin();
 
   const isCinematic = isNew && (event.rarity === 'epic' || event.rarity === 'legendary');
   const initialY = isCinematic ? 40 : isNew ? 24 : 0;
@@ -285,11 +287,26 @@ export default function EventCard({ event, isNew = false, staggerIndex = 0, acti
   return (
     <RarityEventCard
       rarity={event.rarity}
+      style={
+        eventSkin.id !== 'default'
+          ? {
+              backgroundColor: eventSkin.cardBg,
+              borderColor: eventSkin.cardBorder,
+              borderWidth: 1.5,
+            }
+          : undefined
+      }
       animatedStyle={{
         opacity,
         transform: [{ translateY }, { scale }],
       }}
     >
+      {eventSkin.accentOverlay ? (
+        <View
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, { backgroundColor: eventSkin.accentOverlay }]}
+        />
+      ) : null}
       <View style={[styles.accentBar, { backgroundColor: accentColor }]} />
 
       <View style={[styles.iconWrap, { backgroundColor: scenarioAccent ? `${scenarioAccent}18` : cfg.bgColor }]}>
@@ -299,7 +316,13 @@ export default function EventCard({ event, isNew = false, staggerIndex = 0, acti
       <View style={styles.body}>
         <View style={styles.headerRow}>
           <Text
-            style={[styles.title, { color: colors.t1, fontFamily: fonts.bodyBold }]}
+            style={[
+              styles.title,
+              {
+                color: eventSkin.titleColor ?? colors.t1,
+                fontFamily: fonts.bodyBold,
+              },
+            ]}
             numberOfLines={1}
           >
             {event.title}
@@ -308,21 +331,17 @@ export default function EventCard({ event, isNew = false, staggerIndex = 0, acti
             {event.rarity && event.rarity !== "common" && (
               <RarityBadge rarity={event.rarity} />
             )}
-            <View style={[styles.agePill, { backgroundColor: cfg.bgColor }]}>
-              <Text
-                style={[
-                  styles.ageText,
-                  { color: cfg.color, fontFamily: fonts.monoSemiBold },
-                ]}
-              >
-                {event.age}
-              </Text>
-            </View>
           </View>
         </View>
 
         <Text
-          style={[styles.desc, { color: colors.t2, fontFamily: fonts.body }]}
+          style={[
+            styles.desc,
+            {
+              color: eventSkin.bodyColor ?? colors.t2,
+              fontFamily: fonts.body,
+            },
+          ]}
           numberOfLines={2}
         >
           {event.description}

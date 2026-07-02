@@ -35,6 +35,9 @@ jest.mock('@services/haptics', () => ({
   hapticAgeUp: jest.fn(),
   hapticDeath: jest.fn(),
   hapticAchievement: jest.fn(),
+  hapticMilestone: jest.fn(),
+  hapticNegativeEvent: jest.fn(),
+  hapticButtonPress: jest.fn(),
 }));
 jest.mock('@services/audio', () => ({ playSound: jest.fn() }));
 
@@ -66,7 +69,7 @@ describe('characterSlice', () => {
     expect(state.pendingReincarnation).toBe(false);
   });
 
-  it('ageUp advances age for acting character', () => {
+  it('ageUp advances age for acting character', async () => {
     useGameStore.setState({
       character: createTestCharacter({
         age: 20,
@@ -75,7 +78,7 @@ describe('characterSlice', () => {
         criminalRecord: undefined,
       }),
     });
-    useGameStore.getState().ageUp();
+    await useGameStore.getState().ageUp();
     expect(useGameStore.getState().character?.age).toBe(21);
   });
 });

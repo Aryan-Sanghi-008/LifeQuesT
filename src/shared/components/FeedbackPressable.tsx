@@ -1,6 +1,5 @@
 import { Pressable, PressableProps, StyleProp, ViewStyle } from 'react-native';
-import { hapticButtonPress } from '@services/haptics';
-import { playSound } from '@services/audio';
+import { triggerTapFeedback } from '@services/gameFeedback';
 
 interface FeedbackPressableProps extends PressableProps {
   style?: StyleProp<ViewStyle>;
@@ -16,8 +15,7 @@ export function FeedbackPressable({
 }: FeedbackPressableProps) {
   const handlePress: PressableProps['onPress'] = (event) => {
     if (feedback) {
-      hapticButtonPress();
-      void playSound('button_tap');
+      triggerTapFeedback();
     }
     onPress?.(event);
   };

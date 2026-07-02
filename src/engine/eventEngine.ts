@@ -1,11 +1,12 @@
 import { Character, LifeEvent, EventRarity } from '../types';
-import { LIFE_EVENTS } from '../data/gameData';
+import { getAllLoadedEvents } from '../data/events/eventLoader';
 import { isEventBlockedByCrime, isInJail } from './crimeEngine';
 import { filterByMemoryEligibility } from './memoryEngine';
 import {
   applyFocusEventWeights,
   resolveFocusAllocationForAgeUp,
 } from './focusEngine';
+import { applyLiveOpsWorldEventBoost, getHydratedLiveOpsConfig } from './liveOpsEngine';
 import type { EducationStage } from '../data/educationDegrees';
 
 export function hasJob(character: Character): boolean {
@@ -49,16 +50,31 @@ export function isEligible(
   return true;
 }
 
+export { ensureEventsLoadedForAge, preloadAllEventPacks, preloadAdjacentEventPacks } from '../data/events/eventLoader';
+
 export function getEligibleEvents(age: number, character: Character): LifeEvent[] {
   const usedIds = character.eventHistory.map(e => e.id);
-  return LIFE_EVENTS.filter(e => isEligible(e, age, usedIds, character));
+  return getAllLoadedEvents().filter(e => isEligible(e, age, usedIds, character));
 }
 
 export function getWeightedEligibleEvents(age: number, character: Character): LifeEvent[] {
   const eligible = getEligibleEvents(age, character);
   const memoryFiltered = filterByMemoryEligibility(eligible, character);
   const allocation = resolveFocusAllocationForAgeUp(character);
-  return applyFocusEventWeights(memoryFiltered, allocation, character.aspirations);
+  const focused = applyFocusEventWeights(memoryFiltered, allocation, character.aspirations);
+  const worldEventIds = getHydratedLiveOpsConfig()?.worldEvents ?? [];
+  return applyLiveOpsWorldEventBoost(focused, worldEventIds);
+}
+
+/** Boost epic/legendary event weights when mystery-box rare_event unlock is active. */
+export function applyEpicUnlockBoost(events: LifeEvent[]): LifeEvent[] {
+  return events.map((e) => {
+    const rarity = resolveEventRarity(e);
+    if (rarity === 'epic' || rarity === 'legendary') {
+      return { ...e, weight: (e.weight ?? 1) * 5 };
+    }
+    return e;
+  });
 }
 
 /**
@@ -106,7 +122,7 @@ export function getGuaranteedMilestones(age: number, character: Character): Life
   const eduStillNone = stage === 'none' && character.educationLevel === 'none';
 
   if (age === 5 && eduStillNone && !usedIds.has('school_start')) {
-    const schoolStart = LIFE_EVENTS.find(e => e.id === 'school_start');
+    const schoolStart = getAllLoadedEvents().find(e => e.id === 'school_start');
     if (schoolStart && isEligible(schoolStart, age, [...usedIds], character)) {
       guaranteed.push(schoolStart);
     }

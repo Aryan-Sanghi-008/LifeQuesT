@@ -5,8 +5,11 @@ import {
   ScrollView,
   Pressable,
   StyleSheet,
-  Alert,
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { LinearGradient } from "expo-linear-gradient";
+import { useToastStore } from "@store/toastStore";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useThemedStyles, useTheme, SPACING } from '@theme';
 import { useGameStore } from "@store/gameStore";
@@ -19,14 +22,22 @@ import {
   applyPurchaseToStore,
 } from "@services/iap";
 import { showRewardedAd } from "@services/ads";
+import { SupportLifeQuestButton } from "@shared/components/SupportLifeQuestButton";
+import { getHydratedLiveOpsConfig } from "@engine/liveOpsEngine";
+import { getActiveLimitedTimeOffers } from "@services/liveOpsConfig";
 import { getPrivacyPolicyUrl, openLegalUrlSafe } from "@config/legal";
-import { IAPProductId } from "@/types";
+import { IAPProductId, RootStackParamList, ScenarioId } from "@/types";
 import { SEASON_PASS_TIERS } from "@data/gameData";
 import {
   IAP_CATALOG,
   AVATAR_PACK_CATALOG,
+  MYSTERY_SPIN_CATALOG,
+  SCENARIO_PACK_CATALOG,
+  IAP_CLIENT_GRANTS,
   getCatalogPriceLabel,
 } from "@data/iapCatalog";
+import { getCosmeticsByCategory, type CosmeticItem } from "@data/cosmeticCatalog";
+import { shouldShowStarterOffer } from "@services/persistence";
 import { isDlcUnlocked } from "@data/dlcData";
 import { ShopTabBar, type ShopTab } from "./ShopTabBar";
 import { FeaturedDealHero } from "./FeaturedDealHero";
@@ -36,21 +47,26 @@ import { ProductCard } from "./ProductCard";
 
 export function ShopScreen() {
   const styles = useThemedStyles(createStyles);
-  const { colors, fonts } = useTheme();
+  const { colors, fonts, radii, spacing } = useTheme();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const character = useGameStore((s) => s.character);
   const store = useGameStore();
   const unlockFantasyDlc = useGameStore((s) => s.unlockFantasyDlc);
   const purchaseStreakShield = useGameStore((s) => s.purchaseStreakShield);
+  const purchaseMysterySpinWithGems = useGameStore((s) => s.purchaseMysterySpinWithGems);
+  const purchaseCosmetic = useGameStore((s) => s.purchaseCosmetic);
+  const applyCosmetic = useGameStore((s) => s.applyCosmetic);
   const globalPrestige = useGameStore((s) => s.globalPrestige);
   const [purchasing, setPurchasing] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ShopTab>('bundles');
+  const showToast = useToastStore((s) => s.showToast);
 
   const storeProducts = getIAPProducts();
 
   const grantDevFallback = (productId: IAPProductId) => {
     applyPurchaseToStore(productId, store);
     void store._persist();
-    Alert.alert("Dev purchase", "Granted locally (store catalog unavailable).");
+    showToast('Purchase activated! Enjoy your benefits.', 'success');
   };
 
   const buy = async (productId: IAPProductId) => {
@@ -64,10 +80,7 @@ export function ShopScreen() {
       }
       await purchaseProduct(productId);
     } catch (e) {
-      Alert.alert(
-        "Purchase failed",
-        (e as Error).message ?? "Try again later.",
-      );
+      showToast((e as Error).message ?? "Purchase failed. Try again later.", "error");
     } finally {
       setPurchasing(null);
     }
@@ -82,16 +95,16 @@ export function ShopScreen() {
         const ok = await processVerifiedPurchase(p, store);
         if (ok) granted += 1;
       }
-      Alert.alert(
-        "Restored",
+      showToast(
         granted > 0
           ? `${granted} purchase(s) restored.`
           : purchases.length > 0
-            ? "Purchases found but server verification failed. Sign in and try again."
+            ? "Purchases found but verification failed. Sign in and try again."
             : "No purchases found.",
+        granted > 0 ? "success" : "info",
       );
     } catch (e) {
-      Alert.alert("Restore failed", (e as Error).message ?? "Try again later.");
+      showToast((e as Error).message ?? "Restore failed. Try again later.", "error");
     } finally {
       setPurchasing(null);
     }
@@ -101,32 +114,52 @@ export function ShopScreen() {
     try {
       await openLegalUrlSafe(getPrivacyPolicyUrl(), "Privacy Policy");
     } catch {
-      Alert.alert(
-        "Unable to open privacy policy",
-        "Set EXPO_PUBLIC_PRIVACY_POLICY_URL or deploy hosting.",
-      );
+      showToast("Unable to open Privacy Policy. Set EXPO_PUBLIC_PRIVACY_POLICY_URL.", "error");
     }
   };
 
   const buyLuckWithCoins = () => {
     if (!store.spendCoins(500)) {
-      Alert.alert("Not enough coins", "You need 500 coins for a Luck Boost.");
+      showToast("Not enough coins — you need 500 coins for a Luck Boost.", "error");
       return;
     }
     store.addLuckBoost(3);
-    Alert.alert("Luck Boost", "3 luck boosts added to your character.");
+    showToast("3 Luck Boosts added to your character!", "success");
   };
 
   const watchAdForLuck = async () => {
-    if (busy) return;
+    if (purchasing !== null) return;
+    const c = store.character;
+    if (c?.hasNoAds || c?.isPremium) return;
     setPurchasing("rewarded_luck");
     try {
       const earned = await showRewardedAd();
       if (earned) {
         store.addLuckBoost(1);
-        Alert.alert("Luck Boost", "You earned 1 luck boost!");
+        showToast("You earned 1 Luck Boost!", "success");
       } else {
-        Alert.alert("Ad unavailable", "Try again in a moment.");
+        showToast("Ad unavailable — try again in a moment.", "info");
+      }
+    } finally {
+      setPurchasing(null);
+    }
+  };
+
+  const watchAdForCoins = async () => {
+    if (purchasing !== null) return;
+    const c = store.character;
+    if (c?.hasNoAds || c?.isPremium) return;
+    setPurchasing("rewarded_coins");
+    try {
+      const earned = await showRewardedAd();
+      if (earned) {
+        const granted = store.grantAdRewardCoins(200);
+        showToast(
+          granted > 0 ? `You earned ${granted} coins!` : "Daily coin cap reached.",
+          granted > 0 ? "success" : "info",
+        );
+      } else {
+        showToast("Ad unavailable — try again in a moment.", "info");
       }
     } finally {
       setPurchasing(null);
@@ -157,31 +190,118 @@ export function ShopScreen() {
     },
   }));
 
+  const unlockedStyles = character.unlockedAvatarStyles ?? [];
+
+  const isAvatarPackOwned = (productId: IAPProductId) => {
+    const grants = IAP_CLIENT_GRANTS[productId];
+    if (!grants) return false;
+    if (grants.unlockAllAvatarStyles) {
+      const all: import('@/types').AvatarStyleId[] = [
+        'adventurer', 'adventurer-neutral', 'lorelei', 'lorelei-neutral', 'bottts', 'notionists', 'big-smile',
+      ];
+      return all.every((s) => unlockedStyles.includes(s));
+    }
+    const styles = grants.avatarStyles ?? (grants.avatarStyle ? [grants.avatarStyle] : []);
+    return styles.length > 0 && styles.every((s) => unlockedStyles.includes(s));
+  };
+
   const avatarPacks = AVATAR_PACK_CATALOG.map((entry) => ({
     ...entry,
-    price: getCatalogPriceLabel(
-      entry.productId,
-      storeProducts,
-      entry.fallbackPriceLabel,
-    ),
+    price: getCatalogPriceLabel(entry.productId, storeProducts, entry.fallbackPriceLabel),
+    owned: isAvatarPackOwned(entry.productId),
   }));
+
+  const unlockedCosmeticIds = globalPrestige.unlockedCosmeticIds ?? [];
+  const mapCosmetics = (category: import('@data/cosmeticCatalog').CosmeticCategory) =>
+    getCosmeticsByCategory(category).map((item) => ({
+      ...item,
+      owned: unlockedCosmeticIds.includes(item.id),
+    }));
+
+  const themeCosmetics = mapCosmetics('theme');
+  const tombstoneCosmetics = mapCosmetics('tombstone');
+  const eventSkinCosmetics = mapCosmetics('event_skin');
+  const nameFontCosmetics = mapCosmetics('name_font');
+  const soundPackCosmetics = mapCosmetics('sound_pack');
+
+  const formatCosmeticPrice = (item: CosmeticItem) => {
+    if (item.iapProductId) {
+      const iap = getCatalogPriceLabel(item.iapProductId, storeProducts, item.fallbackPriceLabel ?? '');
+      return item.gemCost ? `${iap} · or ${item.gemCost} 💎` : iap;
+    }
+    return item.gemCost ? `${item.gemCost} 💎` : 'Free';
+  };
+
+  const handleCosmeticPress = (item: CosmeticItem, owned: boolean) => {
+    if (owned) {
+      const result = applyCosmetic(item.id);
+      showToast(result.message, result.ok ? 'success' : 'error');
+      return;
+    }
+    if (item.iapProductId) {
+      void buy(item.iapProductId);
+      return;
+    }
+    const result = purchaseCosmetic(item.id);
+    showToast(result.message, result.ok ? 'success' : 'error');
+    if (result.ok) {
+      applyCosmetic(item.id);
+    }
+  };
+
+  const starterOfferActive = shouldShowStarterOffer();
+  const limitedTimeOffers = getActiveLimitedTimeOffers(getHydratedLiveOpsConfig());
+
+  const unlockedScenarioIds = globalPrestige.unlockedScenarioIds ?? [];
+  const scenarioPacks = SCENARIO_PACK_CATALOG.map((entry) => {
+    const scenarioId = entry.productId.replace('scenario_', '');
+    const owned = scenarioId === 'pack_all'
+      ? ['royal','crime','cyber','medieval','zombie','mars','celebrity','fantasy','political'].every((id) => unlockedScenarioIds.includes(id as never))
+      : unlockedScenarioIds.includes(scenarioId as never);
+    return {
+      ...entry,
+      scenarioId: scenarioId === 'pack_all' ? null : (scenarioId as ScenarioId),
+      price: getCatalogPriceLabel(entry.productId, storeProducts, entry.fallbackPriceLabel),
+      owned,
+    };
+  });
+  const scenarioBundle = scenarioPacks.find((p) => p.productId === 'scenario_pack_all');
+  const individualScenarioPacks = scenarioPacks.filter((p) => p.productId !== 'scenario_pack_all');
+
+  const navigateScenarioOwned = (scenarioId: ScenarioId | null) => {
+    if (!scenarioId) {
+      navigation.navigate('ScenarioPicker');
+      return;
+    }
+    navigation.navigate('ScenarioDetail', { scenarioId });
+  };
 
   const seasonPassSection = (
     <>
       <Text style={styles.gridLabel}>SEASON PASS</Text>
       <FadeInView delay={150}>
-        <Pressable style={styles.rewardedBtn} onPress={() => void buy("season_pass")} accessibilityLabel="Buy season pass">
-          <Text style={styles.rewardedText}>
-            {character.hasSeasonPass ? "Season Pass Active" : "Unlock Season Pass"}{" "}· XP {character.seasonXp ?? 0}
-          </Text>
-        </Pressable>
+        {character.hasSeasonPass ? (
+          <View style={[styles.rewardedBtn, { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16 }]}>
+            <Text style={styles.rewardedText}>Season Pass · XP {character.seasonXp ?? 0}</Text>
+            <View style={{ backgroundColor: `${colors.emerald}25`, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, borderWidth: 1, borderColor: `${colors.emerald}50` }}>
+              <Text style={{ color: colors.emerald, fontFamily: fonts.monoSemiBold, fontSize: 9, letterSpacing: 0.8 }}>ACTIVE</Text>
+            </View>
+          </View>
+        ) : (
+          <Pressable style={styles.rewardedBtn} onPress={() => void buy("season_pass")} accessibilityLabel="Buy season pass">
+            <Text style={styles.rewardedText}>Unlock Season Pass</Text>
+          </Pressable>
+        )}
         {character.hasSeasonPass && SEASON_PASS_TIERS.map((tier) => {
           const claimed = (character.claimedSeasonTiers ?? []).includes(tier.tier);
           const canClaim = !claimed && (character.seasonXp ?? 0) >= tier.xpRequired;
           return (
-            <Pressable key={tier.tier} style={[styles.rewardedBtn, claimed && { opacity: 0.5 }]}
+            <Pressable key={tier.tier} style={[styles.rewardedBtn, (claimed || !canClaim) && { opacity: 0.5 }]}
               disabled={claimed}
-              onPress={() => { if (!canClaim) return; const result = store.claimSeasonTier(tier.tier); Alert.alert(result.ok ? "Reward" : "Season Pass", result.message); }}>
+              onPress={() => {
+                const result = store.claimSeasonTier(tier.tier);
+                showToast(result.message, result.ok ? "success" : "error");
+              }}>
               <Text style={styles.rewardedText}>{claimed ? "Claimed — " : ""}Tier {tier.tier} — {tier.rewardCoins}c{tier.rewardGems ? ` + ${tier.rewardGems} gems` : ""}</Text>
             </Pressable>
           );
@@ -205,14 +325,14 @@ export function ShopScreen() {
           {isDlcUnlocked(character, "dlc_fantasy")
             ? <Text style={styles.expansionActiveText}>✨ All magical careers, species traits, and events are active!</Text>
             : <View style={styles.unlockButtonsRow}>
-                <Pressable style={styles.unlockBtn} onPress={() => { const res = unlockFantasyDlc("gems"); Alert.alert("Fantasy DLC", res.message); }}>
+                <Pressable style={styles.unlockBtn} onPress={() => { const res = unlockFantasyDlc("gems"); showToast(res.message ?? "Done", res.ok ? "success" : "error"); }}>
                   <Text style={styles.unlockBtnText}>💎 100 Gems</Text>
                 </Pressable>
-                <Pressable style={styles.unlockBtn} onPress={() => { const res = unlockFantasyDlc("coins"); Alert.alert("Fantasy DLC", res.message); }}>
+                <Pressable style={styles.unlockBtn} onPress={() => { const res = unlockFantasyDlc("coins"); showToast(res.message ?? "Done", res.ok ? "success" : "error"); }}>
                   <Text style={styles.unlockBtnText}>🪙 1k Coins</Text>
                 </Pressable>
                 <Pressable style={[styles.unlockBtn, globalPrestige.prestigeLevel < 3 && { opacity: 0.5 }]}
-                  onPress={() => { const res = unlockFantasyDlc("prestige"); Alert.alert("Fantasy DLC", res.message); }}>
+                  onPress={() => { const res = unlockFantasyDlc("prestige"); showToast(res.message ?? "Done", res.ok ? "success" : "error"); }}>
                   <Text style={styles.unlockBtnText}>⭐ Prestige L3</Text>
                 </Pressable>
               </View>}
@@ -223,9 +343,18 @@ export function ShopScreen() {
 
   const footer = (
     <>
-      <Pressable style={styles.rewardedBtn} onPress={() => void watchAdForLuck()} disabled={busy} accessibilityRole="button">
-        <Text style={styles.rewardedText}>{purchasing === "rewarded_luck" ? "Loading ad…" : "Watch ad for +1 Luck Boost"}</Text>
-      </Pressable>
+      {character.hasNoAds || character.isPremium ? (
+        <SupportLifeQuestButton label="LifeQuest Plus — Active" />
+      ) : (
+        <>
+          <Pressable style={styles.rewardedBtn} onPress={() => void watchAdForCoins()} disabled={busy} accessibilityRole="button">
+            <Text style={styles.rewardedText}>{purchasing === "rewarded_coins" ? "Loading ad…" : "Watch ad for 200 Coins"}</Text>
+          </Pressable>
+          <Pressable style={styles.rewardedBtn} onPress={() => void watchAdForLuck()} disabled={busy} accessibilityRole="button">
+            <Text style={styles.rewardedText}>{purchasing === "rewarded_luck" ? "Loading ad…" : "Watch ad for +1 Luck Boost"}</Text>
+          </Pressable>
+        </>
+      )}
       <Pressable style={styles.restoreBtn} onPress={handleRestore} disabled={busy} accessibilityRole="button">
         <Text style={styles.restoreText}>{purchasing === "restore" ? "Restoring…" : "Restore Purchases"}</Text>
       </Pressable>
@@ -256,8 +385,12 @@ export function ShopScreen() {
               <FadeInView delay={100}>
                 <PremiumBanner
                   isPremium={character.isPremium}
-                  onPress={() => void buy("premium_yearly")}
-                  priceLabel={getCatalogPriceLabel("premium_yearly", storeProducts, "$2.99")}
+                  onPressMonthly={() => void buy("premium_monthly")}
+                  onPressYearly={() => void buy("premium_yearly")}
+                  monthlyPriceLabel={getCatalogPriceLabel("premium_monthly", storeProducts, "$4.99")}
+                  yearlyPriceLabel={getCatalogPriceLabel("premium_yearly", storeProducts, "$34.99")}
+                  loadingMonthly={purchasing === "premium_monthly"}
+                  loadingYearly={purchasing === "premium_yearly"}
                 />
               </FadeInView>
               {seasonPassSection}
@@ -267,7 +400,7 @@ export function ShopScreen() {
                   <Pressable
                     onPress={() => {
                       const result = purchaseStreakShield();
-                      Alert.alert(result.ok ? '🛡️ Shield Purchased' : 'Not enough gems', result.message);
+                      showToast(result.message, result.ok ? "success" : "error");
                     }}
                     style={({ pressed }) => [{
                       flexDirection: 'row', alignItems: 'center', gap: 12,
@@ -290,14 +423,122 @@ export function ShopScreen() {
                   </Pressable>
                 </View>
               </FadeInView>
+              <FadeInView delay={250}>
+                <View style={{ paddingHorizontal: 16, marginBottom: 12 }}>
+                  <Text style={[styles.gridLabel, { marginBottom: 8 }]}>MYSTERY BOX SPINS</Text>
+                  <Pressable
+                    onPress={() => {
+                      const result = purchaseMysterySpinWithGems();
+                      showToast(result.message, result.ok ? 'success' : 'error');
+                    }}
+                    style={({ pressed }) => [{
+                      flexDirection: 'row', alignItems: 'center', gap: 12,
+                      backgroundColor: pressed ? `${colors.orchid}20` : `${colors.orchid}10`,
+                      borderWidth: 1, borderColor: `${colors.orchid}30`,
+                      borderRadius: 12, padding: 14, marginBottom: 8,
+                    }]}
+                  >
+                    <View style={{ width: 40, height: 40, borderRadius: 8, backgroundColor: `${colors.orchid}20`, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ fontSize: 20 }}>🎲</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ color: colors.t1, fontFamily: fonts.bodySemiBold, fontSize: 14 }}>Extra Spin</Text>
+                      <Text style={{ color: colors.t3, fontFamily: fonts.body, fontSize: 12 }}>1 bonus Lucky Wheel spin, instant</Text>
+                    </View>
+                    <Text style={{ color: colors.orchid, fontFamily: fonts.bodySemiBold, fontSize: 13 }}>20 💎</Text>
+                  </Pressable>
+                  {MYSTERY_SPIN_CATALOG.map((entry) => (
+                    <Pressable
+                      key={entry.productId}
+                      onPress={() => void buy(entry.productId)}
+                      style={({ pressed }) => [{
+                        flexDirection: 'row', alignItems: 'center', gap: 12,
+                        backgroundColor: pressed ? `${colors.orchid}20` : `${colors.orchid}10`,
+                        borderWidth: 1, borderColor: `${colors.orchid}30`,
+                        borderRadius: 12, padding: 14,
+                      }]}
+                    >
+                      <View style={{ width: 40, height: 40, borderRadius: 8, backgroundColor: `${colors.orchid}20`, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ fontSize: 20 }}>🎁</Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: colors.t1, fontFamily: fonts.bodySemiBold, fontSize: 14 }}>{entry.title}</Text>
+                        <Text style={{ color: colors.t3, fontFamily: fonts.body, fontSize: 12 }}>{entry.description}</Text>
+                      </View>
+                      <Text style={{ color: colors.orchid, fontFamily: fonts.bodySemiBold, fontSize: 13 }}>
+                        {getCatalogPriceLabel(entry.productId, storeProducts, entry.fallbackPriceLabel)}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </FadeInView>
               {footer}
             </>
           )}
 
           {activeTab === 'bundles' && (
             <>
-              <FeaturedDealHero onPress={() => void buy("season_pass")} priceLabel={getCatalogPriceLabel("season_pass", storeProducts, "$4.99")} />
-              <GemValueCalculator onBuy={() => void buy('gems_small')} />
+              {starterOfferActive && (
+                <FadeInView delay={40}>
+                  <Pressable
+                    onPress={() => void buy('starter_pack')}
+                    style={{ borderRadius: radii.xl, overflow: 'hidden', marginBottom: spacing.md }}
+                  >
+                    <LinearGradient
+                      colors={['#7C3AED', '#4F46E5']}
+                      start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                      style={{ padding: spacing.xl, gap: spacing.sm }}
+                    >
+                      <Text style={{ color: '#FFFFFFCC', fontFamily: fonts.bodyBold, fontSize: 10, letterSpacing: 2 }}>
+                        LIMITED OFFER
+                      </Text>
+                      <Text style={{ color: '#FFF', fontFamily: fonts.displayBlack, fontSize: 24 }}>Starter Pack</Text>
+                      <Text style={{ color: '#FFFFFFCC', fontFamily: fonts.body, fontSize: 13, lineHeight: 20 }}>
+                        50 gems · No ads · Silver Spoon scenario
+                      </Text>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                        <Text style={{ color: '#FFF', fontFamily: fonts.displayBold, fontSize: 22 }}>
+                          {getCatalogPriceLabel('starter_pack', storeProducts, '$2.99')}
+                        </Text>
+                        <View style={{ backgroundColor: '#00000055', borderRadius: radii.sm, paddingHorizontal: 16, paddingVertical: 10 }}>
+                          <Text style={{ color: '#FFF', fontFamily: fonts.bodyBold, fontSize: 14 }}>Get It Now</Text>
+                        </View>
+                      </View>
+                    </LinearGradient>
+                  </Pressable>
+                </FadeInView>
+              )}
+              {limitedTimeOffers.map((offer) => (
+                <FadeInView key={offer.id} delay={60}>
+                  <Pressable
+                    onPress={() => offer.productId ? void buy(offer.productId as IAPProductId) : undefined}
+                    style={{ borderRadius: radii.xl, overflow: 'hidden', marginBottom: spacing.md }}
+                  >
+                    <LinearGradient
+                      colors={[`${colors.gold}CC`, `${colors.gold2}99`]}
+                      start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                      style={{ padding: spacing.lg, gap: spacing.xs }}
+                    >
+                      <Text style={{ color: '#FFFFFFCC', fontFamily: fonts.bodyBold, fontSize: 10, letterSpacing: 2 }}>
+                        LIMITED TIME
+                      </Text>
+                      <Text style={{ color: '#FFF', fontFamily: fonts.displayBold, fontSize: 20 }}>{offer.title}</Text>
+                      {offer.subtitle ? (
+                        <Text style={{ color: '#FFFFFFCC', fontFamily: fonts.body, fontSize: 13 }}>{offer.subtitle}</Text>
+                      ) : null}
+                    </LinearGradient>
+                  </Pressable>
+                </FadeInView>
+              ))}
+              <FeaturedDealHero
+                onPress={() => void buy("season_pass")}
+                priceLabel={getCatalogPriceLabel("season_pass", storeProducts, "$4.99/season")}
+                owned={character.hasSeasonPass ?? false}
+              />
+              <GemValueCalculator
+                onBuy={() => void buy('gems_small')}
+                priceLabel={getCatalogPriceLabel('gems_small', storeProducts, '$1.49')}
+              />
               {expansionSection}
               <Text style={styles.gridLabel}>CONSUMABLES & BOOSTS</Text>
               <View style={styles.productGrid}>
@@ -313,11 +554,93 @@ export function ShopScreen() {
 
           {activeTab === 'cosmetics' && (
             <>
+              <Text style={styles.gridLabel}>APP THEMES</Text>
+              <View style={styles.productGrid}>
+                {themeCosmetics.map((item, i) => (
+                  <FadeInView key={item.id} delay={i * 60 + 60} style={{ width: "48%" }}>
+                    <ProductCard
+                      title={item.label}
+                      desc={item.description}
+                      price={item.owned ? 'Owned' : formatCosmeticPrice(item)}
+                      color={item.previewColor ?? colors.sapphire}
+                      owned={item.owned}
+                      onPress={() => handleCosmeticPress(item, item.owned)}
+                    />
+                  </FadeInView>
+                ))}
+              </View>
+              <Text style={styles.gridLabel}>EVENT CARD SKINS</Text>
+              <View style={styles.productGrid}>
+                {eventSkinCosmetics.map((item, i) => (
+                  <FadeInView key={item.id} delay={i * 60 + 90} style={{ width: "48%" }}>
+                    <ProductCard
+                      title={item.label}
+                      desc={item.description}
+                      price={item.owned ? 'Owned' : formatCosmeticPrice(item)}
+                      color={item.previewColor ?? colors.orchid}
+                      owned={item.owned}
+                      onPress={() => handleCosmeticPress(item, item.owned)}
+                    />
+                  </FadeInView>
+                ))}
+              </View>
+              <Text style={styles.gridLabel}>NAME FONTS</Text>
+              <View style={styles.productGrid}>
+                {nameFontCosmetics.map((item, i) => (
+                  <FadeInView key={item.id} delay={i * 60 + 100} style={{ width: "48%" }}>
+                    <ProductCard
+                      title={item.label}
+                      desc={item.description}
+                      price={item.owned ? 'Owned' : formatCosmeticPrice(item)}
+                      color={item.previewColor ?? colors.gold}
+                      owned={item.owned}
+                      onPress={() => handleCosmeticPress(item, item.owned)}
+                    />
+                  </FadeInView>
+                ))}
+              </View>
+              <Text style={styles.gridLabel}>SOUND PACKS</Text>
+              <View style={styles.productGrid}>
+                {soundPackCosmetics.map((item, i) => (
+                  <FadeInView key={item.id} delay={i * 60 + 110} style={{ width: "48%" }}>
+                    <ProductCard
+                      title={item.label}
+                      desc={item.description}
+                      price={item.owned ? 'Owned' : formatCosmeticPrice(item)}
+                      color={item.previewColor ?? colors.teal}
+                      owned={item.owned}
+                      onPress={() => handleCosmeticPress(item, item.owned)}
+                    />
+                  </FadeInView>
+                ))}
+              </View>
+              <Text style={styles.gridLabel}>TOMBSTONE STYLES</Text>
+              <View style={styles.productGrid}>
+                {tombstoneCosmetics.map((item, i) => (
+                  <FadeInView key={item.id} delay={i * 60 + 120} style={{ width: "48%" }}>
+                    <ProductCard
+                      title={item.label}
+                      desc={item.description}
+                      price={item.owned ? 'Owned' : formatCosmeticPrice(item)}
+                      color={item.previewColor ?? colors.t3}
+                      owned={item.owned}
+                      onPress={() => handleCosmeticPress(item, item.owned)}
+                    />
+                  </FadeInView>
+                ))}
+              </View>
               <Text style={styles.gridLabel}>AVATAR PACKS</Text>
               <View style={styles.productGrid}>
                 {avatarPacks.map((pack, i) => (
-                  <FadeInView key={pack.productId} delay={i * 60 + 120} style={{ width: "48%" }}>
-                    <ProductCard title={pack.title} desc={pack.description} price={pack.price} color={pack.color} onPress={() => void buy(pack.productId)} />
+                  <FadeInView key={pack.productId} delay={i * 60 + 140} style={{ width: "48%" }}>
+                    <ProductCard
+                      title={pack.title}
+                      desc={pack.description}
+                      price={pack.owned ? 'Owned' : pack.price}
+                      color={pack.color}
+                      owned={pack.owned}
+                      onPress={() => pack.owned ? undefined : void buy(pack.productId)}
+                    />
                   </FadeInView>
                 ))}
               </View>
@@ -326,16 +649,64 @@ export function ShopScreen() {
           )}
 
           {activeTab === 'scenarios' && (
-            <View style={{ alignItems: 'center', paddingVertical: 40, gap: 12 }}>
-              <Text style={{ color: colors.t1, fontFamily: fonts.displayBold, fontSize: 22 }}>Scenario Packs</Text>
-              <Text style={{ color: colors.t3, fontFamily: fonts.body, fontSize: 14, textAlign: 'center', lineHeight: 22 }}>
-                Royal Dynasty, Cyber Future, Crime Empire, and Fantasy Realms are coming soon as premium scenario packs.
-              </Text>
-              <View style={{ backgroundColor: `${colors.gold}15`, borderRadius: 12, padding: 16, borderWidth: 1, borderColor: `${colors.gold}30`, width: '100%' }}>
-                <Text style={{ color: colors.gold, fontFamily: fonts.bodyBold, fontSize: 13, textAlign: 'center' }}>Coming in a future update</Text>
+            <>
+              {scenarioBundle && (
+                <FadeInView delay={60}>
+                  <Pressable
+                    onPress={scenarioBundle.owned ? () => navigation.navigate('ScenarioPicker') : () => void buy('scenario_pack_all')}
+                    style={{ borderRadius: radii.xl, overflow: 'hidden', marginBottom: spacing.md }}
+                  >
+                    <LinearGradient
+                      colors={scenarioBundle.owned
+                        ? [`${colors.emerald}30`, `${colors.emerald}18`]
+                        : ['#8B5CF6', '#6D28D9']}
+                      start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                      style={{ padding: spacing.xl, gap: spacing.sm }}
+                    >
+                      <Text style={{ color: scenarioBundle.owned ? colors.emerald : '#FFF', fontFamily: fonts.bodyBold, fontSize: 10, letterSpacing: 2 }}>
+                        {scenarioBundle.owned ? 'ALL SCENARIOS UNLOCKED' : 'BEST VALUE'}
+                      </Text>
+                      <Text style={{ color: scenarioBundle.owned ? colors.t1 : '#FFF', fontFamily: fonts.displayBlack, fontSize: 24 }}>
+                        {scenarioBundle.title}
+                      </Text>
+                      <Text style={{ color: scenarioBundle.owned ? colors.t3 : '#FFFFFFCC', fontFamily: fonts.body, fontSize: 13, lineHeight: 20 }}>
+                        {scenarioBundle.description}
+                      </Text>
+                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
+                        {scenarioBundle.owned ? (
+                          <Text style={{ color: colors.emerald, fontFamily: fonts.bodyBold, fontSize: 14 }}>Browse Scenarios</Text>
+                        ) : (
+                          <>
+                            <Text style={{ color: '#FFF', fontFamily: fonts.displayBold, fontSize: 22 }}>{scenarioBundle.price}</Text>
+                            <View style={{ backgroundColor: '#00000055', borderRadius: radii.sm, paddingHorizontal: 16, paddingVertical: 10 }}>
+                              <Text style={{ color: '#FFF', fontFamily: fonts.bodyBold, fontSize: 14 }}>Unlock All</Text>
+                            </View>
+                          </>
+                        )}
+                      </View>
+                    </LinearGradient>
+                  </Pressable>
+                </FadeInView>
+              )}
+              <Text style={styles.gridLabel}>SCENARIO PACKS</Text>
+              <View style={{ paddingHorizontal: 4, gap: 10, paddingBottom: 8 }}>
+                {individualScenarioPacks.map((pack, i) => (
+                  <FadeInView key={pack.productId} delay={i * 50 + 80} style={{ width: '100%' }}>
+                    <ProductCard
+                      title={pack.title}
+                      desc={pack.description}
+                      price={pack.price}
+                      color={pack.color}
+                      owned={pack.owned}
+                      badge={pack.badge}
+                      onPress={() => void buy(pack.productId as IAPProductId)}
+                      onOwnedPress={pack.scenarioId ? () => navigateScenarioOwned(pack.scenarioId) : undefined}
+                    />
+                  </FadeInView>
+                ))}
               </View>
               {footer}
-            </View>
+            </>
           )}
         </ScrollView>
       </SafeAreaView>

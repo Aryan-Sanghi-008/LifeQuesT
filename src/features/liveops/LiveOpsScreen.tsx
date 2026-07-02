@@ -3,7 +3,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useGameStore } from "../../store/gameStore";
 import { useThemedStyles, useTheme } from '@theme';
 import { LinearGradient } from "expo-linear-gradient";
-import { getCurrentSeason } from "../../engine/liveOpsEngine";
+import { getCurrentSeason, formatModifierPercent } from "../../engine/liveOpsEngine";
 import { computeNetWorth } from "../../engine/economyEngine";
 import { ScreenHeader } from "@components/ScreenHeader";
 import Svg, { Path } from "react-native-svg";
@@ -18,8 +18,12 @@ export default function LiveOpsScreen() {
   const age = character ? character.age : 0;
 
   const challenge = season.challenge;
-  const ageComplete = age >= 90;
+  const challengeComplete = character ? challenge.check(character) : false;
+  const ageComplete = character ? character.age >= 90 : false;
   const netWorthComplete = netWorth >= 2000000;
+  const expenseLabel = formatModifierPercent(season.activeModifiers.expenseMultiplier);
+  const maintenanceLabel = formatModifierPercent(season.activeModifiers.maintenanceMultiplier);
+  const stockLabel = formatModifierPercent(1 + season.activeModifiers.stockReturnBonus);
 
   return (
     <View style={styles.root}>
@@ -59,7 +63,7 @@ export default function LiveOpsScreen() {
                 />
                 <View style={styles.modifierTextWrap}>
                   <Text style={styles.modifierLabel}>
-                    Living Expenses: +10%
+                    Living Expenses: {expenseLabel}
                   </Text>
                   <Text style={styles.modifierSub}>
                     Annual cost of living is increased due to inflation
@@ -73,7 +77,7 @@ export default function LiveOpsScreen() {
                 />
                 <View style={styles.modifierTextWrap}>
                   <Text style={styles.modifierLabel}>
-                    Maintenance Costs: +15%
+                    Maintenance Costs: {maintenanceLabel}
                   </Text>
                   <Text style={styles.modifierSub}>
                     Property maintenance fees are elevated
@@ -87,7 +91,7 @@ export default function LiveOpsScreen() {
                 />
                 <View style={styles.modifierTextWrap}>
                   <Text style={styles.modifierLabel}>
-                    Stock Market Returns: +5%
+                    Stock Market Returns: {stockLabel}
                   </Text>
                   <Text style={styles.modifierSub}>
                     Equity portfolios yield higher returns during market rallies
@@ -113,6 +117,11 @@ export default function LiveOpsScreen() {
                 </View>
               </View>
               <Text style={styles.challengeDesc}>{challenge.description}</Text>
+              {challengeComplete ? (
+                <Text style={[styles.challengeDesc, { color: '#34D399', marginTop: 4 }]}>
+                  Challenge completed — claim your reward in-game!
+                </Text>
+              ) : null}
 
               {/* Progress Tracker */}
               <View style={styles.trackerContainer}>

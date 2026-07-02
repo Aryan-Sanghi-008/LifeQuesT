@@ -48,6 +48,7 @@ export interface GameStore {
   isProcessing: boolean;
   sessionAges: number;
   ageUpsSinceAd: number;
+  livesEndedSinceAd: number;
   user: AppUser | null;
   isHydrated: boolean;
   activeSlotId: string;
@@ -60,6 +61,10 @@ export interface GameStore {
   slotsSynced: boolean;
   dailyQuests: DailyQuest[];
   studyQuestions: StudyQuestion[] | null;
+  achievementUnlockQueue: string[];
+  dynastyMilestoneQueue: import('../data/dynastyMilestones').DynastyMilestone[];
+  collectionSetCompleteQueue: import('../types').CollectionSet[];
+  pendingAbsenceBonus: { daysAway: number; coins: number; gems: number; projectedAge: number; yearsToAdvance: number; narrativeLines: string[] } | null;
   lastAgeUpNotice: string | null;
   showConfetti: boolean;
   pendingReincarnation: boolean;
@@ -81,11 +86,37 @@ export interface GameStore {
   canClaimLoginReward: () => boolean;
   getLoginRewardState: () => { day: number; claimed: boolean };
   canSpinMysteryBox: () => boolean;
-  spinMysteryBox: () => { ok: boolean; reward?: import('./slices/progressionSlice').MysteryReward; message: string };
+  canSpinMysteryBoxWithTicket: () => boolean;
+  spinMysteryBox: (options?: { useTicket?: boolean; segmentIndex?: number }) => {
+    ok: boolean;
+    reward?: import('./slices/progressionSlice').MysteryReward;
+    segmentIndex?: number;
+    message: string;
+  };
+  dismissAchievementUnlock: () => void;
+  dismissDynastyMilestone: () => void;
+  dismissCollectionSetComplete: () => void;
+  checkDynastyMilestones: () => import('../data/dynastyMilestones').DynastyMilestone[];
+  unlockScenario: (scenarioId: import('../types').ScenarioId) => void;
+  unlockAllPremiumScenarios: () => void;
+  isScenarioOwned: (scenarioId: import('../types').ScenarioId) => boolean;
+  ensurePlusMonthlyState: () => void;
+  redeemPlusScenarioPick: (scenarioId: import('../types').ScenarioId) => { ok: boolean; message: string };
+  grantPlusMonthlyCosmetic: () => void;
+  purchaseCosmetic: (cosmeticId: string) => { ok: boolean; message: string };
+  grantCosmeticUnlock: (cosmeticId: string) => void;
+  applyCosmetic: (cosmeticId: string) => { ok: boolean; message: string };
+  getPlusScenarioPool: () => import('../types').ScenarioId[];
+  checkAbsenceBonus: () => void;
+  claimAbsenceBonus: () => void;
   loadDailyQuests: () => void;
   claimQuestReward: (questId: string) => { ok: boolean; message: string };
   addSeasonXp: (amount: number) => void;
   purchasePrestigeUnlock: (traitId: string) => {
+    ok: boolean;
+    message?: string;
+  };
+  purchaseDynastyPerk: (perkId: string) => {
     ok: boolean;
     message?: string;
   };
@@ -101,6 +132,8 @@ export interface GameStore {
   investInStocks: (amount: number) => { ok: boolean; message: string };
   setAvatarStyle: (style: Character["avatarStyle"]) => void;
   unlockAvatarStyle: (style: NonNullable<Character["avatarStyle"]>) => void;
+  unlockAvatarStyles: (styles: NonNullable<Character["avatarStyle"]>[]) => void;
+  unlockAllAvatarStyles: () => void;
   setSeasonPass: (v: boolean) => void;
   createCharacter: (payload: CreateCharacterPayload) => void;
   setFocusAllocation: (allocation: FocusAllocation) => {
@@ -178,4 +211,8 @@ export interface GameStore {
   purchaseStreakShield: () => { ok: boolean; message: string };
   consumeStreakShieldIfAvailable: () => boolean;
   checkCollectionSetRewards: () => import('@/types').CollectionSet[];
+  addMysterySpins: (n: number) => void;
+  grantAdRewardCoins: (amount: number) => number;
+  grantAdMysteryTicket: () => number;
+  purchaseMysterySpinWithGems: () => { ok: boolean; message: string };
 }

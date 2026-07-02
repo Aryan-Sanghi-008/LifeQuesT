@@ -1,6 +1,7 @@
 import { httpsCallable } from 'firebase/functions';
 import { getFunctionsInstance } from '@services/firebaseClient';
 import { getLeaderboardCache, setLeaderboardCache } from '@services/persistence';
+import { getCurrentSeason } from '@engine/liveOpsEngine';
 import { LeaderboardEntry } from '../types';
 
 export { computeLeaderboardScore } from '@utils/leaderboardScore';
@@ -8,6 +9,7 @@ export { computeLeaderboardScore } from '@utils/leaderboardScore';
 export interface LeaderboardFetchResult {
   entries: LeaderboardEntry[];
   fromCache: boolean;
+  seasonId?: string;
 }
 
 export async function submitLeaderboardScore(payload: {
@@ -16,11 +18,16 @@ export async function submitLeaderboardScore(payload: {
   country: string;
   displayName: string;
   avatarSeed: string;
+  seasonId?: string;
+  netWorth?: number;
 }): Promise<void> {
   const fn = getFunctionsInstance();
   if (!fn) return;
   const callable = httpsCallable(fn, 'updateLeaderboard');
-  await callable(payload);
+  await callable({
+    ...payload,
+    seasonId: payload.seasonId ?? getCurrentSeason().id,
+  });
 }
 
 function parseCachedEntries(): LeaderboardEntry[] {
@@ -34,21 +41,22 @@ function parseCachedEntries(): LeaderboardEntry[] {
   }
 }
 
-export async function fetchLeaderboard(limit = 50): Promise<LeaderboardFetchResult> {
+export async function fetchLeaderboard(limit = 50, seasonId?: string): Promise<LeaderboardFetchResult> {
   const fn = getFunctionsInstance();
+  const resolvedSeasonId = seasonId ?? getCurrentSeason().id;
   if (!fn) {
-    return { entries: parseCachedEntries(), fromCache: true };
+    return { entries: parseCachedEntries(), fromCache: true, seasonId: resolvedSeasonId };
   }
   try {
-    const callable = httpsCallable<{ limit?: number }, { entries: LeaderboardEntry[] }>(fn, 'getLeaderboard');
-    const result = await callable({ limit });
+    const callable = httpsCallable<{ limit?: number; seasonId?: string }, { entries: LeaderboardEntry[]; seasonId?: string }>(fn, 'getLeaderboard');
+    const result = await callable({ limit, seasonId: resolvedSeasonId });
     const entries = result.data.entries ?? [];
     if (entries.length > 0) {
       setLeaderboardCache(JSON.stringify(entries));
     }
-    return { entries, fromCache: false };
+    return { entries, fromCache: false, seasonId: result.data.seasonId ?? resolvedSeasonId };
   } catch {
     const cached = parseCachedEntries();
-    return { entries: cached, fromCache: cached.length > 0 };
+    return { entries: cached, fromCache: cached.length > 0, seasonId: resolvedSeasonId };
   }
 }

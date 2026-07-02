@@ -2,12 +2,9 @@ import { evaluateUnlockedCollectionIds, getSetProgress } from '@engine/collectio
 import { createTestCharacter } from '../../test/fixtures/character';
 
 describe('collectionsEngine', () => {
-  it('unlocks travel moments based on travel events', () => {
+  it('unlocks wanderer moments based on countries lived', () => {
     const character = createTestCharacter({
-      eventHistory: [
-        { id: 'trv_solo_trip', age: 20, title: 'Trip', description: '', statEffect: {}, category: 'random', color: '#fff', timestamp: 1 },
-        { id: 'trv_backpacking', age: 22, title: 'Backpack', description: '', statEffect: {}, category: 'random', color: '#fff', timestamp: 2 },
-      ],
+      countriesLived: ['IN', 'US'],
     });
     const ids = evaluateUnlockedCollectionIds(character, 1);
     expect(ids).toContain('moment_wanderer_1');

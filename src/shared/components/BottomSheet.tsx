@@ -6,6 +6,8 @@ import {
   Animated,
   StyleSheet,
   Dimensions,
+  BackHandler,
+  Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@theme";
@@ -73,10 +75,20 @@ export function BottomSheet({
     }
   }, [visible, mounted, translateY, backdropOpacity, onDismissed]);
 
+  // Android hardware back button closes the sheet
+  useEffect(() => {
+    if (!visible || Platform.OS !== 'android') return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      onClose();
+      return true;
+    });
+    return () => sub.remove();
+  }, [visible, onClose]);
+
   if (!mounted) return null;
 
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
       {/* Backdrop */}
       <Animated.View
         style={[

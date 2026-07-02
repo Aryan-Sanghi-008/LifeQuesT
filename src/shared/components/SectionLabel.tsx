@@ -9,7 +9,7 @@ export function SectionLabel({ label, style }: { label: string; style?: ViewStyl
         {
           fontFamily: fonts.bodySemiBold,
           fontSize: 11,
-          color: colors.t4,
+          color: colors.t3,
           letterSpacing: 1.5,
           marginBottom: spacing.md,
         },

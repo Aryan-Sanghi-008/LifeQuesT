@@ -1,16 +1,17 @@
 import { View, Text } from "react-native";
 import { useTheme } from "@theme";
+import { getSeasonPassLevel } from "@utils/seasonPassHelper";
 
 export function SeasonPassCard({
   xp,
-  level,
   isPremium,
 }: {
   xp: number;
-  level: number;
   isPremium: boolean;
 }) {
   const { colors, fonts, radii, spacing } = useTheme();
+  const { level, currentXp, maxXp } = getSeasonPassLevel(xp);
+
   return (
     <View
       style={{
@@ -83,17 +84,15 @@ export function SeasonPassCard({
           >
             <View
               style={{
-                width: `${Math.min(100, (xp % 1000) / 10)}%` as `${number}%`,
-                height: 6,
+                height: "100%",
+                width: `${Math.min(100, maxXp > 0 ? (currentXp / maxXp) * 100 : 0)}%`,
                 backgroundColor: colors.gold,
                 borderRadius: 3,
               }}
             />
           </View>
-          <Text
-            style={{ color: colors.t3, fontFamily: fonts.body, fontSize: 11 }}
-          >
-            {xp} XP
+          <Text style={{ color: colors.t4, fontFamily: fonts.mono, fontSize: 10 }}>
+            {currentXp}/{maxXp}
           </Text>
         </View>
       </View>

@@ -1,6 +1,6 @@
 import { StateCreator } from "zustand";
 import { GameStore } from "../types";
-import { SaveSlot, Character, SyncConflict } from "../../types";
+import { SaveSlot, SyncConflict } from "../../types";
 import {
   migrateLegacySaves,
   getActiveSlotId,
@@ -13,6 +13,7 @@ import {
 } from "../../services/persistence";
 import { writeWidgetSnapshot } from "../../services/widgetSnapshot";
 import { loadSaveFromCloud, syncSaveToCloud, deleteCloudSave } from "../../services/cloudSave";
+import { reconcileLocalAndCloudSave } from "@utils/saveSync";
 import { isCloudUser, buildLocalSlotList, getLoadGeneration, incrementLoadGeneration } from "../storeHelpers";
 import { syncGameRetentionNotifications } from "@services/notificationSync";
 
@@ -58,39 +59,44 @@ export const createSaveSlice: StateCreator<
       if (char) char = normalizeCharacter(char);
 
       const { user } = get();
-      let cloudChar: Character | null = null;
+      let cloudPayload: Awaited<ReturnType<typeof loadSaveFromCloud>> = null;
       if (isCloudUser(user?.uid)) {
         try {
-          const payload = await loadSaveFromCloud(user!.uid, id);
-          if (payload) {
-            cloudChar = normalizeCharacter(payload.character);
-          }
+          cloudPayload = await loadSaveFromCloud(user!.uid, id);
         } catch (e) {
           console.warn("[cloudSave] loadSaveFromCloud failed", e);
         }
       }
+      const cloudChar = cloudPayload
+        ? normalizeCharacter(cloudPayload.character)
+        : null;
 
       if (gen !== getLoadGeneration()) return;
 
-      if (char && cloudChar) {
-        const localUpdatedAt = char.updatedAt ?? 0;
-        const cloudUpdatedAt = cloudChar.updatedAt ?? 0;
-        if (Math.abs(localUpdatedAt - cloudUpdatedAt) > 60 * 1000) {
+      if (char && cloudChar && cloudPayload) {
+        const result = reconcileLocalAndCloudSave(char, cloudChar, {
+          version: cloudPayload.version,
+          checksum: cloudPayload.checksum,
+          updatedAt: cloudPayload.updatedAt,
+        });
+        if (result.action === 'conflict') {
           set((s) => {
             s.activeSlotId = id;
             s.syncConflict = {
-              local: char!,
-              cloud: cloudChar!,
+              local: result.local,
+              cloud: result.cloud,
               resolve: (choice) => get().resolveConflictChoice(choice),
             };
           });
           return;
         }
-      }
-
-      if (cloudChar) {
+        char = result.character;
+        if (cloudPayload.updatedAt > (loadCharacterLocal(id)?.updatedAt ?? 0)) {
+          saveCharacterLocal(char, id);
+        }
+      } else if (cloudChar && cloudPayload) {
         const localUpdatedAt = char?.updatedAt ?? 0;
-        if (cloudChar.updatedAt > localUpdatedAt) {
+        if (cloudPayload.updatedAt > localUpdatedAt) {
           char = cloudChar;
           saveCharacterLocal(char, id);
         }
@@ -118,6 +124,8 @@ export const createSaveSlice: StateCreator<
         character: get().character,
         dailyQuests: get().dailyQuests,
       });
+      get().loadDailyQuests();
+      get().checkAbsenceBonus();
     } catch {
       if (gen === getLoadGeneration()) {
         set((s) => {

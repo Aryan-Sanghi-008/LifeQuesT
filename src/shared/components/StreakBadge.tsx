@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { useEffect, useRef } from "react";
+import { View, Text, StyleSheet, Pressable, Animated, AccessibilityInfo } from "react-native";
 import { useTheme } from "@theme";
 import Svg, { Path } from "react-native-svg";
 import { STREAK_MILESTONES } from "@store/slices/progressionSlice";
@@ -10,11 +11,57 @@ interface Props {
   onPress?: () => void;
 }
 
+function FlameIcon({ accent }: { accent: string }) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const opacity = useRef(new Animated.Value(0.85)).current;
+  const reduceRef = useRef(false);
+
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then((reduced) => {
+      reduceRef.current = reduced;
+      if (reduced) return;
+
+      const pulse = Animated.loop(
+        Animated.sequence([
+          Animated.parallel([
+            Animated.timing(scale, { toValue: 1.18, duration: 600, useNativeDriver: true }),
+            Animated.timing(opacity, { toValue: 1, duration: 600, useNativeDriver: true }),
+          ]),
+          Animated.parallel([
+            Animated.timing(scale, { toValue: 0.9, duration: 500, useNativeDriver: true }),
+            Animated.timing(opacity, { toValue: 0.7, duration: 500, useNativeDriver: true }),
+          ]),
+          Animated.parallel([
+            Animated.timing(scale, { toValue: 1, duration: 300, useNativeDriver: true }),
+            Animated.timing(opacity, { toValue: 0.85, duration: 300, useNativeDriver: true }),
+          ]),
+        ]),
+      );
+      pulse.start();
+      return () => pulse.stop();
+    });
+  }, [scale, opacity]);
+
+  return (
+    <Animated.View style={{ transform: [{ scale }], opacity }}>
+      <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+        <Path
+          d="M12 2c1 3 2.5 3.5 3.5 5.5.5 1 .5 2.5-.5 3.5-1 1-2.5 1-3.5 0S9 10 8.5 9C7.5 7 9 6 10 3c.5-1 1.5-1 2-1z"
+          stroke={accent} strokeWidth={1.8} strokeLinejoin="round" fill={`${accent}25`}
+        />
+        <Path
+          d="M12 22c-2-2-4-4.5-4-7.5 0-2 1.5-3.5 4-5.5 2.5 2 4 3.5 4 5.5 0 3-2 5.5-4 7.5z"
+          stroke={accent} strokeWidth={1.8} strokeLinejoin="round" fill={`${accent}15`}
+        />
+      </Svg>
+    </Animated.View>
+  );
+}
+
 export function StreakBadge({ count, shieldCount = 0, showMilestoneProgress = false, onPress }: Props) {
   const { colors, fonts } = useTheme();
   const accent = colors.gold;
 
-  // Find next unclaimed milestone
   const nextMilestone = STREAK_MILESTONES.find((m) => m.days > count);
   const prevMilestone = [...STREAK_MILESTONES].reverse().find((m) => m.days <= count);
   const progressStart = prevMilestone?.days ?? 0;
@@ -26,17 +73,7 @@ export function StreakBadge({ count, shieldCount = 0, showMilestoneProgress = fa
   const content = (
     <View style={{ gap: 4 }}>
       <View style={[styles.badge, { backgroundColor: `${accent}12`, borderColor: `${accent}30` }]}>
-        {/* Flame icon */}
-        <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-          <Path
-            d="M12 2c1 3 2.5 3.5 3.5 5.5.5 1 .5 2.5-.5 3.5-1 1-2.5 1-3.5 0S9 10 8.5 9C7.5 7 9 6 10 3c.5-1 1.5-1 2-1z"
-            stroke={accent} strokeWidth={1.8} strokeLinejoin="round" fill={`${accent}25`}
-          />
-          <Path
-            d="M12 22c-2-2-4-4.5-4-7.5 0-2 1.5-3.5 4-5.5 2.5 2 4 3.5 4 5.5 0 3-2 5.5-4 7.5z"
-            stroke={accent} strokeWidth={1.8} strokeLinejoin="round" fill={`${accent}15`}
-          />
-        </Svg>
+        <FlameIcon accent={accent} />
         <Text style={[styles.countText, { color: accent, fontFamily: fonts.monoSemiBold }]}>
           {count}
         </Text>

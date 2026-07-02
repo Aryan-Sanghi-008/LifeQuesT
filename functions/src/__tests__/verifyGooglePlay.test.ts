@@ -92,6 +92,7 @@ describe('grantsForProduct', () => {
     expect(grantsForProduct('premium_yearly')).toEqual({
       isPremium: true,
       hasNoAds: true,
+      hasSeasonPass: true,
       luckBoostGrant: 5,
     });
   });

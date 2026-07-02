@@ -177,7 +177,7 @@ function FeaturePills() {
     { label: '🏢 Business Empire',   color: colors.gold      },
     { label: '💑 Relationships',     color: colors.orchid    },
     { label: '🎓 Education Paths',   color: colors.sapphire  },
-    { label: '🌍 50+ Countries',     color: colors.teal      },
+    { label: '🌍 40+ Countries',     color: colors.teal      },
   ];
   return (
     <View style={styles.pillsWrap}>

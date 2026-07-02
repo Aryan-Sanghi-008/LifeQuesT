@@ -25,6 +25,7 @@ import {
   getGuaranteedMilestones,
   getWeightedEligibleEvents,
   resolveEventRarity,
+  applyEpicUnlockBoost,
 } from "./eventEngine";
 import {
   applyFocusStatModifiers,
@@ -47,6 +48,8 @@ import {
   ensureTeachers,
   agePeople,
 } from "./peopleEngine";
+import { ensureScenarioAgeNPCs } from "./scenarioNpcEngine";
+import { driftKarmaTowardNeutral } from "./economyCapEngine";
 import { tickMentalHealth } from "./mentalHealthEngine";
 import {
   recordCrime,
@@ -537,7 +540,9 @@ export function runAgeUp(
     pool.length,
     Math.max(0, 1 + Math.floor(Math.random() * 2) - guaranteed.length),
   );
-  const randomPicks = pickWeightedEvents(pool, randomCount);
+  const epicBoostActive = character.epicEventsUnlocked === true;
+  const poolForPick = epicBoostActive ? applyEpicUnlockBoost(pool) : pool;
+  const randomPicks = pickWeightedEvents(poolForPick, randomCount);
   const chosenEvents = [...guaranteed, ...randomPicks];
   const decisionEvent = chosenEvents.find(
     (e) => e.choices && e.choices.length > 0,
@@ -601,6 +606,11 @@ export function runAgeUp(
   if (newAge >= 5 && newAge <= 18) {
     updatedPeople = ensureTeachers(updatedPeople, character.name);
   }
+  updatedPeople = ensureScenarioAgeNPCs(
+    updatedPeople,
+    { ...character, age: newAge },
+    newAge,
+  );
   updatedPeople = tickAllPets(updatedPeople);
 
   if (newAge >= 5 && newAge <= 25) {
@@ -824,6 +834,8 @@ export function runAgeUp(
     .filter((t) => !memoryTagsBefore.has(t.id))
     .map((t) => t.id);
 
+  karma = driftKarmaTowardNeutral(karma);
+
   const patch: Partial<Character> = {
     age: newAge,
     stats,
@@ -880,6 +892,7 @@ export function runAgeUp(
     dynastyScore: character.dynastyScore ?? 0,
     familyLineage: character.familyLineage ?? [],
     will: character.will,
+    ...(epicBoostActive ? { epicEventsUnlocked: false } : {}),
     ...probationPatch,
   };
 

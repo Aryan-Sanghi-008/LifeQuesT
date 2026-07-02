@@ -26,28 +26,32 @@ import {
   setDailyQuestsProgress,
   normalizeCharacter,
   deleteCharacterLocal,
+  setStarterOfferEligible,
 } from "../../services/persistence";
 import { processCharacterDeath } from "../../engine/prestigeEngine";
 import { logEvent } from "../../services/analytics";
 import { handlePostAgeUpNotifications, syncGameRetentionNotifications } from "@services/notificationSync";
 import { runAgeUp } from "../../engine/ageUpEngine";
+import { ensureEventsLoadedForAge, preloadAdjacentEventPacks } from "../../engine/eventEngine";
 import { runResolveDecision } from "../../engine/resolveDecisionEngine";
 import { isFocusConfirmedForAge } from "../../engine/focusEngine";
 import { hapticDeath, hapticAchievement } from "../../services/haptics";
 import { playSound } from "../../services/audio";
+import { feedbackForAgeUpRecords } from "../../services/gameFeedback";
 import { useToastStore } from "../toastStore";
 import { buildLocalSlotList, incrementLoadGeneration } from "../storeHelpers";
+import { applyCountriesLived } from "@utils/countriesLived";
 import { pickDailyQuests, updateQuestProgress } from "../../engine/questEngine";
+import { applyScenarioAtCreation } from "../../engine/scenarioEngine";
+import { applyDynastyStatMultiplier } from "../../engine/economyCapEngine";
 
 function generateId(): string {
   return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
 function defaultUnlockedStyles(
-  gender: Gender,
+  _gender: Gender,
 ): NonNullable<Character["unlockedAvatarStyles"]> {
-  if (gender === "female") return ["lorelei"];
-  if (gender === "other") return ["notionists"];
   return ["adventurer"];
 }
 
@@ -151,9 +155,10 @@ function buildCharacter(data: CreateCharacterPayload): Character {
     data.name,
     data.countryCode,
     data.familyBackground,
+    data.scenarioId,
   );
 
-  return normalizeCharacter({
+  const base = normalizeCharacter({
     id,
     name: data.name,
     gender: data.gender,
@@ -204,19 +209,8 @@ function buildCharacter(data: CreateCharacterPayload): Character {
     hasReincarnationScroll: false,
     businesses: [],
     socialFollowers: 0,
-    avatarStyle:
-      data.gender === "female"
-        ? "lorelei"
-        : data.gender === "other"
-          ? "notionists"
-          : "adventurer",
-    unlockedAvatarStyles: [
-      data.gender === "female"
-        ? "lorelei"
-        : data.gender === "other"
-          ? "notionists"
-          : "adventurer",
-    ],
+    avatarStyle: "adventurer",
+    unlockedAvatarStyles: ["adventurer"],
     degreeIds: [],
     certificationIds: [],
     totalCareerYears: 0,
@@ -244,10 +238,12 @@ function buildCharacter(data: CreateCharacterPayload): Character {
     familyReputation: 50,
     createdAt: Date.now(),
     updatedAt: Date.now(),
+    countriesLived: [data.countryCode ?? "IN"],
     dailyStreak: 1,
     lastActiveDate: new Date().toISOString().slice(0, 10),
     scenarioId: data.scenarioId ?? 'classic',
   });
+  return applyScenarioAtCreation(base, data.scenarioId ?? 'classic');
 }
 
 type FamilyBackground = "poor" | "middle" | "wealthy" | "royalty";
@@ -258,6 +254,7 @@ export interface CharacterSlice {
   isProcessing: boolean;
   sessionAges: number;
   ageUpsSinceAd: number;
+  livesEndedSinceAd: number;
   carriedStatsForCreate: Partial<CharacterStats> | null;
   carriedParentDNA: CharacterDNA | null;
   carriedPartnerDNA: CharacterDNA | null;
@@ -270,7 +267,7 @@ export interface CharacterSlice {
   showConfetti: boolean;
 
   createCharacter: (payload: CreateCharacterPayload) => void;
-  ageUp: () => void;
+  ageUp: () => Promise<void>;
   clearAgeUpNotice: () => void;
   setShowConfetti: (val: boolean) => void;
   clearPendingReincarnation: () => void;
@@ -285,6 +282,8 @@ export interface CharacterSlice {
   };
   setAvatarStyle: (style: Character["avatarStyle"]) => void;
   unlockAvatarStyle: (style: NonNullable<Character["avatarStyle"]>) => void;
+  unlockAvatarStyles: (styles: NonNullable<Character["avatarStyle"]>[]) => void;
+  unlockAllAvatarStyles: () => void;
   addLuckBoost: (n: number) => void;
   useReincarnationScroll: () => void;
 }
@@ -300,6 +299,7 @@ export const createCharacterSlice: StateCreator<
   isProcessing: false,
   sessionAges: 0,
   ageUpsSinceAd: 0,
+  livesEndedSinceAd: 0,
   carriedStatsForCreate: null,
   carriedParentDNA: null,
   carriedPartnerDNA: null,
@@ -328,10 +328,26 @@ export const createCharacterSlice: StateCreator<
       partnerPersonality: partnerPers ?? payload.partnerPersonality,
     });
 
+    const prestige = get().globalPrestige;
+    let finalChar = char;
+    if ((prestige.dynastyStatBonusTier ?? 0) > 0) {
+      finalChar = {
+        ...finalChar,
+        stats: applyDynastyStatMultiplier(
+          finalChar.stats,
+          prestige.dynastyStatBonusTier ?? 0,
+          finalChar.generation ?? 1,
+        ),
+      };
+    }
+    if (prestige.familyCrestId) {
+      finalChar = { ...finalChar, familyCrestId: prestige.familyCrestId };
+    }
+
     const slotId = get().activeSlotId;
-    saveCharacterLocal(char, slotId);
+    saveCharacterLocal(finalChar, slotId);
     set((s) => {
-      s.character = char;
+      s.character = finalChar;
       s.pendingDecision = null;
       s.sessionAges = 0;
       s.isProcessing = false;
@@ -344,10 +360,10 @@ export const createCharacterSlice: StateCreator<
       s.slotList = buildLocalSlotList();
     });
     void get()._persist();
-    void logEvent("create_character", { name: char.name });
+    void logEvent("create_character", { name: finalChar.name });
   },
 
-  ageUp: () => {
+  ageUp: async () => {
     const { character, pendingDecision, isProcessing } = get();
     if (!character || pendingDecision || isProcessing || !character.isAlive)
       return;
@@ -356,6 +372,8 @@ export const createCharacterSlice: StateCreator<
       if (character.lifePhase === "planning") return;
       if (!isFocusConfirmedForAge(character)) return;
     }
+
+    await ensureEventsLoadedForAge(character.age + 1);
 
     const prevWorldEvents = character.activeWorldEvents ?? [];
     const prevPeople = character.people;
@@ -433,6 +451,7 @@ export const createCharacterSlice: StateCreator<
         s.isProcessing = false;
       });
       saveGlobalPrestige(prestigeRes.nextState);
+      setStarterOfferEligible(true);
       hapticDeath();
       void playSound("death");
       notifyStreakMilestone();
@@ -462,17 +481,31 @@ export const createCharacterSlice: StateCreator<
         if (withDecision && outcome.type === "pending_decision") {
           s.pendingDecision = { event: outcome.decisionEvent };
         }
+        if (s.character) applyCountriesLived(s.character);
       });
     };
 
     void playSound("age_up");
 
+    const notifyAgeUpEvents = () => {
+      feedbackForAgeUpRecords(outcome.newEventRecords);
+    };
+
     if (outcome.type === "pending_decision") {
       applyPatch(true);
+      notifyAgeUpEvents();
       notifyStreakMilestone();
-      get().checkCollectionSetRewards();
+      const completedSets = get().checkCollectionSetRewards();
+      if (completedSets.length > 0 && get().collectionSetCompleteQueue.length === 0) {
+        useToastStore.getState().showToast(
+          `Collection complete: ${completedSets.map((s) => s.titleReward).join(', ')}!`,
+          'success',
+        );
+      }
+      get().checkDynastyMilestones();
     } else {
       applyPatch(false);
+      notifyAgeUpEvents();
       get()._checkAchievements();
       get().addSeasonXp(10);
       const quests = get().dailyQuests.length
@@ -481,18 +514,32 @@ export const createCharacterSlice: StateCreator<
       let updated = updateQuestProgress(quests, "age_up", 1);
       updated = updateQuestProgress(updated, "reach_karma", 0, outcome.karma);
       updated = updateQuestProgress(updated, "gain_karma", 0, outcome.karma);
+      // Dynasty quest progress — snapshot current values after the patch
+      const afterChar = get().character;
+      if (afterChar) {
+        const { calculateDynastyScore: calcScore } = require('../../engine/legacyEngine');
+        const currentDynastyScore = (afterChar.dynastyScore ?? 0) + (calcScore(afterChar) as number);
+        const livingHeirCount = afterChar.people.filter(
+          (p) => (p.relationType === 'child' || p.relationType === 'sibling') && p.isAlive,
+        ).length;
+        updated = updateQuestProgress(updated, "reach_dynasty_score", currentDynastyScore);
+        updated = updateQuestProgress(updated, "living_heirs", livingHeirCount);
+      }
       setDailyQuestsProgress(today, JSON.stringify(updated));
       set((s) => {
         s.dailyQuests = updated;
       });
       notifyStreakMilestone();
+      // Collection sets — modal queue handles display; toast as fallback only when queue is empty
       const completedSets = get().checkCollectionSetRewards();
-      if (completedSets.length > 0) {
+      if (completedSets.length > 0 && get().collectionSetCompleteQueue.length === 0) {
         useToastStore.getState().showToast(
           `Collection complete: ${completedSets.map((s) => s.titleReward).join(', ')}!`,
           'success',
         );
       }
+      // Dynasty milestones
+      get().checkDynastyMilestones();
     }
     void get()._persist();
     void handlePostAgeUpNotifications(
@@ -500,6 +547,7 @@ export const createCharacterSlice: StateCreator<
       prevWorldEvents,
       prevPeople,
     );
+    preloadAdjacentEventPacks(get().character?.age ?? character.age + 1);
   },
 
   clearAgeUpNotice: () =>
@@ -598,8 +646,13 @@ export const createCharacterSlice: StateCreator<
       if (v) {
         s.character.hasNoAds = true;
         s.character.luckBoostsRemaining += 5;
+        s.character.hasSeasonPass = true;
       }
     });
+    if (v) {
+      get().ensurePlusMonthlyState();
+      get().grantPlusMonthlyCosmetic();
+    }
     void get()._persist();
   },
 
@@ -698,6 +751,32 @@ export const createCharacterSlice: StateCreator<
       s.character.avatarStyle = style;
     });
     void get()._persist();
+  },
+
+  unlockAvatarStyles: (styles) => {
+    set((s) => {
+      if (!s.character) return;
+      const unlocked = new Set(
+        s.character.unlockedAvatarStyles ??
+        defaultUnlockedStyles(s.character.gender),
+      );
+      styles.forEach((style) => unlocked.add(style));
+      s.character.unlockedAvatarStyles = Array.from(unlocked);
+    });
+    void get()._persist();
+  },
+
+  unlockAllAvatarStyles: () => {
+    const all: import('../../types').AvatarStyleId[] = [
+      'adventurer',
+      'adventurer-neutral',
+      'lorelei',
+      'lorelei-neutral',
+      'bottts',
+      'notionists',
+      'big-smile',
+    ];
+    get().unlockAvatarStyles(all);
   },
 
   addLuckBoost: (n) =>

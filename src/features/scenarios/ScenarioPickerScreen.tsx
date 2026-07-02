@@ -5,7 +5,13 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import Svg, { Path } from "react-native-svg";
 import { useTheme } from "@theme";
 import { SCENARIOS, Scenario } from "@data/scenarios";
-import type { RootStackParamList } from "@/types";
+import type { RootStackParamList, ScenarioId } from "@/types";
+import { useGameStore } from "@store/gameStore";
+import { FREE_SCENARIO_IDS } from "@data/scenarioCatalog";
+import { getFeaturedScenarioId as getRemoteFeaturedScenarioId } from "@services/remoteConfig";
+import { getHydratedLiveOpsConfig } from "@engine/liveOpsEngine";
+import { useToastStore } from "@store/toastStore";
+import { getMonthKey } from "@data/plusRotation";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -18,7 +24,7 @@ function LockIcon({ color }: { color: string }) {
   );
 }
 
-function ScenarioCard({ scenario, onPress }: { scenario: Scenario; onPress: () => void }) {
+function ScenarioCard({ scenario, owned, onPress, subtitle }: { scenario: Scenario; owned: boolean; onPress: () => void; subtitle?: string }) {
   const { colors, fonts, spacing, radii } = useTheme();
   const accent = scenario.accentColor;
 
@@ -36,22 +42,25 @@ function ScenarioCard({ scenario, onPress }: { scenario: Scenario; onPress: () =
       ]}
       android_ripple={{ color: `${accent}15` }}
     >
-      {/* Color band at top */}
       <View style={[styles.cardBand, { backgroundColor: `${accent}18` }]}>
-        <View style={[styles.accentDot, { backgroundColor: accent }]} />
-        {scenario.locked && (
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Text style={{ fontSize: 18 }}>{scenario.iconEmoji ?? "🌍"}</Text>
+          <View style={[styles.accentDot, { backgroundColor: accent }]} />
+        </View>
+        {owned ? (
+          <View style={[styles.lockBadge, { backgroundColor: `${colors.emerald}20`, borderWidth: 1, borderColor: `${colors.emerald}30` }]}>
+            <Text style={[styles.lockText, { color: colors.emerald, fontFamily: fonts.monoSemiBold }]}>OWNED</Text>
+          </View>
+        ) : scenario.isPremium ? (
           <View style={[styles.lockBadge, { backgroundColor: colors.bg2 }]}>
             <LockIcon color={colors.t3} />
             <Text style={[styles.lockText, { color: colors.t3, fontFamily: fonts.body }]}>
-              Coming soon
+              {subtitle ?? scenario.priceLabel ?? "Premium"}
             </Text>
           </View>
-        )}
-        {!scenario.locked && (
+        ) : (
           <View style={[styles.lockBadge, { backgroundColor: `${accent}20` }]}>
-            <Text style={[styles.lockText, { color: accent, fontFamily: fonts.bodySemiBold }]}>
-              Playable
-            </Text>
+            <Text style={[styles.lockText, { color: accent, fontFamily: fonts.bodySemiBold }]}>FREE</Text>
           </View>
         )}
       </View>
@@ -92,6 +101,39 @@ const styles = StyleSheet.create({
 export function ScenarioPickerScreen() {
   const { colors, fonts, spacing } = useTheme();
   const navigation = useNavigation<Nav>();
+  const showToast = useToastStore((s) => s.showToast);
+  const character = useGameStore((s) => s.character);
+  const globalPrestige = useGameStore((s) => s.globalPrestige);
+  const isScenarioOwned = useGameStore((s) => s.isScenarioOwned);
+  const getPlusScenarioPool = useGameStore((s) => s.getPlusScenarioPool);
+  const redeemPlusScenarioPick = useGameStore((s) => s.redeemPlusScenarioPick);
+  const ensurePlusMonthlyState = useGameStore((s) => s.ensurePlusMonthlyState);
+
+  const isPremium = character?.isPremium ?? false;
+  const month = getMonthKey();
+  const plusCredits = globalPrestige.plusScenarioCreditsMonth === month
+    ? (globalPrestige.plusScenarioCredits ?? 0)
+    : 2;
+  const plusPool = getPlusScenarioPool();
+  const plusMonthIds = globalPrestige.plusMonthScenarioIds ?? [];
+
+  const freeScenarios = SCENARIOS.filter((s) => FREE_SCENARIO_IDS.includes(s.id as never));
+  const premiumScenarios = SCENARIOS.filter((s) => !FREE_SCENARIO_IDS.includes(s.id as never));
+  const plusScenarios = SCENARIOS.filter((s) => plusPool.includes(s.id as ScenarioId));
+  const featuredScenarioId = (getHydratedLiveOpsConfig()?.featuredScenario
+    ?? getRemoteFeaturedScenarioId()) as ScenarioId;
+  const featuredScenario = SCENARIOS.find((s) => s.id === featuredScenarioId);
+
+  const handlePlusPick = (scenarioId: ScenarioId) => {
+    if (!isPremium) return;
+    ensurePlusMonthlyState();
+    if (isScenarioOwned(scenarioId)) {
+      navigation.navigate("ScenarioDetail", { scenarioId });
+      return;
+    }
+    const result = redeemPlusScenarioPick(scenarioId);
+    showToast(result.message, result.ok ? "success" : "error");
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={["top"]}>
@@ -112,13 +154,65 @@ export function ScenarioPickerScreen() {
 
       <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: 60 }}
         showsVerticalScrollIndicator={false}>
-        <Text style={{ color: colors.t3, fontFamily: fonts.body, fontSize: 13, lineHeight: 18 }}>
-          Choose a scenario to explore. More worlds are coming in future updates.
-        </Text>
-        {SCENARIOS.map((s) => (
+
+        {featuredScenario && (
+          <>
+            <Text style={{ color: colors.gold, fontFamily: fonts.bodyBold, fontSize: 11, letterSpacing: 0.5 }}>
+              FEATURED SCENARIO
+            </Text>
+            <ScenarioCard
+              scenario={featuredScenario}
+              owned={isScenarioOwned(featuredScenario.id)}
+              subtitle="Featured this week"
+              onPress={() => navigation.navigate("ScenarioDetail", { scenarioId: featuredScenario.id })}
+            />
+          </>
+        )}
+
+        {isPremium && (
+          <>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={{ color: colors.t3, fontFamily: fonts.bodyBold, fontSize: 11, letterSpacing: 0.5 }}>
+                PLUS PICKS · {month}
+              </Text>
+              <Text style={{ color: colors.gold, fontFamily: fonts.monoSemiBold, fontSize: 11 }}>
+                {plusCredits} left
+              </Text>
+            </View>
+            {plusScenarios.map((s) => {
+              const owned = isScenarioOwned(s.id);
+              const pickedThisMonth = plusMonthIds.includes(s.id);
+              return (
+                <ScenarioCard
+                  key={`plus-${s.id}`}
+                  scenario={s}
+                  owned={owned}
+                  subtitle={pickedThisMonth ? 'This month' : 'Use pick'}
+                  onPress={() => handlePlusPick(s.id)}
+                />
+              );
+            })}
+            <View style={{ height: 8 }} />
+          </>
+        )}
+
+        <Text style={{ color: colors.t3, fontFamily: fonts.bodyBold, fontSize: 11, letterSpacing: 0.5 }}>FREE</Text>
+        {freeScenarios.map((s) => (
           <ScenarioCard
             key={s.id}
             scenario={s}
+            owned={isScenarioOwned(s.id)}
+            onPress={() => navigation.navigate("ScenarioDetail", { scenarioId: s.id })}
+          />
+        ))}
+
+        <View style={{ height: 8 }} />
+        <Text style={{ color: colors.t3, fontFamily: fonts.bodyBold, fontSize: 11, letterSpacing: 0.5 }}>PREMIUM</Text>
+        {premiumScenarios.map((s) => (
+          <ScenarioCard
+            key={s.id}
+            scenario={s}
+            owned={isScenarioOwned(s.id)}
             onPress={() => navigation.navigate("ScenarioDetail", { scenarioId: s.id })}
           />
         ))}

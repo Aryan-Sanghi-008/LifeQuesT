@@ -105,12 +105,15 @@ export function getAvatarOptionsForStage(stage: LifeStage, gender: Gender): Reco
   }
 }
 
-/** Pick the correct DiceBear style name based on gender */
+/**
+ * Returns the universal default avatar pack.
+ * All genders use adventurer as the baseline — gender variation is expressed
+ * through seed-based options (hair colours, etc.) within the same pack,
+ * not by switching to an entirely different art style.
+ */
 export function getDefaultAvatarStyle(gender: Gender): string {
-  if (gender === 'female') return 'lorelei';
-  if (gender === 'other') return 'notionists'; // gender-neutral professional style
   if (gender === 'animal') return 'bottts';
-  return 'adventurer'; // male default
+  return 'adventurer';
 }
 
 /** Map our AvatarStyleId to the DiceBear JSON filename */
@@ -125,4 +128,37 @@ export function getStyleFileName(styleId: string): string {
     'big-smile':          'big-smile',
   };
   return MAP[styleId] ?? 'adventurer';
+}
+
+/**
+ * Resolves the exact DiceBear style file for a given player-selected pack and
+ * the target character's gender.
+ *
+ * All characters in the game use the same pack family so the visual style is
+ * cohesive, but within a gendered pack (adventurer / lorelei) we pick the
+ * appropriate variant so male characters look male-presenting and female
+ * characters look female-presenting.
+ *
+ * Pack → gender → DiceBear style mapping:
+ *   adventurer : male → adventurer, female/other → adventurer-neutral
+ *   lorelei    : female → lorelei,  male/other  → lorelei-neutral
+ *   notionists / big-smile / bottts : same for all genders
+ */
+export function resolveAvatarStyleForGender(packChoice: string, gender: Gender): string {
+  if (gender === 'animal') return 'bottts';
+  switch (packChoice) {
+    case 'adventurer':
+      return gender === 'male' ? 'adventurer' : 'adventurer-neutral';
+    case 'lorelei':
+      return gender === 'female' ? 'lorelei' : 'lorelei-neutral';
+    // Symmetric / gender-neutral packs — same style for everyone
+    case 'adventurer-neutral':
+    case 'lorelei-neutral':
+    case 'notionists':
+    case 'big-smile':
+    case 'bottts':
+      return packChoice;
+    default:
+      return 'adventurer';
+  }
 }

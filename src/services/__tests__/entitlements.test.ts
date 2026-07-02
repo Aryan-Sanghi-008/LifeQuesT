@@ -1,7 +1,10 @@
 import {
-  applyEntitlementsToCharacter, hasPendingGrants,
+  applyEntitlementsToCharacter,
+  applyEntitlementsToGlobalPrestige,
+  hasPendingGrants,
 } from '@utils/entitlementGrants';
 import { createTestCharacter } from '../../test/fixtures/character';
+import type { GlobalPrestigeState } from '../../types';
 
 const baseCharacter = createTestCharacter({
   age: 20,
@@ -47,5 +50,37 @@ describe('hasPendingGrants', () => {
   it('detects pending consumable grants', () => {
     expect(hasPendingGrants({ coinsGrant: 10 })).toBe(true);
     expect(hasPendingGrants({ isPremium: true })).toBe(false);
+  });
+});
+
+describe('applyEntitlementsToGlobalPrestige', () => {
+  const basePrestige: GlobalPrestigeState = {
+    prestigePoints: 0,
+    prestigeLevel: 1,
+    totalLivesLived: 0,
+    completedChallengeIds: [],
+    unlockedTraitIds: [],
+    unlockedScenarioIds: ['classic', 'rags_to_riches', 'silver_spoon'],
+    unlockedDynastyPerkIds: [],
+    dynastyStatBonusTier: 0,
+  };
+
+  it('merges unlockedScenarioIds with free scenarios', () => {
+    const next = applyEntitlementsToGlobalPrestige(basePrestige, {
+      unlockedScenarioIds: ['royal', 'mars'],
+    });
+    expect(next.unlockedScenarioIds).toEqual(
+      expect.arrayContaining(['classic', 'rags_to_riches', 'silver_spoon', 'royal', 'mars']),
+    );
+  });
+
+  it('is idempotent when merging the same scenario ids twice', () => {
+    const once = applyEntitlementsToGlobalPrestige(basePrestige, {
+      unlockedScenarioIds: ['royal'],
+    });
+    const twice = applyEntitlementsToGlobalPrestige(once, {
+      unlockedScenarioIds: ['royal'],
+    });
+    expect(twice.unlockedScenarioIds?.filter((id) => id === 'royal')).toHaveLength(1);
   });
 });

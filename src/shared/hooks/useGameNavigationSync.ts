@@ -3,6 +3,17 @@ import { useGameStore } from '@store/gameStore';
 import { useSettingsStore } from '@store/settingsStore';
 import { resolveRootRoute, needsAspirationRoute, needsCourtRoute } from '@navigation/gamePhase';
 import { getCurrentRouteName, resetToRoute } from '@navigation/navigationRef';
+import { hasSelectedSlotThisSession } from '@navigation/sessionState';
+
+/**
+ * Screens that belong to the pre-game / auth phase.
+ * resetToRoute('MainTabs') is only called when coming FROM one of these screens.
+ * If the player is already on any in-game screen (Assets, Activities, etc.),
+ * we skip the reset so gameplay is never interrupted by a state mutation.
+ */
+const PRE_GAME_ROUTES = new Set<string>([
+  'Onboarding', 'AgeGate', 'Auth', 'SaveSlots', 'CharacterCreate',
+]);
 
 /**
  * Imperatively syncs the root stack when game phase changes.
@@ -45,10 +56,26 @@ export function useGameNavigationSync(): void {
       ageGateVerified,
     });
 
-    // Never pull an alive character back into creation.
-    if (target === 'CharacterCreate' && character?.isAlive) return;
+    const currentRoute = getCurrentRouteName();
 
-    if (getCurrentRouteName() === target) return;
+    // Never eject the user from the Shop while they are making a purchase.
+    // A purchase mutates character state which re-triggers this effect, but
+    // the user must remain on the Shop screen to see the confirmation.
+    if (currentRoute === 'Shop' && character?.isAlive) return;
+
+    // If the target is MainTabs but we are already on any in-game screen
+    // (anything other than a pre-game route), do NOT reset — this prevents
+    // state mutations (age up, purchases, etc.) from bouncing back to the Home tab.
+    if (target === 'MainTabs' && currentRoute && !PRE_GAME_ROUTES.has(currentRoute)) return;
+
+    // Never pull an alive character back into creation mid-game.
+    if (character?.isAlive && target === 'CharacterCreate') return;
+
+    // Once the player has picked a slot this session, don't bounce back to SaveSlots
+    // on state mutations — the session flag was set in SaveSlotScreen.handleSelect.
+    if (target === 'SaveSlots' && hasSelectedSlotThisSession()) return;
+
+    if (currentRoute === target) return;
 
     resetToRoute(target);
   }, [user, character, characterId, isAlive, pendingReincarnation, pendingAspirationPicker, pendingCourt, isHydrated, onboardingComplete, ageGateVerified]);

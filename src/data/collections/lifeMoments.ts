@@ -33,16 +33,17 @@ function rangeMoments(
   names: string[],
   descTemplate: (n: number) => string,
   rarityFn?: (i: number) => Rarity,
+  startIndex = 1,
 ): CollectionItem[] {
   return Array.from({ length: count }, (_, i) => {
-    const n = i + 1;
+    const idx = startIndex + i;
     return moment(
       setId,
-      n,
-      names[i] ?? `${prefix} ${n}`,
-      descTemplate(n),
-      `${unlockPrefix}:${n}`,
-      rarityFn?.(n) ?? (n >= 8 ? 'epic' : n >= 5 ? 'rare' : n >= 3 ? 'uncommon' : 'common'),
+      idx,
+      names[i] ?? `${prefix} ${idx}`,
+      descTemplate(i + 1),
+      `${unlockPrefix}:${i + 1}`,
+      rarityFn?.(i + 1) ?? (idx >= 8 ? 'epic' : idx >= 5 ? 'rare' : idx >= 3 ? 'uncommon' : 'common'),
     );
   });
 }
@@ -123,13 +124,13 @@ const DEVOTION_NAMES = [
 ];
 
 export const LIFE_MOMENT_ITEMS: CollectionItem[] = [
-  ...rangeMoments('wanderer', 'Journey', 'travel_count', 10, WANDERER_NAMES, (n) => `Unlock after ${n} travel experience${n === 1 ? '' : 's'}.`),
+  ...rangeMoments('wanderer', 'Journey', 'countries_lived', 10, WANDERER_NAMES, (n) => `Live in ${n} different ${n === 1 ? 'country' : 'countries'}.`),
   ...rangeMoments('tycoon', 'Wealth', 'business_count', 5, TYCOON_NAMES.slice(0, 5), (n) => `Own ${n} business${n === 1 ? '' : 'es'}.`),
-  ...rangeMoments('tycoon', 'Wealth', 'wealth_stat', 5, TYCOON_NAMES.slice(5), (n) => `Reach wealth stat tier ${n * 15}.`, (n) => n >= 4 ? 'epic' : 'rare'),
+  ...rangeMoments('tycoon', 'Wealth', 'wealth_stat', 5, TYCOON_NAMES.slice(5), (n) => `Reach wealth stat tier ${n * 15}.`, (n) => n >= 4 ? 'epic' : 'rare', 6),
   ...rangeMoments('scholar', 'Study', 'degree_count', 5, SCHOLAR_NAMES.slice(0, 5), (n) => `Earn ${n} degree${n === 1 ? '' : 's'}.`),
-  ...rangeMoments('scholar', 'Study', 'cert_count', 5, SCHOLAR_NAMES.slice(5), (n) => `Earn ${n} certification${n === 1 ? '' : 's'}.`),
+  ...rangeMoments('scholar', 'Study', 'cert_count', 5, SCHOLAR_NAMES.slice(5), (n) => `Earn ${n} certification${n === 1 ? '' : 's'}.`, undefined, 6),
   ...rangeMoments('lover', 'Love', 'children_count', 5, LOVER_NAMES.slice(0, 5), (n) => `Have ${n} child${n === 1 ? '' : 'ren'}.`),
-  ...rangeMoments('lover', 'Love', 'relationships_stat', 5, LOVER_NAMES.slice(5), (n) => `Reach relationships stat ${n * 15}.`),
+  ...rangeMoments('lover', 'Love', 'relationships_stat', 5, LOVER_NAMES.slice(5), (n) => `Reach relationships stat ${n * 15}.`, undefined, 6),
   ...rangeMoments('outlaw', 'Crime', 'heat_level', 10, OUTLAW_NAMES, (n) => `Reach heat level ${n * 10}.`, (n) => n >= 7 ? 'legendary' : n >= 4 ? 'epic' : 'uncommon'),
   ...rangeMoments('caregiver', 'Family', 'family_rep', 10, CAREGIVER_NAMES, (n) => `Family reputation ${n * 10}+.`),
   ...rangeMoments('athlete', 'Fitness', 'health_stat', 10, ATHLETE_NAMES, (n) => `Health stat ${n * 10}+.`),

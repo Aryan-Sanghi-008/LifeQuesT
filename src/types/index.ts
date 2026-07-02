@@ -1,6 +1,17 @@
 // ─── Scenario ─────────────────────────────────────────────────────────────────
 
-export type ScenarioId = 'classic' | 'royal' | 'cyber' | 'crime' | 'fantasy';
+export type ScenarioId =
+  | 'classic' | 'rags_to_riches' | 'silver_spoon'
+  | 'royal' | 'crime' | 'cyber' | 'medieval' | 'zombie'
+  | 'mars' | 'celebrity' | 'fantasy' | 'political';
+
+export type ScenarioFeature =
+  | 'stocks'
+  | 'university'
+  | 'crime_activities'
+  | 'social_media'
+  | 'real_estate'
+  | 'business';
 
 // ─── Life Stage ───────────────────────────────────────────────────────────────
 
@@ -141,6 +152,7 @@ export interface Person {
   petStats?: PetStats;
   subject?: string;
   favorScore?: number;
+  archetypeId?: string;
 }
 
 export type RelationshipStage =
@@ -455,14 +467,28 @@ export interface Character {
   dailyStreak?: number;
   lastActiveDate?: string;
   scenarioId?: ScenarioId;
+  scenarioData?: Record<string, unknown>;
   claimedStreakMilestones?: number[];
   streakShieldCount?: number;
   mysteryTickets?: number;
   epicEventsUnlocked?: boolean;
   legendaryCosmeticUnlocked?: boolean;
+  /** ISO countries the character has lived in (birth + relocations). */
+  countriesLived?: string[];
+  /** Last calendar day an absence welcome-back bonus was granted. */
+  lastAbsenceBonusDate?: string;
   completedCollectionSetIds?: string[];
   unlockedTitles?: string[];
   activeTitle?: string;
+  claimedDynastyMilestoneIds?: string[];
+  /** Gameplay coin earn tracking (daily cap). */
+  coinsEarnedToday?: number;
+  coinsEarnDate?: string;
+  /** Gameplay ticket earn tracking (weekly cap). */
+  ticketsEarnedThisWeek?: number;
+  ticketsEarnWeek?: string;
+  familyCrestId?: string;
+  tombstoneStyleId?: string;
 }
 
 // ─── Life Events ─────────────────────────────────────────────────────────────
@@ -593,7 +619,39 @@ export type IAPProductId =
   | 'season_pass'
   | 'avatar_pack_adventurer'
   | 'avatar_pack_lorelei'
-  | 'avatar_pack_bottts';
+  | 'avatar_pack_bottts'
+  | 'avatar_pack_notionists'
+  | 'avatar_pack_big_smile'
+  | 'avatar_pack_wanderer'
+  | 'avatar_bundle_all'
+  | 'cosmetic_theme_dark_slate'
+  | 'cosmetic_theme_midnight'
+  | 'cosmetic_theme_sunrise'
+  | 'cosmetic_tombstone_gothic'
+  | 'cosmetic_tombstone_modern'
+  | 'cosmetic_tombstone_angelic'
+  | 'cosmetic_event_vintage'
+  | 'cosmetic_event_neon'
+  | 'cosmetic_event_watercolor'
+  | 'cosmetic_font_serif'
+  | 'cosmetic_font_script'
+  | 'cosmetic_font_mono'
+  | 'cosmetic_sound_minimal'
+  | 'cosmetic_sound_jazz'
+  | 'cosmetic_sound_cinematic'
+  | 'cosmetic_sound_lofi'
+  | 'mystery_spins_3'
+  | 'scenario_royal'
+  | 'scenario_crime'
+  | 'scenario_cyber'
+  | 'scenario_medieval'
+  | 'scenario_zombie'
+  | 'scenario_mars'
+  | 'scenario_celebrity'
+  | 'scenario_fantasy'
+  | 'scenario_political'
+  | 'scenario_pack_all'
+  | 'starter_pack';
 
 // ─── Navigation ──────────────────────────────────────────────────────────────
 
@@ -702,7 +760,9 @@ export type QuestObjectiveType =
   | 'reach_karma'
   | 'gain_karma'
   | 'complete_activity'
-  | 'study_session';
+  | 'study_session'
+  | 'reach_dynasty_score'
+  | 'living_heirs';
 
 export interface DailyQuest {
   id: string;
@@ -755,4 +815,13 @@ export interface GlobalPrestigeState {
   totalLivesLived: number;
   completedChallengeIds: ChallengeId[];
   unlockedTraitIds: string[];
+  unlockedScenarioIds: ScenarioId[];
+  unlockedDynastyPerkIds: string[];
+  familyCrestId?: string;
+  dynastyStatBonusTier: number;
+  plusScenarioCredits?: number;
+  plusScenarioCreditsMonth?: string;
+  plusMonthScenarioIds?: ScenarioId[];
+  plusCosmeticMonth?: string;
+  unlockedCosmeticIds?: string[];
 }

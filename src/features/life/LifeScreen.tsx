@@ -26,14 +26,13 @@ import DecisionSheet from "@components/DecisionSheet";
 import { FocusPhaseSheet } from "@components/FocusPhaseSheet";
 import { YearReviewCard } from "@components/YearReviewCard";
 import { YearReviewBanner } from "@components/YearReviewBanner";
-import { ScreenShell, GlassCard, ConfettiOverlay, StatDeltaChip, ScenarioBanner, StatArc } from "@components/index";
+import { ScreenShell, GlassCard, ConfettiOverlay, StatDeltaChip, ScenarioBanner } from "@components/index";
+import { CharacterNameText } from "@shared/components/CharacterNameText";
 import { LifeStageBannerIcon } from "@components/LifeStageBannerIcon";
-import { ACHIEVEMENTS, ACHIEVEMENT_COIN_REWARDS } from "@data/gameData";
 import { SCENARIOS } from "@data/scenarios";
+import { getScenarioDef } from "@data/scenarioCatalog";
 import { isFocusConfirmedForAge } from "@engine/focusEngine";
 import { LifeEventRecord, CharacterStats } from "@/types";
-import { maybeShowInterstitial } from "@services/ads";
-import { INTERSTITIAL_EVERY_N_AGEUPS } from "@config/ads";
 import { logEvent } from "@services/analytics";
 import { formatCurrency } from "@utils/currency";
 import { getFinanceSummary } from "@utils/financeSummary";
@@ -59,7 +58,7 @@ function MiniVitalsStrip({
   stats: CharacterStats;
   onPress: () => void;
 }) {
-  const { colors, fonts, spacing, radii } = useTheme();
+  const { colors, fonts, spacing } = useTheme();
   const colorMap: Record<string, string> = {
     health: colors.health,
     happiness: colors.happiness,
@@ -78,24 +77,32 @@ function MiniVitalsStrip({
           flexDirection: "row",
           paddingVertical: spacing.sm,
           paddingHorizontal: spacing.md,
-          gap: spacing.sm,
-          alignItems: 'center',
+          alignItems: "center",
         }}
       >
-        {MINI_STATS.map((s) => (
-          <View key={s.key} style={mini.vital}>
-            <StatArc
-              value={stats[s.key] as number}
-              color={colorMap[s.colorKey]}
-              label={s.label}
-              size={60}
-              strokeWidth={5}
-            />
-          </View>
-        ))}
-        <View style={[mini.more, { borderColor: colors.border, borderRadius: radii.sm }]}>
+        {MINI_STATS.map((s, i) => {
+          const val = stats[s.key] as number;
+          const col = colorMap[s.colorKey];
+          return (
+            <View
+              key={s.key}
+              style={[
+                mini.vital,
+                i > 0 && { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: colors.border },
+              ]}
+            >
+              <Text style={[mini.statNum, { color: col, fontFamily: fonts.monoSemiBold }]}>
+                {Math.round(val)}
+              </Text>
+              <Text style={[mini.statLabel, { color: colors.t4, fontFamily: fonts.body }]}>
+                {s.label}
+              </Text>
+            </View>
+          );
+        })}
+        <View style={[mini.more, { borderLeftWidth: StyleSheet.hairlineWidth, borderLeftColor: colors.border }]}>
           <Text style={[mini.moreText, { color: colors.t3, fontFamily: fonts.bodySemiBold }]}>
-            All Stats ›
+            More ›
           </Text>
         </View>
       </GlassCard>
@@ -104,13 +111,10 @@ function MiniVitalsStrip({
 }
 
 const mini = StyleSheet.create({
-  vital: { flex: 1, alignItems: "center" },
-  more: {
-    justifyContent: "center",
-    paddingHorizontal: 10,
-    borderLeftWidth: 1,
-    marginLeft: 4,
-  },
+  vital: { flex: 1, alignItems: "center", paddingVertical: 4, gap: 2 },
+  statNum: { fontSize: 16 },
+  statLabel: { fontSize: 10, letterSpacing: 0.3 },
+  more: { paddingHorizontal: 10, alignItems: "center", justifyContent: "center" },
   moreText: { fontSize: 10 },
 });
 
@@ -438,27 +442,48 @@ function getLifeStageConfig(age: number) {
   return LIFE_STAGE_CONFIG.find((s) => age <= s.maxAge) ?? LIFE_STAGE_CONFIG[LIFE_STAGE_CONFIG.length - 1];
 }
 
-function AgeSectionHeader({ age, character: _char }: { age: number; character?: import('@/types').Character }) {
-  const { fonts, radii, spacing } = useTheme();
+// isStageTransition: true when this age is the first in a new life stage
+function AgeSectionHeader({
+  age,
+  isStageTransition,
+}: {
+  age: number;
+  isStageTransition: boolean;
+  character?: import('@/types').Character;
+}) {
+  const { colors, fonts, radii, spacing } = useTheme();
   const config = getLifeStageConfig(age);
 
+  if (isStageTransition) {
+    return (
+      <LinearGradient
+        colors={[`${config.gradient[0]}28`, `${config.gradient[1]}10`]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={[ash.banner, { borderRadius: radii.sm, marginHorizontal: spacing.lg }]}
+      >
+        <LifeStageBannerIcon age={age} color={config.gradient[0]} size={40} />
+        <View>
+          <Text style={[ash.stageLabel, { color: config.gradient[0], fontFamily: fonts.bodyBold }]}>
+            {config.label.toUpperCase()}
+          </Text>
+          <Text style={[ash.ageText, { color: config.gradient[0], fontFamily: fonts.displayBlack }]}>
+            AGE {age}
+          </Text>
+        </View>
+      </LinearGradient>
+    );
+  }
+
+  // Subtle year separator — just a line + small label
   return (
-    <LinearGradient
-      colors={[`${config.gradient[0]}28`, `${config.gradient[1]}10`]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 0 }}
-      style={[ash.banner, { borderRadius: radii.sm, marginHorizontal: spacing.lg }]}
-    >
-      <LifeStageBannerIcon age={age} color={config.gradient[0]} size={44} />
-      <View>
-        <Text style={[ash.ageText, { color: config.gradient[0], fontFamily: fonts.displayBlack }]}>
-          AGE {age}
-        </Text>
-        <Text style={[ash.stageText, { color: config.gradient[0], fontFamily: fonts.body, opacity: 0.7 }]}>
-          {config.label}
-        </Text>
-      </View>
-    </LinearGradient>
+    <View style={[ash.yearRow, { marginHorizontal: spacing.lg }]}>
+      <View style={[ash.yearLine, { backgroundColor: colors.border }]} />
+      <Text style={[ash.yearLabel, { color: colors.t4, fontFamily: fonts.monoSemiBold }]}>
+        AGE {age}
+      </Text>
+      <View style={[ash.yearLine, { backgroundColor: colors.border }]} />
+    </View>
   );
 }
 
@@ -469,17 +494,25 @@ const ash = StyleSheet.create({
     gap: 10,
     paddingVertical: 8,
     paddingHorizontal: 14,
-    marginVertical: 10,
+    marginVertical: 8,
   },
-  emoji: { fontSize: 20 },
-  ageText: { fontSize: 14, letterSpacing: 0.5 },
+  stageLabel: { fontSize: 9, letterSpacing: 1, opacity: 0.75 },
+  ageText: { fontSize: 15, letterSpacing: 0.5 },
   stageText: { fontSize: 11, letterSpacing: 0.3, marginTop: 1 },
+  yearRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginVertical: 6,
+  },
+  yearLine: { flex: 1, height: StyleSheet.hairlineWidth },
+  yearLabel: { fontSize: 10, letterSpacing: 0.8 },
 });
 
 // ─── Helper: Build flat FlashList items from event history ───────────────────
 
 type FeedItem =
-  | { kind: 'header'; age: number; key: string }
+  | { kind: 'header'; age: number; isStageTransition: boolean; key: string }
   | { kind: 'event'; event: LifeEventRecord; staggerIndex: number; key: string };
 
 function buildFeedItems(events: LifeEventRecord[]): FeedItem[] {
@@ -491,11 +524,15 @@ function buildFeedItems(events: LifeEventRecord[]): FeedItem[] {
   });
   const sortedAges = Array.from(map.keys()).sort((a, b) => b - a);
   const items: FeedItem[] = [];
+  let prevStageLabel: string | null = null;
   sortedAges.forEach((age) => {
     const ageEvents = (map.get(age) || []).slice().sort((a, b) => b.timestamp - a.timestamp);
-    items.push({ kind: 'header', age, key: `header_${age}` });
+    const stageLabel = getLifeStageConfig(age).label;
+    const isStageTransition = stageLabel !== prevStageLabel;
+    prevStageLabel = stageLabel;
+    items.push({ kind: 'header', age, isStageTransition, key: `header_${age}` });
     ageEvents.forEach((evt, idx) => {
-      items.push({ kind: 'event', event: evt, staggerIndex: idx, key: `evt_${evt.id}_${evt.timestamp}` });
+      items.push({ kind: 'event', event: evt, staggerIndex: idx, key: `evt_${age}_${idx}_${evt.id}` });
     });
   });
   return items;
@@ -595,7 +632,6 @@ export function LifeScreen() {
   const [activeDeltas, setActiveDeltas] = useState<Array<{ id: string; name: string; value: number }>>([]);
   const [legendaryEventToShow, setLegendaryEventToShow] = useState<LifeEventRecord | null>(null);
   const [epicRevealEvent, setEpicRevealEvent] = useState<LifeEventRecord | null>(null);
-  const [unlockedAchievement, setUnlockedAchievement] = useState<string | null>(null);
   const prevAchievementsRef = useRef<string[]>(character?.achievements ?? []);
 
   // Animated values for legendary modal entrance
@@ -644,16 +680,8 @@ export function LifeScreen() {
       if (epic) setEpicRevealEvent(epic);
     }
 
-    // 3. Detect newly unlocked achievements
-    const current = character.achievements ?? [];
-    const prev = prevAchievementsRef.current;
-    if (current.length > prev.length) {
-      const newlyUnlocked = current.filter((id) => !prev.includes(id));
-      if (newlyUnlocked.length > 0) {
-        setUnlockedAchievement(newlyUnlocked[0]);
-      }
-    }
-    prevAchievementsRef.current = current;
+    // Achievement unlocks are handled globally via store queue (_checkAchievements).
+    prevAchievementsRef.current = character.achievements ?? [];
   }, [character?.age, character?.achievements]);
 
   const showYearReview = lifePhase === "review" && !!character?.lastYearReview;
@@ -667,33 +695,25 @@ export function LifeScreen() {
     void hapticAgeUp();
     setIsAgeUpCeremony(true);
     InteractionManager.runAfterInteractions(async () => {
-      ageUp();
+      void ageUp();
       setIsAgeUpCeremony(false);
       const after = useGameStore.getState().character;
       void logEvent("age_up", { age: after?.age ?? 0 });
       if (!after?.isAlive && wasAlive)
         void logEvent("death", { age: after?.deathAge ?? 0 });
-      const { ageUpsSinceAd: count, character: c } = useGameStore.getState();
-      if (
-        c &&
-        !c.hasNoAds &&
-        !c.isPremium &&
-        count > 0 &&
-        count % INTERSTITIAL_EVERY_N_AGEUPS === 0
-      ) {
-        await maybeShowInterstitial();
-      }
     });
   }, [ageUp]);
 
-  if (!character) return null;
-
-  // eslint-disable-next-line react-hooks/rules-of-hooks
   const feedItems = useMemo(
-    () => buildFeedItems(character.eventHistory),
-    [character.eventHistory],
+    () => buildFeedItems(character?.eventHistory ?? []),
+    [character?.eventHistory],
   );
+
+  if (!character) return null;
   const countryCode = character.countryCode ?? "IN";
+  const scenarioId = character.scenarioId ?? "classic";
+  const scenarioCurrencyName =
+    scenarioId !== "classic" ? getScenarioDef(scenarioId).currencyName : null;
   const bankStr = formatCurrency(character.bankBalance, countryCode);
   const finance = getFinanceSummary(character);
   const debtStr =
@@ -771,14 +791,13 @@ export function LifeScreen() {
             />
           </Pressable>
           <View style={styles.headerMeta}>
-            <Text
+            <CharacterNameText
+              name={character.name}
               style={[
                 styles.name,
                 { color: colors.t1, fontFamily: fonts.bodyBold },
               ]}
-            >
-              {character.name}
-            </Text>
+            />
             <View style={styles.jobRow}>
               {character.job ? (
                 <View
@@ -853,7 +872,7 @@ export function LifeScreen() {
         return (
           <View style={{ paddingHorizontal: spacing.lg }}>
             <ScenarioBanner
-              type={scenarioData.bannerType}
+              type={scenarioData.id}
               scenarioName={scenarioData.name}
               description={scenarioData.tagline}
             />
@@ -875,7 +894,7 @@ export function LifeScreen() {
       >
         <View style={styles.finCol}>
           <Text style={[styles.finLabel, { color: colors.t3, fontFamily: fonts.body }]}>
-            BANK
+            {scenarioCurrencyName ? `BANK (${scenarioCurrencyName})` : "BANK"}
           </Text>
           <Text
             style={[
@@ -1013,7 +1032,7 @@ export function LifeScreen() {
           contentContainerStyle={{ paddingBottom: spacing.md }}
           renderItem={({ item }) => {
             if (item.kind === 'header') {
-              return <AgeSectionHeader age={item.age} character={character} />;
+              return <AgeSectionHeader age={item.age} isStageTransition={item.isStageTransition} character={character} />;
             }
             const isNewestAge = item.event.age === character.age;
             return (
@@ -1157,55 +1176,6 @@ export function LifeScreen() {
         />
       )}
 
-      {/* Achievement Unlocked Interruption Modal */}
-      <Modal
-        visible={!!unlockedAchievement}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setUnlockedAchievement(null)}
-      >
-        <View style={[styles.achievementOverlay, { backgroundColor: "rgba(0, 0, 0, 0.75)" }]}>
-          <View style={[styles.achievementCard, { backgroundColor: colors.bgCard, borderRadius: radii.md, borderColor: colors.border }]}>
-            <View style={[styles.achievementIconWrap, { backgroundColor: `${colors.gold}18` }]}>
-              <Svg width={40} height={40} viewBox="0 0 24 24" fill={colors.gold}>
-                <Path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-              </Svg>
-            </View>
-
-            <Text style={[styles.achievementHeader, { color: colors.gold, fontFamily: fonts.bodyBold }]}>
-              ACHIEVEMENT UNLOCKED
-            </Text>
-
-            {(() => {
-              const ach = ACHIEVEMENTS.find(a => a.id === unlockedAchievement);
-              if (!ach) return null;
-              const coins = ACHIEVEMENT_COIN_REWARDS[ach.id] ?? 50;
-              return (
-                <>
-                  <Text style={[styles.achievementLabel, { color: colors.t1, fontFamily: fonts.bodyBold }]}>
-                    {ach.label}
-                  </Text>
-                  <Text style={[styles.achievementDesc, { color: colors.t3, fontFamily: fonts.body }]}>
-                    {ach.description}
-                  </Text>
-                  <Text style={[styles.achievementRewardText, { color: colors.emerald2, fontFamily: fonts.monoSemiBold }]}>
-                    Reward: 🪙 +{coins} Coins & 💎 +2 Gems
-                  </Text>
-                </>
-              );
-            })()}
-
-            <Pressable
-              onPress={() => setUnlockedAchievement(null)}
-              style={[styles.achievementBtn, { backgroundColor: colors.emerald, borderRadius: radii.md }]}
-            >
-              <Text style={[styles.achievementBtnText, { color: "#FFFFFF", fontFamily: fonts.bodyBold }]}>
-                Awesome!
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
     </>
   );
 }
@@ -1368,52 +1338,5 @@ const styles = StyleSheet.create({
   legendaryBtnText: {
     fontSize: 15,
     letterSpacing: 1.5,
-  },
-  achievementOverlay: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  achievementCard: {
-    width: "100%",
-    padding: 24,
-    alignItems: "center",
-    borderWidth: 1.5,
-    gap: 14,
-  },
-  achievementIconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  achievementHeader: {
-    fontSize: 11,
-    letterSpacing: 2,
-  },
-  achievementLabel: {
-    fontSize: 20,
-    textAlign: "center",
-  },
-  achievementDesc: {
-    fontSize: 13,
-    textAlign: "center",
-    lineHeight: 18,
-  },
-  achievementRewardText: {
-    fontSize: 13,
-    marginTop: 4,
-  },
-  achievementBtn: {
-    width: "100%",
-    paddingVertical: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 8,
-  },
-  achievementBtnText: {
-    fontSize: 14,
   },
 });

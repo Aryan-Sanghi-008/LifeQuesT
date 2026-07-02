@@ -1,16 +1,17 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect } from "react";
 import {
   View,
   Text,
   Pressable,
   StyleSheet,
   Animated,
+  ActivityIndicator,
   StyleProp,
   ViewStyle,
-} from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import Svg, { Path } from 'react-native-svg';
-import { useThemedStyles, useTheme, RADII } from '@theme';
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import Svg, { Path } from "react-native-svg";
+import { useThemedStyles, useTheme, RADII } from "@theme";
 
 function GoldShimmer({ style }: { style?: StyleProp<ViewStyle> }) {
   const shimmer = useRef(new Animated.Value(-1)).current;
@@ -56,106 +57,121 @@ function GoldShimmer({ style }: { style?: StyleProp<ViewStyle> }) {
   );
 }
 
+const PLUS_PERKS = [
+  "Remove all ads",
+  "+50% daily gameplay coins",
+  "Season pass included",
+  "2 scenario picks per month",
+  "Monthly exclusive cosmetic",
+  "Priority cloud save",
+];
+
 export function PremiumBanner({
   isPremium,
-  onPress,
-  priceLabel,
+  onPressMonthly,
+  onPressYearly,
+  monthlyPriceLabel,
+  yearlyPriceLabel,
+  loadingMonthly = false,
+  loadingYearly = false,
 }: {
   isPremium: boolean;
-  onPress: () => void;
-  priceLabel?: string;
+  onPressMonthly: () => void;
+  onPressYearly: () => void;
+  monthlyPriceLabel?: string;
+  yearlyPriceLabel?: string;
+  loadingMonthly?: boolean;
+  loadingYearly?: boolean;
 }) {
   const { colors } = useTheme();
   const styles = useThemedStyles(createStyles);
-  const scale = useRef(new Animated.Value(1)).current;
 
   return (
-    <Animated.View style={[{ transform: [{ scale }] }, styles.premiumWrap]}>
-      <Pressable
-        onPress={onPress}
-        onPressIn={() =>
-          Animated.spring(scale, {
-            toValue: 0.98,
-            useNativeDriver: true,
-            damping: 20,
-            stiffness: 200,
-          }).start()
-        }
-        onPressOut={() =>
-          Animated.spring(scale, {
-            toValue: 1,
-            useNativeDriver: true,
-            damping: 20,
-            stiffness: 200,
-          }).start()
-        }
-        android_ripple={{ color: "rgba(255,215,100,0.1)" }}
-        style={{ borderRadius: RADII.xl, overflow: "hidden" }}
+    <View style={styles.premiumWrap}>
+      <LinearGradient
+        colors={[colors.sapphire2, colors.sapphire, colors.sapphire2]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.premiumCard}
       >
-        <LinearGradient
-          colors={[colors.sapphire2, colors.sapphire, colors.sapphire2]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.premiumCard}
-        >
-          <GoldShimmer style={{ borderRadius: RADII.xl }} />
+        <GoldShimmer style={{ borderRadius: RADII.xl }} />
+        <View style={styles.premiumBorder} />
 
-          <View style={styles.premiumBorder} />
-
-          <View style={styles.premiumContent}>
-            <View style={styles.premiumLeft}>
-              <View style={styles.crownWrap}>
-                <LinearGradient
-                  colors={["#FCD34D", "#F59E0B"]}
-                  style={styles.crownBg}
-                >
-                  <Svg width={28} height={28} viewBox="0 0 24 24" fill="none">
-                    <Path
-                      fill="#FFFFFF"
-                      d="M12 2l2 5h5l-4 3 1.5 5L12 12l-4.5 3L9 10 5 7h5z"
-                    />
-                    <Path fill="#FFFFFF" d="M4 18h16v2H4z" />
-                  </Svg>
-                </LinearGradient>
-              </View>
-              <View style={styles.premiumInfo}>
-                <View style={styles.premiumTitleRow}>
-                  <Text style={styles.premiumTitle}>LifeQuest Premium</Text>
-                  {isPremium && (
-                    <View style={styles.activeBadge}>
-                      <Text style={styles.activeBadgeText}>ACTIVE</Text>
-                    </View>
-                  )}
-                </View>
-                <Text style={styles.premiumSub}>
-                  No ads, bonus luck boosts, and cloud save priority.
-                </Text>
-              </View>
+        <View style={styles.premiumContent}>
+          <View style={styles.premiumLeft}>
+            <View style={styles.crownWrap}>
+              <LinearGradient
+                colors={["#FCD34D", "#F59E0B"]}
+                style={styles.crownBg}
+              >
+                <Svg width={28} height={28} viewBox="0 0 24 24" fill="none">
+                  <Path
+                    fill="#FFFFFF"
+                    d="M12 2l2 5h5l-4 3 1.5 5L12 12l-4.5 3L9 10 5 7h5z"
+                  />
+                  <Path fill="#FFFFFF" d="M4 18h16v2H4z" />
+                </Svg>
+              </LinearGradient>
             </View>
-            {!isPremium && (
-              <View style={styles.premiumCTA}>
-                <Text style={styles.premiumPrice}>{priceLabel ?? "$2.99"}</Text>
-                <Text style={styles.premiumPeriod}>/mo</Text>
+            <View style={styles.premiumInfo}>
+              <View style={styles.premiumTitleRow}>
+                <Text style={styles.premiumTitle}>LifeQuest Plus</Text>
+                {isPremium && (
+                  <View style={styles.activeBadge}>
+                    <Text style={styles.activeBadgeText}>ACTIVE</Text>
+                  </View>
+                )}
               </View>
-            )}
+              <Text style={styles.premiumSub}>
+                Premium perks for dedicated life simmers.
+              </Text>
+            </View>
           </View>
+        </View>
 
-          <View style={styles.perks}>
-            {[
-              "Remove all ads",
-              "5 bonus luck boosts",
-              "Priority cloud save",
-              "Support ongoing development",
-            ].map((p, i) => (
-              <View key={i} style={styles.perkRow}>
-                <View style={styles.perkDot} />
-                <Text style={styles.perkText}>{p}</Text>
-              </View>
-            ))}
+        <View style={styles.perks}>
+          {PLUS_PERKS.map((p) => (
+            <View key={p} style={styles.perkRow}>
+              <View style={styles.perkDot} />
+              <Text style={styles.perkText}>{p}</Text>
+            </View>
+          ))}
+        </View>
+
+        {!isPremium && (
+          <View style={styles.ctaRow}>
+            <Pressable
+              onPress={onPressMonthly}
+              disabled={loadingMonthly || loadingYearly}
+              style={({ pressed }) => [styles.ctaBtn, styles.ctaMonthly, pressed && { opacity: 0.9 }]}
+            >
+              {loadingMonthly ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Text style={styles.ctaPrice}>{monthlyPriceLabel ?? "$4.99"}</Text>
+                  <Text style={styles.ctaPeriod}>/month</Text>
+                </>
+              )}
+            </Pressable>
+            <Pressable
+              onPress={onPressYearly}
+              disabled={loadingMonthly || loadingYearly}
+              style={({ pressed }) => [styles.ctaBtn, styles.ctaYearly, pressed && { opacity: 0.9 }]}
+            >
+              {loadingYearly ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Text style={styles.ctaPrice}>{yearlyPriceLabel ?? "$34.99"}</Text>
+                  <Text style={styles.ctaPeriod}>/year</Text>
+                </>
+              )}
+            </Pressable>
           </View>
-        </LinearGradient>
-      </Pressable>
-    </Animated.View>
+        )}
+      </LinearGradient>
+    </View>
   );
 }
 
@@ -227,22 +243,6 @@ const createStyles = ({ colors, fonts, spacing, radii }: ReturnType<typeof useTh
     color: "rgba(255,255,255,0.75)",
     marginTop: 4,
   },
-  premiumCTA: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    gap: 2,
-    flexShrink: 0,
-  },
-  premiumPrice: {
-    fontFamily: fonts.displayBold,
-    fontSize: 20,
-    color: "#FFFFFF",
-  },
-  premiumPeriod: {
-    fontFamily: fonts.body,
-    fontSize: 11,
-    color: "rgba(255,255,255,0.75)",
-  },
   perks: {
     gap: 6,
     borderTopWidth: 1,
@@ -255,5 +255,37 @@ const createStyles = ({ colors, fonts, spacing, radii }: ReturnType<typeof useTh
     fontFamily: fonts.body,
     fontSize: 13,
     color: "rgba(255,255,255,0.90)",
+  },
+  ctaRow: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  ctaBtn: {
+    flex: 1,
+    borderRadius: radii.md,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 48,
+  },
+  ctaMonthly: {
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.35)",
+  },
+  ctaYearly: {
+    backgroundColor: colors.gold,
+  },
+  ctaPrice: {
+    fontFamily: fonts.displayBold,
+    fontSize: 16,
+    color: "#FFFFFF",
+  },
+  ctaPeriod: {
+    fontFamily: fonts.body,
+    fontSize: 10,
+    color: "rgba(255,255,255,0.85)",
   },
 });

@@ -1,10 +1,11 @@
-import { View, Text, StyleSheet, Pressable, Alert } from "react-native";
+import { View, Text, StyleSheet, Pressable, Alert, InteractionManager } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { BottomSheet } from "./BottomSheet";
 import { useTheme } from "@theme";
 import { useGameStore } from "@store/gameStore";
 import Svg, { Path, Circle } from "react-native-svg";
 import { hapticAgeUp } from "@services/haptics";
+import { triggerTapFeedback } from "@services/gameFeedback";
 import { isFocusConfirmedForAge } from "@engine/focusEngine";
 
 interface Props {
@@ -85,13 +86,16 @@ export function QuickActionsSheet({ visible, onClose }: Props) {
 
     if (canAgeUpDirectly) {
       hapticAgeUp();
-      ageUp();
+      InteractionManager.runAfterInteractions(() => {
+        void ageUp();
+      });
     } else {
       navigation.navigate("Life");
     }
   };
 
   const handleNavigate = (screen: string) => {
+    triggerTapFeedback();
     onClose();
     navigation.navigate(screen);
   };

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { View, Text, Pressable } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -64,7 +65,7 @@ export function FinancesSection({ character }: { character: Character }) {
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const cc = character.countryCode ?? "IN";
-  const finance = getFinanceSummary(character);
+  const finance = useMemo(() => getFinanceSummary(character), [character]);
   const bankStr = formatCurrency(character.bankBalance, cc);
   const assetsStr = formatCurrency(finance.assetValue, cc);
   const debtStr = formatCurrency(finance.totalDebt, cc);

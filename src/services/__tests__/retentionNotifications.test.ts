@@ -48,7 +48,7 @@ describe('retentionNotifications', () => {
 
   it('buildAbsenceBody projects age forward', () => {
     expect(buildAbsenceBody(24)).toBe(
-      'Life goes on without you... Age 24 → 26 happened while you were away',
+      'You were away — time caught up. Your character aged from 24 to 26. Come back to keep living!',
     );
   });
 

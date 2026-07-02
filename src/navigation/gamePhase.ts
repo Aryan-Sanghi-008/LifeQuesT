@@ -1,4 +1,5 @@
 import type { AppUser, Character, RootStackParamList } from '../types';
+import { hasSelectedSlotThisSession } from './sessionState';
 
 export interface GameNavState {
   user: AppUser | null;
@@ -22,6 +23,9 @@ export function resolveRootRoute(state: BootstrapNavState): keyof RootStackParam
     return state.pendingReincarnation ? 'CharacterCreate' : 'SaveSlots';
   }
   if (!state.character.isAlive) return 'Death';
+  // On cold start (slot not yet selected this session) always show SaveSlots
+  // so the user can choose which life to continue or create a new one.
+  if (!hasSelectedSlotThisSession()) return 'SaveSlots';
   return 'MainTabs';
 }
 

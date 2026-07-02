@@ -1,0 +1,22 @@
+{
+  "season": {
+    "id": "season_1_inflation",
+    "title": "Season 1: Inflation Surge",
+    "description": "A period of global financial volatility. Real estate maintenance and living costs are up, but stock market rallies offer high returns.",
+    "activeModifiers": {
+      "expenseMultiplier": 1.1,
+      "maintenanceMultiplier": 1.15,
+      "stockReturnBonus": 0.05,
+      "healthDrain": 0
+    },
+    "challenge": {
+      "id": "golden_age_challenge",
+      "title": "The Golden Age",
+      "description": "Reach age 90 or older with a peak net worth of at least $2,000,000.",
+      "rewardXp": 150
+    }
+  },
+  "worldEvents": [],
+  "featuredScenario": "classic",
+  "limitedTimeOffers": []
+}

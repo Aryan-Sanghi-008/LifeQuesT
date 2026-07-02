@@ -1,7 +1,7 @@
 /** Client IAP catalog — keep grant amounts in sync with functions/src/entitlements.ts */
-import { IAPProductId } from '../types';
+import { IAPProductId, AvatarStyleId } from '../types';
 import { COLORS } from '@theme';
-
+import { COSMETIC_IAP_TO_ID } from './cosmeticCatalog';
 export interface IAPCatalogEntry {
   productId: IAPProductId;
   title: string;
@@ -18,13 +18,36 @@ export interface IAPClientGrant {
   premium?: boolean;
   noAds?: boolean;
   seasonPass?: boolean;
-  avatarStyle?: 'adventurer' | 'lorelei' | 'bottts';
+  avatarStyle?: AvatarStyleId;
+  avatarStyles?: AvatarStyleId[];
+  unlockAllAvatarStyles?: boolean;
+  unlockCosmeticId?: string;
   reincarnationScroll?: boolean;
+  mysterySpins?: number;
+  unlockScenario?: import('../types').ScenarioId;
+  unlockAllScenarios?: boolean;
 }
 
+const ALL_AVATAR_STYLES: AvatarStyleId[] = [
+  'adventurer',
+  'adventurer-neutral',
+  'lorelei',
+  'lorelei-neutral',
+  'bottts',
+  'notionists',
+  'big-smile',
+];
+
+const cosmeticGrants = Object.fromEntries(
+  Object.entries(COSMETIC_IAP_TO_ID).map(([productId, cosmeticId]) => [
+    productId,
+    { unlockCosmeticId: cosmeticId },
+  ]),
+) as Partial<Record<IAPProductId, IAPClientGrant>>;
+
 export const IAP_CLIENT_GRANTS: Partial<Record<IAPProductId, IAPClientGrant>> = {
-  premium_monthly: { premium: true, noAds: true, luckBoost: 5 },
-  premium_yearly: { premium: true, noAds: true, luckBoost: 5 },
+  premium_monthly: { premium: true, noAds: true, luckBoost: 5, seasonPass: true },
+  premium_yearly: { premium: true, noAds: true, luckBoost: 5, seasonPass: true },
   remove_ads: { noAds: true },
   coins_small: { coins: 10000 },
   coins_medium: { coins: 50000 },
@@ -33,10 +56,29 @@ export const IAP_CLIENT_GRANTS: Partial<Record<IAPProductId, IAPClientGrant>> = 
   luck_boost: { luckBoost: 3 },
   reincarnation_scroll: { reincarnationScroll: true },
   season_pass: { seasonPass: true },
-  avatar_pack_adventurer: { avatarStyle: 'adventurer' },
-  avatar_pack_lorelei: { avatarStyle: 'lorelei' },
-  avatar_pack_bottts: { avatarStyle: 'bottts' },
+  avatar_pack_adventurer: { avatarStyles: ['adventurer', 'adventurer-neutral'] },
+  avatar_pack_lorelei: { avatarStyles: ['lorelei', 'lorelei-neutral'] },
+  avatar_pack_bottts: { avatarStyles: ['bottts'] },
+  avatar_pack_notionists: { avatarStyles: ['notionists'] },
+  avatar_pack_big_smile: { avatarStyles: ['big-smile'] },
+  avatar_pack_wanderer: { avatarStyles: ['adventurer-neutral', 'lorelei-neutral'] },
+  avatar_bundle_all: { unlockAllAvatarStyles: true },
+  mystery_spins_3: { mysterySpins: 3 },
+  scenario_royal: { unlockScenario: 'royal' },
+  scenario_crime: { unlockScenario: 'crime' },
+  scenario_cyber: { unlockScenario: 'cyber' },
+  scenario_medieval: { unlockScenario: 'medieval' },
+  scenario_zombie: { unlockScenario: 'zombie' },
+  scenario_mars: { unlockScenario: 'mars' },
+  scenario_celebrity: { unlockScenario: 'celebrity' },
+  scenario_fantasy: { unlockScenario: 'fantasy' },
+  scenario_political: { unlockScenario: 'political' },
+  scenario_pack_all: { unlockAllScenarios: true },
+  starter_pack: { gems: 50, noAds: true, unlockScenario: 'silver_spoon' },
+  ...cosmeticGrants,
 };
+
+export { ALL_AVATAR_STYLES };
 
 export const IAP_CATALOG: IAPCatalogEntry[] = [
   {
@@ -85,27 +127,80 @@ export const IAP_CATALOG: IAPCatalogEntry[] = [
   },
 ];
 
+export const MYSTERY_SPIN_CATALOG: IAPCatalogEntry[] = [
+  {
+    productId: 'mystery_spins_3',
+    title: '3 Mystery Spins',
+    description: 'Get 3 extra Lucky Wheel spins this week',
+    fallbackPriceLabel: '$1.99',
+    color: COLORS.orchid,
+    badge: 'BONUS SPINS',
+  },
+];
+
+export const SCENARIO_PACK_CATALOG: IAPCatalogEntry[] = [
+  { productId: 'scenario_royal',     title: 'Royal Dynasty',      description: 'Born into power. Rule wisely.',            fallbackPriceLabel: '$2.99', color: '#F59E0B' },
+  { productId: 'scenario_crime',     title: 'Criminal Empire',    description: 'Power. Money. Consequences.',              fallbackPriceLabel: '$2.99', color: '#EF4444' },
+  { productId: 'scenario_cyber',     title: 'Cyber Future',       description: 'In 2087, humanity uploaded everything.',   fallbackPriceLabel: '$3.99', color: '#06B6D4' },
+  { productId: 'scenario_medieval',  title: 'Medieval Kingdom',   description: 'Peasant or lord — your choice.',           fallbackPriceLabel: '$2.99', color: '#92400E' },
+  { productId: 'scenario_zombie',    title: 'Zombie Apocalypse',  description: 'Survive. Build. Protect.',                 fallbackPriceLabel: '$2.99', color: '#4D7C0F' },
+  { productId: 'scenario_mars',      title: 'Mars Colony',        description: 'Red planet, new rules.',                   fallbackPriceLabel: '$3.99', color: '#DC2626' },
+  { productId: 'scenario_celebrity', title: 'Celebrity Child',    description: 'Born famous. Stay sane.',                  fallbackPriceLabel: '$1.99', color: '#EC4899' },
+  { productId: 'scenario_fantasy',   title: 'Fantasy Kingdom',    description: 'Magic is real. Use it wisely.',            fallbackPriceLabel: '$3.99', color: '#7C3AED' },
+  { productId: 'scenario_political', title: 'Political Dynasty',  description: 'Elections. Deals. Power.',                 fallbackPriceLabel: '$2.99', color: '#1D4ED8' },
+  { productId: 'scenario_pack_all',  title: 'All Scenarios Bundle', description: 'Unlock all 9 premium scenarios.',       fallbackPriceLabel: '$14.99', color: '#8B5CF6', badge: 'BEST VALUE' },
+];
+
 export const AVATAR_PACK_CATALOG: IAPCatalogEntry[] = [
   {
     productId: 'avatar_pack_adventurer',
-    title: 'Adventurer Pack',
-    description: 'Unlock adventurer avatar style',
-    fallbackPriceLabel: '$0.79',
+    title: 'Explorer Pack',
+    description: 'Adventurer + Wanderer styles',
+    fallbackPriceLabel: '$0.99',
     color: COLORS.emerald,
   },
   {
     productId: 'avatar_pack_lorelei',
     title: 'Lorelei Pack',
-    description: 'Unlock lorelei avatar style',
-    fallbackPriceLabel: '$0.79',
+    description: 'Lorelei + Mystic styles',
+    fallbackPriceLabel: '$0.99',
     color: COLORS.orchid,
   },
   {
     productId: 'avatar_pack_bottts',
-    title: 'Bottts Pack',
-    description: 'Unlock bottts avatar style',
-    fallbackPriceLabel: '$0.79',
+    title: 'Robo Pack',
+    description: 'Quirky bottts robot style',
+    fallbackPriceLabel: '$0.99',
     color: COLORS.sapphire,
+  },
+  {
+    productId: 'avatar_pack_notionists',
+    title: 'Professional Pack',
+    description: 'Clean professional look',
+    fallbackPriceLabel: '$0.99',
+    color: COLORS.teal,
+  },
+  {
+    productId: 'avatar_pack_big_smile',
+    title: 'Joyful Pack',
+    description: 'Expressive cheerful style',
+    fallbackPriceLabel: '$0.99',
+    color: COLORS.gold,
+  },
+  {
+    productId: 'avatar_pack_wanderer',
+    title: 'Neutral Duo Pack',
+    description: 'Gender-neutral explorer styles',
+    fallbackPriceLabel: '$0.99',
+    color: COLORS.crimson,
+  },
+  {
+    productId: 'avatar_bundle_all',
+    title: 'All Avatar Packs',
+    description: 'Unlock every avatar style at once',
+    fallbackPriceLabel: '$1.99',
+    color: COLORS.orchid,
+    badge: 'BEST VALUE',
   },
 ];
 

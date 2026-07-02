@@ -3,6 +3,12 @@ import { COLLECTION_SETS } from '@data/collections/sets';
 import { ALL_COLLECTION_ITEMS } from '@data/collections';
 import { LIFE_MOMENT_ITEMS } from '@data/collections/lifeMoments';
 
+function countCountriesLived(character: Character): number {
+  const list = character.countriesLived ?? [];
+  if (list.length > 0) return list.length;
+  return character.countryCode ? 1 : 0;
+}
+
 function countTravelEvents(character: Character): number {
   return character.eventHistory.filter((e) => e.id.startsWith('trv_')).length;
 }
@@ -14,6 +20,8 @@ function evalUnlockKey(character: Character, key: string): boolean {
   switch (type) {
     case 'travel_count':
       return countTravelEvents(character) >= n;
+    case 'countries_lived':
+      return countCountriesLived(character) >= n;
     case 'business_count':
       return character.businesses.length >= n;
     case 'wealth_stat':

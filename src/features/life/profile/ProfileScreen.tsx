@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { View, Text, ScrollView, StyleSheet, Alert } from "react-native";
+import { useShallow } from "zustand/react/shallow";
 import { useTheme, useThemedStyles, SPACING } from "@theme";
 import { useGameStore } from "@store/gameStore";
 import { ScreenShell, TabScreenHeader } from "@components/index";
+import { CharacterNameText } from "@shared/components/CharacterNameText";
+import { resetSessionState } from "@navigation/sessionState";
 import { ProfileTabBar, ProfileTab } from "./ProfileTabBar";
 import { ProfileOverview } from "./ProfileOverview";
 import { StatsTab } from "./StatsTab";
@@ -26,18 +29,34 @@ const createScreenStyles = ({
   });
 
 export function ProfileScreen() {
-  const { colors } = useTheme();
+  const { colors, fonts } = useTheme();
   const styles = useThemedStyles(createScreenStyles);
   const [activeTab, setActiveTab] = useState<ProfileTab>("overview");
 
-  const character = useGameStore((s) => s.character);
+  const character = useGameStore(useShallow((s) => s.character));
   const resetGame = useGameStore((s) => s.resetGame);
   const setAvatarStyle = useGameStore((s) => s.setAvatarStyle);
   const user = useGameStore((s) => s.user);
   const slotsSynced = useGameStore((s) => s.slotsSynced);
   const saveGame = useGameStore((s) => s.saveGame);
 
-  if (!character) return null;
+  const achievementIds = useMemo(
+    () => character?.achievements ?? [],
+    [character?.achievements],
+  );
+
+  if (!character) {
+    return (
+      <ScreenShell>
+        <TabScreenHeader title="Profile" subtitle="No active life" accent={colors.catMilestone} />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <Text style={{ color: colors.t3, fontFamily: fonts.body, textAlign: 'center' }}>
+            No active character. Create or load a save slot to view your profile.
+          </Text>
+        </View>
+      </ScreenShell>
+    );
+  }
 
   const handleReset = () => {
     Alert.alert(
@@ -49,6 +68,8 @@ export function ProfileScreen() {
           text: "End Life",
           style: "destructive",
           onPress: () => {
+            // Reset session flag first so useGameNavigationSync can navigate to SaveSlots
+            resetSessionState();
             void resetGame();
           },
         },
@@ -60,7 +81,12 @@ export function ProfileScreen() {
     <ScreenShell>
       <TabScreenHeader
         title="Profile"
-        subtitle={character.name}
+        subtitle={
+          <CharacterNameText
+            name={character.name}
+            style={{ fontSize: 12, color: colors.t3, fontFamily: fonts.body }}
+          />
+        }
         accent={colors.catMilestone}
       />
       <ProfileTabBar active={activeTab} onSelect={setActiveTab} />
@@ -81,13 +107,13 @@ export function ProfileScreen() {
         {activeTab === "stats" && <StatsTab character={character} />}
 
         {activeTab === "achievements" && (
-          <AchievementsTab achievements={character.achievements} />
+          <AchievementsTab achievements={achievementIds} />
         )}
 
         {activeTab === "legacy" && <LegacyTab />}
 
         <Text style={[styles.footer, { color: colors.t4 }]}>
-          LifeQuesT · Built with purpose
+          LifeQuest · Built with purpose
         </Text>
         <View style={{ height: SPACING.xxxl }} />
       </ScrollView>

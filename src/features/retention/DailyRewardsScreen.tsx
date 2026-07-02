@@ -60,7 +60,7 @@ export function DailyRewardsScreen() {
                 {character.dailyStreak ?? 0} day streak
               </Text>
               <Text style={{ color: colors.t3, fontFamily: fonts.body, fontSize: 12 }}>
-                Keep logging in daily to maintain your streak
+                Age up at least once per day to maintain your streak
               </Text>
             </View>
           </View>
@@ -163,7 +163,7 @@ export function DailyRewardsScreen() {
           <View style={{ backgroundColor: colors.bg2, borderRadius: radii.md, paddingVertical: 14,
             alignItems: "center", borderWidth: 1, borderColor: colors.border }}>
             <Text style={{ color: colors.t3, fontFamily: fonts.bodySemiBold, fontSize: 14 }}>
-              Come back tomorrow for Day {currentDay >= 7 ? 1 : currentDay + 1}
+              Come back tomorrow for Day {currentDay >= 30 ? 1 : currentDay + 1}
             </Text>
           </View>
         )}

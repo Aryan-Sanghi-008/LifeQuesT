@@ -67,15 +67,15 @@ describe('gameStore.ageUp', () => {
     jest.clearAllMocks();
   });
 
-  it('sets jail notice and decrements jail years on jail tick', () => {
-    useGameStore.getState().ageUp();
+  it('sets jail notice and decrements jail years on jail tick', async () => {
+    await useGameStore.getState().ageUp();
     const state = useGameStore.getState();
     expect(state.lastAgeUpNotice).toContain('Serving time');
     expect(state.character?.criminalRecord?.jailYearsRemaining).toBe(1);
     expect(saveCharacterLocal).toHaveBeenCalled();
   });
 
-  it('advances age for free character', () => {
+  it('advances age for free character', async () => {
     useGameStore.setState({
       character: makeCharacter({
         age: 25,
@@ -83,7 +83,7 @@ describe('gameStore.ageUp', () => {
         criminalRecord: { crimes: [], jailYearsRemaining: 0, onProbation: false },
       }),
     });
-    useGameStore.getState().ageUp();
+    await useGameStore.getState().ageUp();
     expect(useGameStore.getState().character?.age).toBe(26);
   });
 });

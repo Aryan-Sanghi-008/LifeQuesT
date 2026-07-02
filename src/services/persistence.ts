@@ -26,8 +26,9 @@ type MmkvStorage = {
 
 let mmkvStorage: MmkvStorage | null = null;
 let mmkvDisabled = false;
-const asyncCache = new Map<string, string>();
-let asyncHydrated = false;
+/** In-memory mirror used only when MMKV is unavailable (web / Expo Go). */
+const webFallbackStore = new Map<string, string>();
+let webHydratePromise: Promise<void> | null = null;
 
 function getMmkvStorage(): MmkvStorage {
   if (mmkvStorage) return mmkvStorage;
@@ -57,7 +58,7 @@ function canUseMmkvStorage(): boolean {
 
 function getString(key: string): string | undefined {
   if (canUseMmkvStorage()) return getMmkvStorage().getString(key);
-  return asyncCache.get(key);
+  return webFallbackStore.get(key);
 }
 
 function setString(key: string, value: string): void {
@@ -65,7 +66,7 @@ function setString(key: string, value: string): void {
     getMmkvStorage().set(key, value);
     return;
   }
-  asyncCache.set(key, value);
+  webFallbackStore.set(key, value);
   void AsyncStorage.setItem(key, value);
 }
 
@@ -74,25 +75,33 @@ function deleteKey(key: string): void {
     getMmkvStorage().delete(key);
     return;
   }
-  asyncCache.delete(key);
+  webFallbackStore.delete(key);
   void AsyncStorage.removeItem(key);
 }
 
-async function hydrateAsyncCache(): Promise<void> {
-  if (asyncHydrated || canUseMmkvStorage()) return;
-  asyncHydrated = true;
+/** Load AsyncStorage keys into the web fallback store (web / Expo Go only). */
+export async function hydratePersistence(): Promise<void> {
+  if (canUseMmkvStorage()) return;
+  if (webHydratePromise) {
+    await webHydratePromise;
+    return;
+  }
 
-  const keys = [
-    activeSlotKey(),
-    ...Array.from({ length: MAX_SAVE_SLOTS }, (_, i) => slotKey(String(i))),
-  ];
+  webHydratePromise = (async () => {
+    try {
+      const allKeys = await AsyncStorage.getAllKeys();
+      const appKeys = allKeys.filter((key) => !key.startsWith('lq_settings:'));
+      if (appKeys.length === 0) return;
+      const pairs = await AsyncStorage.multiGet(appKeys);
+      for (const [key, value] of pairs) {
+        if (value != null) webFallbackStore.set(key, value);
+      }
+    } catch (e) {
+      console.warn('[persistence] AsyncStorage hydrate failed', e);
+    }
+  })();
 
-  await Promise.all(
-    keys.map(async (key) => {
-      const value = await AsyncStorage.getItem(key);
-      if (value != null) asyncCache.set(key, value);
-    }),
-  );
+  await webHydratePromise;
 }
 
 function slotKey(slotId: string) {
@@ -138,7 +147,7 @@ export function listLocalSlots(): string[] {
 
 /** Migrate legacy AsyncStorage single-save to slot 0 */
 export async function migrateLegacySaves(): Promise<Character | null> {
-  await hydrateAsyncCache();
+  await hydratePersistence();
 
   if (loadCharacterLocal("0")) return null;
 
@@ -225,6 +234,9 @@ export function normalizeCharacter(char: Character): Character {
   if (char.debt === undefined) char.debt = 0;
   if (!char.educationLevel) char.educationLevel = "none";
   if (!char.people) char.people = [];
+  if (!char.countriesLived?.length && char.countryCode) {
+    char.countriesLived = [char.countryCode];
+  }
   if (!char.career) char.career = null;
   if (!char.assets) char.assets = [];
   if (!char.businesses) char.businesses = [];
@@ -397,25 +409,113 @@ const DEFAULT_PRESTIGE: GlobalPrestigeState = {
   totalLivesLived: 0,
   completedChallengeIds: [],
   unlockedTraitIds: [],
+  unlockedScenarioIds: ['classic', 'rags_to_riches', 'silver_spoon'],
+  unlockedDynastyPerkIds: [],
+  dynastyStatBonusTier: 0,
+  unlockedCosmeticIds: [],
 };
 
 export function loadGlobalPrestige(): GlobalPrestigeState {
   const raw = getString(PRESTIGE_KEY);
-  if (!raw) return DEFAULT_PRESTIGE;
+  if (!raw) return { ...DEFAULT_PRESTIGE };
   try {
     const parsed = JSON.parse(raw);
+    const unlockedScenarios = (parsed.unlockedScenarioIds ?? []) as string[];
+    // Ensure free scenarios are always present
+    const withFree = Array.from(new Set([...unlockedScenarios, 'classic', 'rags_to_riches', 'silver_spoon']));
     return {
       prestigePoints: parsed.prestigePoints ?? 0,
       prestigeLevel: parsed.prestigeLevel ?? 1,
       totalLivesLived: parsed.totalLivesLived ?? 0,
       completedChallengeIds: parsed.completedChallengeIds ?? [],
       unlockedTraitIds: parsed.unlockedTraitIds ?? [],
+      unlockedScenarioIds: withFree as GlobalPrestigeState['unlockedScenarioIds'],
+      unlockedDynastyPerkIds: parsed.unlockedDynastyPerkIds ?? [],
+      familyCrestId: parsed.familyCrestId,
+      dynastyStatBonusTier: parsed.dynastyStatBonusTier ?? 0,
+      plusScenarioCredits: parsed.plusScenarioCredits,
+      plusScenarioCreditsMonth: parsed.plusScenarioCreditsMonth,
+      plusMonthScenarioIds: parsed.plusMonthScenarioIds,
+      plusCosmeticMonth: parsed.plusCosmeticMonth,
+      unlockedCosmeticIds: parsed.unlockedCosmeticIds ?? [],
     };
   } catch {
-    return DEFAULT_PRESTIGE;
+    return { ...DEFAULT_PRESTIGE };
   }
 }
 
 export function saveGlobalPrestige(state: GlobalPrestigeState): void {
   setString(PRESTIGE_KEY, JSON.stringify(state));
+}
+
+const APP_SESSION_COUNT_KEY = "app_session_count";
+const STARTER_OFFER_ELIGIBLE_KEY = "starterOfferEligible";
+const STARTER_OFFER_SHOWN_AT_KEY = "starterOfferShownAt";
+const STARTER_OFFER_PURCHASED_KEY = "starterOfferPurchased";
+
+export const STARTER_OFFER_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+export function getAppSessionCount(): number {
+  const raw = getString(APP_SESSION_COUNT_KEY);
+  if (!raw) return 0;
+  const n = parseInt(raw, 10);
+  return Number.isNaN(n) ? 0 : n;
+}
+
+export function incrementAppSessionCount(): number {
+  const next = getAppSessionCount() + 1;
+  setString(APP_SESSION_COUNT_KEY, String(next));
+  return next;
+}
+
+export function setStarterOfferEligible(eligible: boolean): void {
+  setString(STARTER_OFFER_ELIGIBLE_KEY, eligible ? "true" : "false");
+}
+
+export function isStarterOfferEligible(): boolean {
+  return getString(STARTER_OFFER_ELIGIBLE_KEY) === "true";
+}
+
+export function setStarterOfferShownAt(timestamp: number): void {
+  setString(STARTER_OFFER_SHOWN_AT_KEY, String(timestamp));
+}
+
+export function getStarterOfferShownAt(): number | null {
+  const raw = getString(STARTER_OFFER_SHOWN_AT_KEY);
+  if (!raw) return null;
+  const n = parseInt(raw, 10);
+  return Number.isNaN(n) ? null : n;
+}
+
+export function setStarterOfferPurchased(purchased: boolean): void {
+  setString(STARTER_OFFER_PURCHASED_KEY, purchased ? "true" : "false");
+}
+
+export function isStarterOfferPurchased(): boolean {
+  return getString(STARTER_OFFER_PURCHASED_KEY) === "true";
+}
+
+export function isStarterOfferWindowActive(): boolean {
+  const shownAt = getStarterOfferShownAt();
+  if (!shownAt) return true;
+  return Date.now() - shownAt < STARTER_OFFER_WINDOW_MS;
+}
+
+export function shouldShowStarterOffer(): boolean {
+  try {
+    const { isStarterPackEnabled } = require('@services/remoteConfig') as typeof import('@services/remoteConfig');
+    if (!isStarterPackEnabled()) return false;
+  } catch {
+    // remote config unavailable — keep local gates
+  }
+  if (isStarterOfferPurchased()) return false;
+  if (!isStarterOfferEligible()) return false;
+  if (getAppSessionCount() < 2) return false;
+  return isStarterOfferWindowActive();
+}
+
+export function markStarterOfferShown(): void {
+  if (!getStarterOfferShownAt()) {
+    setStarterOfferShownAt(Date.now());
+  }
 }

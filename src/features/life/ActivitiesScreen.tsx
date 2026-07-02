@@ -10,6 +10,7 @@ import { useGameStore } from '../../store/gameStore';
 import { ACTIVITIES } from '../../data/gameData';
 import { HOBBY_CATALOG } from '../../data/hobbies';
 import { Activity, ActivityCategory, RootStackParamList } from '../../types';
+import { isFeatureEnabled, getActivityFeatureGate } from '../../engine/scenarioEngine';
 import { ScreenHeader } from '@components/ScreenHeader';
 import { SectionLabel } from '@components/index';
 import { getHobbyProgress } from '../../engine/hobbyEngine';
@@ -145,10 +146,13 @@ export function ActivitiesScreen() {
   const catMeta = getCatMeta(colors);
   const { countryCode, age } = character;
   const eligibleHobbies = HOBBY_CATALOG.filter(h => age >= h.minAge).slice(0, 20);
-  const eligible = ACTIVITIES.filter(a =>
-    character.age >= a.minAge && character.age <= a.maxAge &&
-    (filter === 'all' || a.category === filter)
-  );
+  const eligible = ACTIVITIES.filter(a => {
+    if (character.age < a.minAge || character.age > a.maxAge) return false;
+    if (filter !== 'all' && a.category !== filter) return false;
+    const gate = getActivityFeatureGate(a.id, a.category);
+    if (gate && !isFeatureEnabled(character, gate)) return false;
+    return true;
+  });
 
   const handleActivity = (activity: Activity) => {
     const canAffordBank = !activity.bankEffect || activity.bankEffect >= 0 || character.bankBalance >= Math.abs(activity.bankEffect);

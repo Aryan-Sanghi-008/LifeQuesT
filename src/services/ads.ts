@@ -1,5 +1,7 @@
 import { AD_UNITS } from '../config/ads';
 import { isAdsNativeAvailable } from '@utils/nativeAvailability';
+import { useGameStore } from '@store/gameStore';
+import { getInterstitialEveryNLives } from '@services/remoteConfig';
 
 type RewardedAd = import('react-native-google-mobile-ads').RewardedAd;
 type InterstitialAd = import('react-native-google-mobile-ads').InterstitialAd;
@@ -109,4 +111,15 @@ export function maybeShowInterstitial(): Promise<void> {
     if (interstitial.loaded) interstitial.show();
     else { resolve(); preloadInterstitial(); }
   });
+}
+
+export async function maybeShowDeathInterstitial(): Promise<void> {
+  const { character, livesEndedSinceAd } = useGameStore.getState();
+  if (!character || character.hasNoAds || character.isPremium) return;
+
+  const everyN = getInterstitialEveryNLives();
+  if (livesEndedSinceAd <= 0 || livesEndedSinceAd % everyN !== 0) return;
+
+  await maybeShowInterstitial();
+  useGameStore.setState({ livesEndedSinceAd: 0 });
 }

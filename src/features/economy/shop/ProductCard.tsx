@@ -16,7 +16,9 @@ interface ProductCardProps {
   color: string;
   icon?: React.ReactNode;
   badge?: string;
+  owned?: boolean;
   onPress: () => void;
+  onOwnedPress?: () => void;
   accessibilityLabel?: string;
 }
 
@@ -27,64 +29,66 @@ export function ProductCard({
   color,
   icon,
   badge,
+  owned = false,
   onPress,
+  onOwnedPress,
   accessibilityLabel,
 }: ProductCardProps) {
+  const { colors, fonts } = useTheme();
   const styles = useThemedStyles(createStyles);
   const scale = useRef(new Animated.Value(1)).current;
+  const handlePress = owned ? (onOwnedPress ?? undefined) : onPress;
+  const isInteractive = owned ? !!onOwnedPress : true;
 
   return (
     <Animated.View style={{ transform: [{ scale }] }}>
       <Pressable
-        onPress={onPress}
+        onPress={handlePress}
+        disabled={!isInteractive}
         accessibilityRole="button"
-        accessibilityLabel={accessibilityLabel ?? `Buy ${title} for ${price}`}
-        onPressIn={() =>
-          Animated.spring(scale, {
-            toValue: 0.96,
-            useNativeDriver: true,
-            damping: 18,
-            stiffness: 200,
-          }).start()
-        }
-        onPressOut={() =>
-          Animated.spring(scale, {
-            toValue: 1,
-            useNativeDriver: true,
-            damping: 18,
-            stiffness: 200,
-          }).start()
-        }
-        android_ripple={{ color: `${color}15` }}
-        style={{ borderRadius: RADII.md, overflow: "hidden" }}
+        accessibilityLabel={owned
+          ? (onOwnedPress ? `View ${title}` : `${title} — already owned`)
+          : (accessibilityLabel ?? `Buy ${title} for ${price}`)}
+        onPressIn={() => {
+          if (!isInteractive) return;
+          Animated.spring(scale, { toValue: 0.96, useNativeDriver: true, damping: 18, stiffness: 200 }).start();
+        }}
+        onPressOut={() => {
+          if (!isInteractive) return;
+          Animated.spring(scale, { toValue: 1, useNativeDriver: true, damping: 18, stiffness: 200 }).start();
+        }}
+        android_ripple={isInteractive ? { color: `${color}15` } : undefined}
+        style={{ borderRadius: RADII.md, overflow: "hidden", opacity: owned && !onOwnedPress ? 0.85 : 1 }}
       >
-        <View style={[styles.productCard, { borderColor: `${color}35` }]}>
-          {badge && (
-            <View
-              style={[
-                styles.productBadge,
-                { backgroundColor: `${color}25`, borderColor: `${color}50` },
-              ]}
-            >
+        <View style={[styles.productCard, { borderColor: owned ? `${colors.emerald}60` : `${color}35` }]}>
+          {/* Owned badge takes priority over regular badge */}
+          {owned ? (
+            <View style={[styles.productBadge, { backgroundColor: `${colors.emerald}20`, borderColor: `${colors.emerald}50` }]}>
+              <Text style={[styles.productBadgeText, { color: colors.emerald }]}>OWNED</Text>
+            </View>
+          ) : badge ? (
+            <View style={[styles.productBadge, { backgroundColor: `${color}25`, borderColor: `${color}50` }]}>
               <Text style={[styles.productBadgeText, { color }]}>{badge}</Text>
             </View>
-          )}
-          <View style={[styles.productIcon, { backgroundColor: `${color}18` }]}>
+          ) : null}
+          <View style={[styles.productIcon, { backgroundColor: owned ? `${colors.emerald}12` : `${color}18` }]}>
             {icon ?? (
               <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
-                <Circle stroke={color} strokeWidth={2} cx="12" cy="12" r="8" />
+                <Circle stroke={owned ? colors.emerald : color} strokeWidth={2} cx="12" cy="12" r="8" />
               </Svg>
             )}
           </View>
           <Text style={styles.productTitle}>{title}</Text>
           <Text style={styles.productDesc}>{desc}</Text>
-          <View
-            style={[
-              styles.priceBtn,
-              { backgroundColor: `${color}18`, borderColor: `${color}40` },
-            ]}
-          >
-            <Text style={[styles.priceText, { color }]}>{price}</Text>
+          <View style={[
+            styles.priceBtn,
+            owned
+              ? { backgroundColor: `${colors.emerald}12`, borderColor: `${colors.emerald}35` }
+              : { backgroundColor: `${color}18`, borderColor: `${color}40` },
+          ]}>
+            <Text style={[styles.priceText, { color: owned ? colors.emerald : color, fontFamily: fonts.bodySemiBold }]}>
+              {owned ? (onOwnedPress ? 'View' : 'Owned') : price}
+            </Text>
           </View>
         </View>
       </Pressable>

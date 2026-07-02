@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fetchLeaderboard } from '../../services/leaderboard';
+import { getCurrentSeason } from '../../engine/liveOpsEngine';
 import { LeaderboardEntry } from '../../types';
 import { Card, ScreenHeader } from '@components/index';
 import { useThemedStyles, useTheme } from '@theme';
@@ -13,16 +14,18 @@ export default function LeaderboardScreen() {
   const [loading, setLoading] = useState(true);
   const [fromCache, setFromCache] = useState(false);
 
+  const season = getCurrentSeason();
+
   useEffect(() => {
-    void fetchLeaderboard(50).then((result) => {
+    void fetchLeaderboard(50, season.id).then((result) => {
       setEntries(result.entries);
       setFromCache(result.fromCache);
     }).finally(() => setLoading(false));
-  }, []);
+  }, [season.id]);
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScreenHeader title="Leaderboard" subtitle="Top lives by score" />
+      <ScreenHeader title="Leaderboard" subtitle={`${season.title} · Top lives by score`} />
       {fromCache && entries.length > 0 ? (
         <Text style={styles.cacheHint}>Showing cached rankings — connect to refresh</Text>
       ) : null}

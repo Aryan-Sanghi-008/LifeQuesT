@@ -1,8 +1,12 @@
 import { View, Text, StyleSheet, ScrollView, Pressable } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { useGameStore } from "@store/gameStore";
+import { isFeatureEnabled } from "@engine/scenarioEngine";
+import { useToastStore } from "@store/toastStore";
 import { useTheme } from "@theme";
 import { ScreenShell } from "@components/index";
+import { triggerTapFeedback } from "@services/gameFeedback";
 import Svg, { Path, Circle, Rect } from "react-native-svg";
 
 function PeopleIcon({ color = "#8B5CF6" }: { color?: string }) {
@@ -60,6 +64,8 @@ function StarIcon({ color = "#EC4899" }: { color?: string }) {
 export function WorldScreen() {
   const { colors, fonts, spacing, radii } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
+  const character = useGameStore((s) => s.character);
+  const showToast = useToastStore((s) => s.showToast);
 
   const destinations = [
     {
@@ -131,7 +137,7 @@ export function WorldScreen() {
     },
     {
       title: "Collections",
-      desc: "View your unlocked achievements, cosmetics, and badges.",
+      desc: "Collect life moments, badges, and cosmetics you've unlocked across your journeys.",
       icon: (
         <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
           <Path stroke={colors.sapphire} strokeWidth={2} strokeLinecap="round"
@@ -175,7 +181,19 @@ export function WorldScreen() {
           {destinations.map((dest, idx) => (
             <Pressable
               key={idx}
-              onPress={() => navigation.navigate(dest.route)}
+              onPress={() => {
+                triggerTapFeedback();
+                if (dest.route === 'Assets' && character) {
+                  const stocksOk = isFeatureEnabled(character, 'stocks');
+                  const realEstateOk = isFeatureEnabled(character, 'real_estate');
+                  const businessOk = isFeatureEnabled(character, 'business');
+                  if (!stocksOk && !realEstateOk && !businessOk) {
+                    showToast("Assets aren't available in your scenario.", 'error');
+                    return;
+                  }
+                }
+                navigation.navigate(dest.route);
+              }}
               style={({ pressed }) => [
                 styles.gridItem,
                 {

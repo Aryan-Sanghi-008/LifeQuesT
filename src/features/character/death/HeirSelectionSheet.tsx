@@ -10,7 +10,7 @@ interface Props {
 export function HeirSelectionSheet({ character, onSelectHeir }: Props) {
   const { colors, fonts, radii, spacing } = useTheme();
   const heirs = (character.people ?? []).filter(
-    (p) => p.relationType === 'child' && p.isAlive !== false,
+    (p) => (p.relationType === 'child' || p.relationType === 'sibling') && p.isAlive !== false,
   );
 
   if (heirs.length === 0) return null;

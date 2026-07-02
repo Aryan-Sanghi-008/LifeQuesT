@@ -1,5 +1,6 @@
 import { EducationLevel, Character } from '../types';
 import { clamp } from './economyEngine';
+import { isFeatureEnabled } from './scenarioEngine';
 
 function clampRange(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v));
@@ -196,8 +197,9 @@ export function resolveEducationLevelForDisplay(
  * Filters by current education stage and character's existing degrees.
  */
 export function getEnrollableDegrees(
-  character: Pick<Character, 'age' | 'educationLevel' | 'educationStage' | 'degreeIds' | 'gpa'>,
+  character: Pick<Character, 'age' | 'educationLevel' | 'educationStage' | 'degreeIds' | 'gpa' | 'scenarioId'>,
 ): Degree[] {
+  if (!isFeatureEnabled(character, 'university')) return [];
   const stage = (character.educationStage as EducationStage | undefined) ?? 'none';
   const owned = new Set(character.degreeIds ?? []);
 

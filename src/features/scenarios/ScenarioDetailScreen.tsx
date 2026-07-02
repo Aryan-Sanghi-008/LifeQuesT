@@ -1,4 +1,5 @@
-import { View, Text, ScrollView, Pressable, Alert } from "react-native";
+import { View, Text, ScrollView, Pressable, ActivityIndicator } from "react-native";
+import { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -7,6 +8,10 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "@theme";
 import { SCENARIOS, ScenarioId } from "@data/scenarios";
 import type { RootStackParamList } from "@/types";
+import { useGameStore } from "@store/gameStore";
+import { purchaseProduct, getIAPProducts, applyPurchaseToStore } from "@services/iap";
+import { useToastStore } from "@store/toastStore";
+import { IAPProductId } from "@/types";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, "ScenarioDetail">;
@@ -15,6 +20,10 @@ export function ScenarioDetailScreen() {
   const { colors, fonts, spacing, radii } = useTheme();
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
+  const store = useGameStore();
+  const isScenarioOwned = useGameStore((s) => s.isScenarioOwned);
+  const showToast = useToastStore((s) => s.showToast);
+  const [purchasing, setPurchasing] = useState(false);
 
   const scenario = SCENARIOS.find((s) => s.id === (route.params.scenarioId as ScenarioId));
 
@@ -27,14 +36,43 @@ export function ScenarioDetailScreen() {
   }
 
   const accent = scenario.accentColor;
+  const owned = isScenarioOwned(scenario.id);
+  const storeProducts = getIAPProducts();
+  const iapEntry = storeProducts.find((p) => p.productId === scenario.iapProductId);
+  const priceLabel = iapEntry?.localizedPrice ?? scenario.priceLabel ?? "Unlock";
 
-  const handleCTA = () => {
-    if (scenario.locked) {
-      Alert.alert("Coming Soon", `${scenario.name} will be available in a future update. Stay tuned!`);
-    } else {
+  const handleCTA = async () => {
+    if (owned) {
       navigation.navigate("CharacterCreate", { scenarioId: scenario.id });
+      return;
+    }
+    if (!scenario.iapProductId) return;
+    setPurchasing(true);
+    try {
+      const catalog = getIAPProducts();
+      if (catalog.length === 0) {
+        // Dev build: grant immediately
+        applyPurchaseToStore(scenario.iapProductId as IAPProductId, store);
+        await store._persist();
+        showToast(`${scenario.name} unlocked!`, "success");
+        navigation.navigate("CharacterCreate", { scenarioId: scenario.id });
+        return;
+      }
+      await purchaseProduct(scenario.iapProductId as IAPProductId);
+      showToast(`${scenario.name} unlocked! Starting new life…`, "success");
+      navigation.navigate("CharacterCreate", { scenarioId: scenario.id });
+    } catch (e) {
+      showToast((e as Error).message ?? "Purchase failed. Try again.", "error");
+    } finally {
+      setPurchasing(false);
     }
   };
+
+  const ctaLabel = owned
+    ? `Start ${scenario.name}`
+    : purchasing
+      ? "Processing…"
+      : `Unlock · ${priceLabel}`;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={["top"]}>
@@ -61,12 +99,17 @@ export function ScenarioDetailScreen() {
           end={{ x: 1, y: 1 }}
           style={{ padding: spacing.xl, gap: spacing.md }}
         >
-          <View style={{ width: 56, height: 56, borderRadius: radii.md,
-            backgroundColor: `${accent}20`, alignItems: "center", justifyContent: "center" }}>
-            <Svg width={28} height={28} viewBox="0 0 24 24" fill="none">
-              <Path stroke={accent} strokeWidth={2} strokeLinecap="round"
-                d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-            </Svg>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+            <View style={{ width: 56, height: 56, borderRadius: radii.md,
+              backgroundColor: `${accent}25`, alignItems: "center", justifyContent: "center" }}>
+              <Text style={{ fontSize: 28 }}>{scenario.iconEmoji ?? "🌍"}</Text>
+            </View>
+            {owned && (
+              <View style={{ backgroundColor: `${colors.emerald}20`, borderRadius: radii.sm,
+                paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: `${colors.emerald}40` }}>
+                <Text style={{ color: colors.emerald, fontFamily: fonts.monoSemiBold, fontSize: 10, letterSpacing: 0.5 }}>OWNED</Text>
+              </View>
+            )}
           </View>
           <View>
             <Text style={{ color: colors.t1, fontFamily: fonts.displayBold, fontSize: 26 }}>
@@ -76,16 +119,16 @@ export function ScenarioDetailScreen() {
               {scenario.tagline}
             </Text>
           </View>
-          {scenario.locked && (
+          {!owned && scenario.isPremium && (
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8,
               backgroundColor: `${colors.bg}80`, borderRadius: radii.sm, paddingHorizontal: spacing.md, paddingVertical: 8,
               alignSelf: "flex-start" }}>
               <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-                <Path stroke={colors.t3} strokeWidth={2} strokeLinecap="round"
+                <Path stroke={colors.gold} strokeWidth={2} strokeLinecap="round"
                   d="M19 11H5a2 2 0 00-2 2v7a2 2 0 002 2h14a2 2 0 002-2v-7a2 2 0 00-2-2zM7 11V7a5 5 0 0110 0v4" />
               </Svg>
-              <Text style={{ color: colors.t3, fontFamily: fonts.body, fontSize: 13 }}>
-                Coming in a future update
+              <Text style={{ color: colors.gold, fontFamily: fonts.body, fontSize: 13 }}>
+                Premium scenario · {priceLabel}
               </Text>
             </View>
           )}
@@ -141,18 +184,20 @@ export function ScenarioDetailScreen() {
         borderTopWidth: 1, borderTopColor: colors.border }}>
         <Pressable
           onPress={handleCTA}
+          disabled={purchasing}
           style={[
-            { borderRadius: radii.md, paddingVertical: 14, alignItems: "center" },
-            scenario.locked
-              ? { backgroundColor: colors.bg2, borderWidth: 1, borderColor: colors.border }
-              : { backgroundColor: accent },
+            { borderRadius: radii.md, paddingVertical: 14, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8 },
+            owned
+              ? { backgroundColor: accent }
+              : { backgroundColor: colors.gold },
           ]}
         >
+          {purchasing && <ActivityIndicator size="small" color="#FFF" />}
           <Text style={{
-            color: scenario.locked ? colors.t3 : "#FFFFFF",
+            color: "#FFFFFF",
             fontFamily: fonts.displayBold, fontSize: 15,
           }}>
-            {scenario.ctaLabel}
+            {ctaLabel}
           </Text>
         </Pressable>
       </View>

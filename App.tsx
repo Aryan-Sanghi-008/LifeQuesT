@@ -43,7 +43,10 @@ import { logEvent } from "@services/analytics";
 import { initCrashReporting } from "@services/crashReporting";
 import { initNotifications } from "@services/notifications";
 import { initAudio } from "@services/audio";
+import { hydrateSettingsStore } from "@store/settingsStore";
 import { useTheme } from "@theme";
+import { incrementAppSessionCount } from "@services/persistence";
+import { isCloudUser } from "@store/storeHelpers";
 
 void SplashScreen.preventAutoHideAsync().catch(() => {
   /* splash plugin unavailable in some builds */
@@ -105,9 +108,28 @@ export default function App() {
   }, [isHydrated, characterId]);
 
   useEffect(() => {
+    if (!isHydrated) return;
+    incrementAppSessionCount();
+    const game = useGameStore.getState();
+    if (game.character?.isPremium) {
+      game.ensurePlusMonthlyState();
+      game.grantPlusMonthlyCosmetic();
+    }
+  }, [isHydrated]);
+
+  useEffect(() => {
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active") {
         const game = useGameStore.getState();
+        game.checkAbsenceBonus();
+        void import('@services/liveOpsConfig').then((m) => m.fetchLiveOpsConfig());
+        if (game.character?.isPremium) {
+          game.ensurePlusMonthlyState();
+          game.grantPlusMonthlyCosmetic();
+          if (isCloudUser(game.user?.uid)) {
+            void game._persist();
+          }
+        }
         void import("@services/notificationSync").then((m) =>
           m.syncGameRetentionNotifications({
             character: game.character,
@@ -138,7 +160,16 @@ export default function App() {
 
     const task = InteractionManager.runAfterInteractions(() => {
       if (cancelled) return;
-      void initAudio();
+      void (async () => {
+        await hydrateSettingsStore();
+        const { hydratePersistence } = await import('@services/persistence');
+        await hydratePersistence();
+        await initAudio();
+        const { initRemoteConfig } = await import('@services/remoteConfig');
+        await initRemoteConfig();
+        const { fetchLiveOpsConfig } = await import('@services/liveOpsConfig');
+        await fetchLiveOpsConfig();
+      })();
       void initAds();
       void initCrashReporting();
       void initNotifications();
@@ -158,8 +189,6 @@ export default function App() {
   if (!fontsLoaded && !fontError) {
     return null;
   }
-
-  void initAudio();
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutRootView}>

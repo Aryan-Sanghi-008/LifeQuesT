@@ -2,7 +2,7 @@
 // Realistic career eligibility checking, hiring probability, and progression.
 
 import { Career, EducationLevel, Character } from '../types';
-import { CAREER_PATHS, CareerPath, getCareerById, careerPathToLegacy } from '../data/careerPaths';
+import { CAREER_PATHS, CareerPath, getCareerById, careerPathToLegacy, getAllCareerPaths } from '../data/careerPaths';
 import { getCountryEconomy } from '../data/countryEconomy';
 import { getCertificationLabel } from './certificationEngine';
 
@@ -31,13 +31,20 @@ function getEducationRank(level: string): number {
  * Returns detailed eligibility result with reason and hire probability.
  */
 export function checkCareerEligibility(
-  character: Pick<Character, 'age' | 'educationLevel' | 'educationStage' | 'degreeIds' | 'certificationIds' | 'stats' | 'traits' | 'countryCode' | 'criminalRecord' | 'assets' | 'career' | 'totalCareerYears' | 'gpa' | 'creditScore'>,
+  character: Pick<Character, 'age' | 'educationLevel' | 'educationStage' | 'degreeIds' | 'certificationIds' | 'stats' | 'traits' | 'countryCode' | 'criminalRecord' | 'assets' | 'career' | 'totalCareerYears' | 'gpa' | 'creditScore' | 'scenarioId'>,
   careerId: string,
 ): EligibilityResult {
   const career = getCareerById(careerId);
 
   if (!career) {
     return { eligible: false, reason: 'Career not found.', hireProbability: 0 };
+  }
+
+  if (career.requiresScenario?.length) {
+    const scenario = character.scenarioId ?? 'classic';
+    if (!career.requiresScenario.includes(scenario)) {
+      return { eligible: false, reason: 'Not available in this scenario.', hireProbability: 0 };
+    }
   }
 
   const req = career.requirements;
@@ -425,11 +432,36 @@ export function getEligibleCareers(character: Parameters<typeof checkCareerEligi
   career: CareerPath;
   eligibility: EligibilityResult;
 }> {
-  return CAREER_PATHS
+  return getAllCareerPaths()
+    .filter((career) => !career.requiresScenario?.length)
     .map(career => ({
       career,
       eligibility: checkCareerEligibility(character, career.id),
     }))
     .filter(({ eligibility }) => eligibility.eligible)
     .sort((a, b) => b.eligibility.hireProbability - a.eligibility.hireProbability);
+}
+
+/** Scenario-exclusive careers for the job board (eligible + locked wrong-scenario). */
+export function getScenarioCareerBoard(character: Parameters<typeof checkCareerEligibility>[0]): Array<{
+  career: CareerPath;
+  eligibility: EligibilityResult;
+}> {
+  const scenarioId = character.scenarioId ?? 'classic';
+  return getAllCareerPaths()
+    .filter((career) => career.requiresScenario?.length)
+    .map((career) => ({
+      career,
+      eligibility: checkCareerEligibility(character, career.id),
+    }))
+    .filter(({ career }) => {
+      if (career.requiresScenario?.includes(scenarioId)) return true;
+      return true;
+    })
+    .sort((a, b) => {
+      if (a.eligibility.eligible !== b.eligibility.eligible) {
+        return a.eligibility.eligible ? -1 : 1;
+      }
+      return b.eligibility.hireProbability - a.eligibility.hireProbability;
+    });
 }

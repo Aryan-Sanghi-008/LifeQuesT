@@ -6,7 +6,7 @@ import { FOCUS_DOMAINS } from "@data/focusDomains";
 import type { FocusAllocation, FocusDomain } from "@/types";
 import { useGameStore } from "@store/gameStore";
 import { FOCUS_POINTS_PER_YEAR, getAutoChildFocus } from "@engine/focusEngine";
-import Svg, { Path, Circle, Text as SvgText } from "react-native-svg";
+import Svg, { Path, Circle, Text as SvgText, G } from "react-native-svg";
 
 interface FocusPhaseSheetProps {
   visible: boolean;
@@ -156,7 +156,7 @@ export function FocusPhaseSheet({ visible, age, familyBackground }: FocusPhaseSh
                 const labelPos = getCoordinates(i, 114);
 
                 return (
-                  <g key={domain.id}>
+                  <G key={domain.id}>
                     <Path
                       d={pathD}
                       fill={wedgeColor}
@@ -173,7 +173,7 @@ export function FocusPhaseSheet({ visible, age, familyBackground }: FocusPhaseSh
                     >
                       {DOMAIN_EMOJIS[domain.id]}
                     </SvgText>
-                  </g>
+                  </G>
                 );
               })}
 

@@ -11,8 +11,7 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { RADII, ANIM, useTheme } from "@theme";
-import { hapticButtonPress } from "@services/haptics";
-import { playSound } from "@services/audio";
+import { triggerTapFeedback } from "@services/gameFeedback";
 
 interface GradientButtonProps {
   label: string;
@@ -57,8 +56,7 @@ export function GradientButton({
 
   const handlePress = () => {
     if (disabled || loading) return;
-    hapticButtonPress();
-    void playSound("button_tap");
+    triggerTapFeedback();
     onPress();
   };
 

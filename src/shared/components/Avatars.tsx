@@ -7,7 +7,8 @@ import { View, StyleSheet } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 import { Style, Avatar } from '@dicebear/core';
 import { LifeStage, Gender, Character, AvatarStyleId } from '@/types';
-import { getAvatarOptionsForStage, getDefaultAvatarStyle, getStyleFileName } from '@utils/lifeStage';
+import { getAvatarOptionsForStage, getDefaultAvatarStyle, getStyleFileName, resolveAvatarStyleForGender } from '@utils/lifeStage';
+import { useGameStore } from '@store/gameStore';
 import { useThemedStyles, useTheme } from '@theme';
 
 // ─── Load all modern DiceBear style JSON defs ─────────────────────────────────
@@ -68,10 +69,10 @@ export function DiceBearAvatar({
     try {
       const opts = getAvatarOptionsForStage(lifeStage, gender);
 
-      // Determine style: explicit override > gender default
-      const resolvedStyleName = avatarStyle
-        ? getStyleFileName(avatarStyle)
-        : getDefaultAvatarStyle(gender);
+      // Use chosen pack for all genders — gender variation comes from seed options,
+      // not from switching art packs. This keeps the whole game visually consistent.
+      const packName = avatarStyle ? getStyleFileName(avatarStyle) : getDefaultAvatarStyle(gender);
+      const resolvedStyleName = resolveAvatarStyleForGender(packName, gender);
 
       const style = STYLE_MAP[resolvedStyleName] ?? STYLE_MAP['adventurer'];
 
@@ -129,10 +130,11 @@ interface AvatarByCharacterProps {
   size?: number;
   showFrame?: boolean;
   frameColor?: string;
+  clipCircular?: boolean;
 }
 
 export function AvatarByCharacter({
-  character, size = 80, showFrame = false, frameColor,
+  character, size = 80, showFrame = false, frameColor, clipCircular = false,
 }: AvatarByCharacterProps) {
   return (
     <DiceBearAvatar
@@ -143,6 +145,7 @@ export function AvatarByCharacter({
       size={size}
       showFrame={showFrame}
       frameColor={frameColor}
+      clipCircular={clipCircular}
     />
   );
 }
@@ -160,6 +163,9 @@ interface NpcAvatarProps {
 export function NpcAvatar({
   seed, gender = 'male', size = 48, age = 30, relationType,
 }: NpcAvatarProps) {
+  // Inherit the player's chosen avatar pack so all characters share the same visual style
+  const playerAvatarStyle = useGameStore((s) => s.character?.avatarStyle);
+
   const lifeStage: LifeStage =
     age < 2  ? 'infant'      :
     age < 5  ? 'toddler'     :
@@ -169,8 +175,10 @@ export function NpcAvatar({
     age < 51 ? 'adult'       :
     age < 66 ? 'middle_aged' : 'senior';
 
-  // Pets use bottts style
-  const avatarStyle = (relationType === 'pet' || gender === 'animal') ? 'bottts' : undefined;
+  // Pets always use bottts style regardless of player pack
+  const avatarStyle = (relationType === 'pet' || gender === 'animal')
+    ? 'bottts'
+    : playerAvatarStyle;
 
   return (
     <DiceBearAvatar

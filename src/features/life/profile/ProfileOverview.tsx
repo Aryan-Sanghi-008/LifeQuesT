@@ -3,8 +3,8 @@ import {
   Text,
   Pressable,
   StyleSheet,
-  Alert,
 } from "react-native";
+import { useToastStore } from "@store/toastStore";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { LinearGradient } from "expo-linear-gradient";
@@ -12,7 +12,11 @@ import Svg, { Path, Circle } from "react-native-svg";
 import { useTheme, useThemedStyles, RADII } from "@theme";
 import { AvatarStyleId, AppUser, Character, RootStackParamList } from "@/types";
 import { AvatarByCharacter } from "@components/Avatars";
+import { AppImage } from "@shared/components/AppImage";
+import { CharacterNameText } from "@shared/components/CharacterNameText";
 import { Badge, Card, SectionLabel } from "@components/index";
+import { getPlusFrameColor } from "@data/cosmeticCatalog";
+import { useSettingsStore } from "@store/settingsStore";
 import { FeedbackPressable } from "@components/FeedbackPressable";
 import { SeasonPassCard } from "./SeasonPassCard";
 import { FinancesSection, StatChip } from "./StatsTab";
@@ -30,7 +34,9 @@ const AVATAR_STYLE_LABELS: Record<AvatarStyleId, string> = {
 
 const AVATAR_STYLE_OPTIONS: AvatarStyleId[] = [
   "adventurer",
+  "adventurer-neutral",
   "lorelei",
+  "lorelei-neutral",
   "bottts",
   "notionists",
   "big-smile",
@@ -55,7 +61,7 @@ export function ProfileOverview({
   slotsSynced,
   onSaveGame,
 }: ProfileOverviewProps) {
-  const { colors, fonts } = useTheme();
+  const { colors, fonts, spacing } = useTheme();
   const heroStyles = useThemedStyles(createHeroStyles);
   const sectionStyles = useThemedStyles(createSectionStyles);
   const navigation =
@@ -71,11 +77,16 @@ export function ProfileOverview({
     zodiac,
     karma,
     isPremium,
+    hasSeasonPass,
     coins,
     gems,
     avatarStyle,
     unlockedAvatarStyles,
   } = character;
+
+  const hasPremium = isPremium || (hasSeasonPass ?? false);
+  const showToast = useToastStore((s) => s.showToast);
+  const equippedProfileFrameId = useSettingsStore((s) => s.equippedProfileFrameId);
 
   const karmaLabel =
     karma < 0
@@ -119,6 +130,8 @@ export function ProfileOverview({
             ? colors.gold
             : colors.orchid;
 
+  const frameColor = getPlusFrameColor(equippedProfileFrameId) ?? avatarRingColor;
+
   return (
     <>
       <View style={heroStyles.hero}>
@@ -135,18 +148,28 @@ export function ProfileOverview({
           <View
             style={[
               heroStyles.avatarRing,
-              { borderColor: `${avatarRingColor}60` },
+              {
+                borderColor: `${frameColor}90`,
+                borderWidth: equippedProfileFrameId ? 3 : 2.5,
+              },
             ]}
           >
             <AvatarByCharacter character={character} size={88} />
           </View>
           {isPremium && (
             <View style={heroStyles.premiumBadge}>
-              <Svg width={12} height={12} viewBox="0 0 24 24" fill={colors.gold}>
-                <Path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-              </Svg>
+              <Text style={[heroStyles.plusChipText, { color: colors.gold, fontFamily: fonts.monoSemiBold }]}>PLUS</Text>
             </View>
           )}
+          {user?.photoURL ? (
+            <View style={[heroStyles.cloudPhotoBadge, { borderColor: colors.border }]}>
+              <AppImage
+                source={{ uri: user.photoURL }}
+                style={heroStyles.cloudPhotoImage}
+                accessibilityLabel="Cloud profile photo"
+              />
+            </View>
+          ) : null}
         </View>
 
         <View style={heroStyles.avatarStyleRow}>
@@ -179,7 +202,7 @@ export function ProfileOverview({
           })}
         </View>
 
-        <Text style={[heroStyles.heroName, { color: colors.t1 }]}>{name}</Text>
+        <CharacterNameText name={name} style={heroStyles.heroName} />
         <Text style={heroStyles.heroSub}>
           {job} · {countryFlag} {country}
         </Text>
@@ -261,8 +284,7 @@ export function ProfileOverview({
           <View style={sectionStyles.section}>
             <SeasonPassCard
               xp={character.seasonXp ?? 0}
-              level={Math.floor((character.seasonXp ?? 0) / 1000) + 1}
-              isPremium={character.hasSeasonPass ?? false}
+              isPremium={hasPremium}
             />
           </View>
 
@@ -361,6 +383,37 @@ export function ProfileOverview({
           </View>
 
           <View style={sectionStyles.section}>
+            {isPremium && (
+              <Pressable
+                onPress={() => navigation.navigate('Shop')}
+                style={{ marginBottom: spacing.md }}
+              >
+                <LinearGradient
+                  colors={[`${colors.gold}28`, `${colors.gold2}12`]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={[
+                    sectionStyles.premiumCard,
+                    { borderColor: `${colors.gold}45`, marginBottom: 0 },
+                  ]}
+                >
+                  <View style={[sectionStyles.premiumIcon, { backgroundColor: `${colors.gold}25` }]}>
+                    <Svg width={18} height={18} viewBox="0 0 24 24" fill={colors.gold}>
+                      <Path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                    </Svg>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[sectionStyles.premiumTitle, { color: colors.gold }]}>LifeQuest Plus</Text>
+                    <Text style={sectionStyles.premiumSub}>
+                      Active subscriber — thank you for supporting LifeQuest
+                    </Text>
+                  </View>
+                  <View style={[sectionStyles.premiumPriceTag, { backgroundColor: `${colors.emerald}22`, borderRadius: RADII.sm, borderWidth: 1, borderColor: `${colors.emerald}45` }]}>
+                    <Text style={[sectionStyles.premiumPrice, { color: colors.emerald }]}>Active</Text>
+                  </View>
+                </LinearGradient>
+              </Pressable>
+            )}
             <Card style={{ gap: 0 }}>
               <FeedbackPressable
                 onPress={() => navigation.navigate("Settings")}
@@ -417,65 +470,44 @@ export function ProfileOverview({
             </Card>
           </View>
 
-          {!isPremium && (
-            <View style={sectionStyles.section}>
-              <Pressable
-                onPress={() =>
-                  Alert.alert(
-                    "Get Premium",
-                    "Remove ads, get 5 luck boosts, and cloud save priority.",
-                    [
-                      { text: "Not Now", style: "cancel" },
-                      {
-                        text: "Get Premium",
-                        onPress: () => navigation.navigate("Shop"),
-                      },
-                    ],
-                  )
-                }
+          {/* Life Store — always visible regardless of ownership */}
+          <View style={sectionStyles.section}>
+            <Pressable onPress={() => navigation.navigate("Shop")}>
+              <LinearGradient
+                colors={[`${colors.gold2}30`, `${colors.gold}18`]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={[sectionStyles.premiumCard, { borderColor: `${colors.gold}30` }]}
               >
-                <LinearGradient
-                  colors={[`${colors.gold2}30`, `${colors.gold}18`]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={[
-                    sectionStyles.premiumCard,
-                    { borderColor: `${colors.gold}30` },
-                  ]}
-                >
-                  <View
-                    style={[
-                      sectionStyles.premiumIcon,
-                      { backgroundColor: `${colors.gold}20` },
-                    ]}
-                  >
-                    <Svg
-                      width={18}
-                      height={18}
-                      viewBox="0 0 24 24"
-                      fill={colors.gold}
-                    >
-                      <Path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                    </Svg>
+                <View style={[sectionStyles.premiumIcon, { backgroundColor: `${colors.gold}20` }]}>
+                  <Svg width={18} height={18} viewBox="0 0 24 24" fill={colors.gold}>
+                    <Path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                  </Svg>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={sectionStyles.premiumTitle}>Life Store</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                    {isPremium && (
+                      <View style={{ backgroundColor: `${colors.emerald}20`, borderRadius: RADII.xs, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: `${colors.emerald}45` }}>
+                        <Text style={{ color: colors.emerald, fontFamily: fonts.monoSemiBold, fontSize: 9, letterSpacing: 0.6 }}>LIFEQUEST PLUS</Text>
+                      </View>
+                    )}
+                    {hasSeasonPass && (
+                      <View style={{ backgroundColor: `${colors.teal}20`, borderRadius: RADII.xs, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: `${colors.teal}45` }}>
+                        <Text style={{ color: colors.teal, fontFamily: fonts.monoSemiBold, fontSize: 9, letterSpacing: 0.6 }}>SEASON PASS ACTIVE</Text>
+                      </View>
+                    )}
+                    {!isPremium && !hasSeasonPass && (
+                      <Text style={sectionStyles.premiumSub}>Boosts · Premium · Avatar packs</Text>
+                    )}
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={sectionStyles.premiumTitle}>Get Premium</Text>
-                    <Text style={sectionStyles.premiumSub}>
-                      No ads · 5 luck boosts · Cloud save priority
-                    </Text>
-                  </View>
-                  <View
-                    style={[
-                      sectionStyles.premiumPriceTag,
-                      { backgroundColor: colors.gold, borderRadius: RADII.sm },
-                    ]}
-                  >
-                    <Text style={sectionStyles.premiumPrice}>Premium</Text>
-                  </View>
-                </LinearGradient>
-              </Pressable>
-            </View>
-          )}
+                </View>
+                <View style={[sectionStyles.premiumPriceTag, { backgroundColor: colors.gold, borderRadius: RADII.sm }]}>
+                  <Text style={sectionStyles.premiumPrice}>Open</Text>
+                </View>
+              </LinearGradient>
+            </Pressable>
+          </View>
 
           {user && !user.isGuest && (
             <View style={sectionStyles.section}>
@@ -503,15 +535,9 @@ export function ProfileOverview({
                     onPress={async () => {
                       try {
                         await onSaveGame();
-                        Alert.alert(
-                          "Cloud Sync",
-                          "Successfully synced your progress to the cloud!",
-                        );
+                        showToast("Progress synced to cloud!", "success");
                       } catch {
-                        Alert.alert(
-                          "Cloud Sync",
-                          "Sync failed. Check your internet connection.",
-                        );
+                        showToast("Sync failed. Check your internet connection.", "error");
                       }
                     }}
                     style={({ pressed }) => [

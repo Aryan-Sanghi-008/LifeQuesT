@@ -1,5 +1,6 @@
-import { Person, FamilyBackground } from '@/types';
+import { Person, FamilyBackground, ScenarioId } from '@/types';
 import { generateRandomDNA, generateRandomPersonality } from './genetics';
+import { SCENARIO_PARENT_OCCUPATIONS } from '@/data/scenarioNPCs';
 
 // ─── Name Banks ──────────────────────────────────────────────────────────────
 
@@ -72,7 +73,10 @@ export function generateName(
   return `${first} ${last}`;
 }
 
-function getOccupations(background: FamilyBackground): string[] {
+function getOccupations(background: FamilyBackground, scenarioId?: ScenarioId): string[] {
+  if (scenarioId && SCENARIO_PARENT_OCCUPATIONS[scenarioId]?.length) {
+    return SCENARIO_PARENT_OCCUPATIONS[scenarioId]!;
+  }
   if (background === 'poor')    return OCCUPATIONS_POOR;
   if (background === 'middle')  return OCCUPATIONS_MIDDLE;
   if (background === 'wealthy') return OCCUPATIONS_WEALTHY;
@@ -85,11 +89,12 @@ export function generateParents(
   characterName: string,
   countryCode: string,
   background: FamilyBackground,
+  scenarioId?: ScenarioId,
 ): Person[] {
   const seed = characterName + countryCode;
   const fatherName = generateName('male',   countryCode, seed, 1);
   const motherName = generateName('female', countryCode, seed, 2);
-  const occupations = getOccupations(background);
+  const occupations = getOccupations(background, scenarioId);
 
   const father: Person = {
     id: generateId(),

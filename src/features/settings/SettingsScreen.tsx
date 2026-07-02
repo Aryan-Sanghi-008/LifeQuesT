@@ -22,8 +22,11 @@ import {
   openLegalUrlSafe,
 } from "@config/legal";
 import { getNotificationsEnabled } from "@services/persistence";
-import { setNotificationsPreference } from "@services/notifications";
+import { setNotificationsPreference, getNotificationPermissionStatus } from "@services/notifications";
+import { playSound } from "@services/audio";
+import { previewHapticTap } from "@services/haptics";
 import { Card, Divider, SectionLabel, FeedbackPressable } from "@components/index";
+import { useGameStore } from "@store/gameStore";
 import type { RootStackParamList } from "@/types";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -116,7 +119,17 @@ export function SettingsScreen() {
   const setReducedMotion = useSettingsStore((s) => s.setReducedMotion);
   const setColorScheme = useSettingsStore((s) => s.setColorScheme);
 
+  const isPremium = useGameStore((s) => s.character?.isPremium ?? false);
+  const hasSeasonPass = useGameStore((s) => s.character?.hasSeasonPass ?? false);
+  const hasPlus = isPremium || hasSeasonPass;
+
   const [notif, setNotif] = useState(() => getNotificationsEnabled());
+  const [notifPermStatus, setNotifPermStatus] = useState<'granted' | 'denied' | 'undetermined' | null>(null);
+
+  // Load permission status once on mount for display purposes
+  useState(() => {
+    void getNotificationPermissionStatus().then(setNotifPermStatus);
+  });
 
   const handleSignOut = () => {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
@@ -191,6 +204,32 @@ export function SettingsScreen() {
           </Card>
         </View>
 
+        {hasPlus && (
+          <View style={styles.section}>
+            <SectionLabel label="Support" />
+            <Card style={{ gap: 0 }}>
+              <NavRow
+                icon={
+                  <Svg width={16} height={16} viewBox="0 0 24 24" fill={colors.gold}>
+                    <Path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                  </Svg>
+                }
+                label="LifeQuest Plus · Active"
+                onPress={() => navigation.navigate("Shop")}
+                iconBg={`${colors.gold}18`}
+              />
+              <Divider />
+              <View style={[rowStyles.row, { paddingVertical: 12 }]}>
+                <View style={rowStyles.textWrap}>
+                  <Text style={[rowStyles.desc, { color: colors.t3, fontFamily: fonts.body, marginLeft: 44 }]}>
+                    Thank you for supporting LifeQuest. Enjoy ad-free play, bonus coins, and exclusive cosmetics.
+                  </Text>
+                </View>
+              </View>
+            </Card>
+          </View>
+        )}
+
         {/* ── Preferences ── */}
         <View style={styles.section}>
           <SectionLabel label="Preferences" />
@@ -207,7 +246,10 @@ export function SettingsScreen() {
               label="Sound Effects"
               desc="In-game sounds and music"
               value={soundEnabled}
-              onChange={setSoundEnabled}
+              onChange={(v) => {
+                setSoundEnabled(v);
+                if (v) void playSound("button_tap");
+              }}
               iconBg={`${colors.sapphire}12`}
             />
             <Divider />
@@ -219,9 +261,35 @@ export function SettingsScreen() {
                 </Svg>
               }
               label="Notifications"
-              desc="Daily life reminders"
+              desc={
+                notif && notifPermStatus === 'denied'
+                  ? 'Permission required — open Settings to allow'
+                  : notif
+                    ? 'Daily life reminders enabled'
+                    : 'Daily life reminders off'
+              }
               value={notif}
-              onChange={(v) => { setNotif(v); void setNotificationsPreference(v); }}
+              onChange={async (v) => {
+                if (v) {
+                  const status = await getNotificationPermissionStatus();
+                  if (status === 'denied') {
+                    Alert.alert(
+                      'Notifications Blocked',
+                      'Please open your device Settings and enable notifications for LifeQuest, then try again.',
+                      [{ text: 'OK' }],
+                    );
+                    return; // Don't update toggle — stays off
+                  }
+                }
+                setNotif(v);
+                void setNotificationsPreference(v).then(async () => {
+                  const status = await getNotificationPermissionStatus();
+                  setNotifPermStatus(status);
+                  if (v && status !== 'granted') {
+                    setNotif(false); // Revert if permission was not granted
+                  }
+                });
+              }}
               iconBg={`${colors.emerald}12`}
             />
             <Divider />
@@ -235,7 +303,10 @@ export function SettingsScreen() {
               label="Haptic Feedback"
               desc="Vibration on button press"
               value={hapticsEnabled}
-              onChange={setHapticsEnabled}
+              onChange={(v) => {
+                setHapticsEnabled(v);
+                if (v) previewHapticTap();
+              }}
               iconBg={`${colors.orchid}12`}
             />
             <Divider />
@@ -322,7 +393,7 @@ export function SettingsScreen() {
         </View>
 
         <Text style={[styles.footer, { color: colors.t4, fontFamily: fonts.body }]}>
-          LifeQuesT · Built with purpose
+          LifeQuest · Built with purpose
         </Text>
       </ScrollView>
     </SafeAreaView>

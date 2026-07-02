@@ -6,14 +6,16 @@ import {
   Pressable,
   Modal,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
-import Svg, { Path } from "react-native-svg";
+import Svg, { Path, Circle } from "react-native-svg";
 import { useTheme } from "@theme";
 import { useGameStore } from "@store/gameStore";
 import { ALL_COLLECTION_ITEMS, COLLECTION_SETS } from "@data/collections";
 import { evaluateUnlockedCollectionIds, getSetProgress } from "@engine/collectionsEngine";
 import { CollectionCategory, CollectionItem, EventRarity } from "@/types";
+import { CollectionSetIcon } from "./CollectionSetIcon";
 
 const CATEGORIES: { id: CollectionCategory; label: string }[] = [
   { id: "life_moment", label: "Life Moments" },
@@ -63,15 +65,14 @@ function DetailSheet({ item, unlocked, onClose }: {
             <View style={{ width: 52, height: 52, borderRadius: radii.md,
               backgroundColor: unlocked ? `${accent}18` : colors.bg2,
               alignItems: "center", justifyContent: "center" }}>
-              <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-                {unlocked ? (
-                  <Path stroke={accent} strokeWidth={2} strokeLinecap="round"
-                    d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                ) : (
+              {unlocked ? (
+                <CollectionSetIcon setId={item.setId ?? item.category} color={accent} size={24} />
+              ) : (
+                <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
                   <Path stroke={colors.t4} strokeWidth={2} strokeLinecap="round"
                     d="M19 11H5a2 2 0 00-2 2v7a2 2 0 002 2h14a2 2 0 002-2v-7a2 2 0 00-2-2zM7 11V7a5 5 0 0110 0v4" />
-                )}
-              </Svg>
+                </Svg>
+              )}
             </View>
             <View style={{ flex: 1, gap: 4 }}>
               <Text style={{ color: colors.t1, fontFamily: fonts.displayBold, fontSize: 16 }}>
@@ -117,43 +118,82 @@ function CollectionTile({ item, unlocked, onPress }: {
 }) {
   const { colors, radii } = useTheme();
   const accent = item.accentColor ?? colors.sapphire;
+  const rarityColor = RARITY_COLORS[item.rarity ?? "common"];
+  const isEpicPlus = item.rarity === 'epic' || item.rarity === 'legendary';
 
   return (
     <Pressable
       onPress={onPress}
-      style={[{
+      style={{
         width: "30%",
         aspectRatio: 1,
         borderRadius: radii.md,
-        borderWidth: 1.5,
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: colors.bgCard,
-        borderColor: unlocked ? `${accent}40` : colors.border,
-        opacity: unlocked ? 1 : 0.5,
-        gap: 4,
-      }]}
+        overflow: 'hidden',
+        opacity: unlocked ? 1 : 0.55,
+      }}
     >
-      <View style={{ width: 32, height: 32, borderRadius: radii.sm,
-        backgroundColor: unlocked ? `${accent}15` : colors.bg2,
-        alignItems: "center", justifyContent: "center" }}>
-        <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-          {unlocked ? (
-            <Path stroke={accent} strokeWidth={2} strokeLinecap="round"
-              d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-          ) : (
-            <Path stroke={colors.t4} strokeWidth={2} strokeLinecap="round"
-              d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-          )}
-        </Svg>
-      </View>
-      <View style={{ alignItems: "center", paddingHorizontal: 4 }}>
-        <Text style={{ color: unlocked ? colors.t1 : colors.t4, fontSize: 9, textAlign: "center" }}
-          numberOfLines={2}>
-          {item.name}
-        </Text>
-      </View>
-      {unlocked && <RarityPip rarity={item.rarity} />}
+      {/* Rarity gradient frame for unlocked epic/legendary items */}
+      {unlocked && isEpicPlus ? (
+        <LinearGradient
+          colors={[`${rarityColor}60`, `${rarityColor}15`, `${rarityColor}40`] as [string, string, string]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{
+            flex: 1,
+            padding: 1.5,
+            borderRadius: radii.md,
+          }}
+        >
+          <View style={{
+            flex: 1,
+            borderRadius: radii.md - 1,
+            backgroundColor: colors.bgCard,
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 4,
+            padding: 4,
+          }}>
+            <View style={{ width: 34, height: 34, borderRadius: radii.sm,
+              backgroundColor: `${accent}18`, alignItems: 'center', justifyContent: 'center' }}>
+              <CollectionSetIcon setId={item.setId ?? item.category} color={accent} size={18} />
+            </View>
+            <Text style={{ color: colors.t1, fontSize: 9, textAlign: 'center' }} numberOfLines={2}>
+              {item.name}
+            </Text>
+            <RarityPip rarity={item.rarity} />
+          </View>
+        </LinearGradient>
+      ) : (
+        <View style={{
+          flex: 1,
+          borderRadius: radii.md,
+          borderWidth: 1.5,
+          borderColor: unlocked ? `${accent}40` : colors.border,
+          backgroundColor: colors.bgCard,
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 4,
+          padding: 4,
+        }}>
+          <View style={{ width: 32, height: 32, borderRadius: radii.sm,
+            backgroundColor: unlocked ? `${accent}15` : colors.bg2,
+            alignItems: 'center', justifyContent: 'center' }}>
+            {unlocked ? (
+              <CollectionSetIcon setId={item.setId ?? item.category} color={accent} size={18} />
+            ) : (
+              <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
+                <Path stroke={colors.t4} strokeWidth={2} strokeLinecap="round"
+                  d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </Svg>
+            )}
+          </View>
+          <Text style={{ color: unlocked ? colors.t1 : colors.t4, fontSize: 9, textAlign: 'center' }}
+            numberOfLines={2}>
+            {item.name}
+          </Text>
+          {unlocked && <RarityPip rarity={item.rarity} />}
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -241,7 +281,7 @@ export function CollectionsScreen() {
               borderColor: viewMode === mode ? colors.sapphire : colors.border,
             }}
           >
-            <Text style={{ color: viewMode === mode ? '#FFF' : colors.t3, fontFamily: fonts.bodySemiBold, fontSize: 13 }}>
+            <Text style={{ color: viewMode === mode ? '#FFFFFF' : colors.t1, fontFamily: viewMode === mode ? fonts.bodySemiBold : fonts.body, fontSize: 13 }}>
               {mode === 'sets' ? 'Collection Sets' : 'Gallery'}
             </Text>
           </Pressable>
@@ -254,6 +294,13 @@ export function CollectionsScreen() {
             const { unlocked, total } = getSetProgress(set.id, unlockedIds);
             const complete = unlocked >= total && total > 0;
             const claimed = character?.completedCollectionSetIds?.includes(set.id);
+            const pct = total > 0 ? unlocked / total : 0;
+            const RING = 52;
+            const STROKE = 4;
+            const R = (RING - STROKE) / 2;
+            const CIRC = 2 * Math.PI * R;
+            const dash = pct * CIRC;
+            const accent = complete ? set.accentColor : colors.t4;
             return (
               <View key={set.id} style={{
                 padding: spacing.md,
@@ -261,19 +308,54 @@ export function CollectionsScreen() {
                 borderWidth: 1,
                 borderColor: complete ? set.accentColor : colors.border,
                 backgroundColor: colors.bgCard,
-                gap: spacing.sm,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: spacing.md,
               }}>
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Text style={{ color: colors.t1, fontFamily: fonts.displayBold, fontSize: 16 }}>{set.name}</Text>
-                  {claimed && <Text style={{ color: colors.emerald, fontFamily: fonts.bodyBold, fontSize: 11 }}>CLAIMED</Text>}
+                {/* Circular progress ring */}
+                <View style={{ width: RING, height: RING }}>
+                  <Svg width={RING} height={RING} viewBox={`0 0 ${RING} ${RING}`}>
+                    {/* Track */}
+                    <Circle
+                      cx={RING / 2} cy={RING / 2} r={R}
+                      stroke={colors.bg2} strokeWidth={STROKE} fill="none"
+                    />
+                    {/* Progress arc */}
+                    <Circle
+                      cx={RING / 2} cy={RING / 2} r={R}
+                      stroke={complete ? set.accentColor : `${set.accentColor}60`}
+                      strokeWidth={STROKE}
+                      fill="none"
+                      strokeDasharray={`${dash} ${CIRC - dash}`}
+                      strokeDashoffset={CIRC / 4}
+                      strokeLinecap="round"
+                    />
+                  </Svg>
+                  {/* Center icon */}
+                  <View style={{ position: 'absolute', top: 0, left: 0, width: RING, height: RING, alignItems: 'center', justifyContent: 'center' }}>
+                    <CollectionSetIcon setId={set.id} color={accent} size={18} />
+                  </View>
                 </View>
-                <Text style={{ color: colors.t3, fontFamily: fonts.body, fontSize: 12 }}>{set.description}</Text>
-                <View style={{ height: 4, backgroundColor: colors.bg2, borderRadius: 2 }}>
-                  <View style={{ height: 4, borderRadius: 2, width: `${total ? (unlocked / total) * 100 : 0}%`, backgroundColor: set.accentColor }} />
+                {/* Text column */}
+                <View style={{ flex: 1, gap: 3 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={{ color: colors.t1, fontFamily: fonts.displayBold, fontSize: 15, flex: 1 }}>{set.name}</Text>
+                    {claimed && (
+                      <View style={{ backgroundColor: `${colors.emerald}20`, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: `${colors.emerald}40` }}>
+                        <Text style={{ color: colors.emerald, fontFamily: fonts.monoSemiBold, fontSize: 9, letterSpacing: 0.5 }}>CLAIMED</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text style={{ color: colors.t3, fontFamily: fonts.body, fontSize: 11, lineHeight: 16 }} numberOfLines={2}>{set.description}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                    <Text style={{ color: complete ? set.accentColor : colors.t4, fontFamily: fonts.monoSemiBold, fontSize: 11 }}>
+                      {unlocked}/{total}
+                    </Text>
+                    <Text style={{ color: colors.t4, fontFamily: fonts.body, fontSize: 10 }}>
+                      · {set.titleReward} · 🪙{set.coinReward.toLocaleString()}{set.gemReward ? ` · 💎${set.gemReward}` : ''}
+                    </Text>
+                  </View>
                 </View>
-                <Text style={{ color: colors.t4, fontFamily: fonts.body, fontSize: 11 }}>
-                  {unlocked}/{total} · Reward: {set.titleReward} + {set.coinReward} coins{set.gemReward ? ` + ${set.gemReward} gems` : ''}
-                </Text>
               </View>
             );
           })}
@@ -281,9 +363,17 @@ export function CollectionsScreen() {
       ) : (
       <>
       {/* Category tabs */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.sm, paddingVertical: spacing.sm }}>
-        {CATEGORIES.map((cat) => {
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: spacing.lg,
+          paddingVertical: spacing.sm,
+        }}
+      >
+        {CATEGORIES.map((cat, idx) => {
           const catItems = ALL_COLLECTION_ITEMS.filter((i) => i.category === cat.id);
           const catUnlocked = catItems.filter((i) => unlockedIds.includes(i.id)).length;
           const isActive = activeCategory === cat.id;
@@ -292,20 +382,26 @@ export function CollectionsScreen() {
               key={cat.id}
               onPress={() => setActiveCategory(cat.id)}
               style={{
-                paddingHorizontal: spacing.md,
-                paddingVertical: 8,
+                flexShrink: 0,
+                minHeight: 36,
+                justifyContent: 'center',
+                paddingHorizontal: 16,
                 borderRadius: radii.full,
                 backgroundColor: isActive ? colors.sapphire : colors.bg2,
-                borderWidth: 1,
+                borderWidth: 1.5,
                 borderColor: isActive ? colors.sapphire : colors.border,
+                marginRight: idx < CATEGORIES.length - 1 ? spacing.sm : 0,
               }}
             >
-              <Text style={{
-                color: isActive ? "#FFFFFF" : colors.t3,
-                fontFamily: isActive ? fonts.bodySemiBold : fonts.body,
-                fontSize: 13,
-              }}>
-                {cat.label} ({catUnlocked}/{catItems.length})
+              <Text
+                style={{
+                  color: isActive ? "#FFFFFF" : colors.t1,
+                  fontFamily: isActive ? fonts.bodySemiBold : fonts.body,
+                  fontSize: 13,
+                }}
+                numberOfLines={1}
+              >
+                {cat.label} {catUnlocked}/{catItems.length}
               </Text>
             </Pressable>
           );

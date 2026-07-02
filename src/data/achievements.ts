@@ -92,3 +92,12 @@ const ACHIEVEMENT_LEGACY_REWARDS: Record<string, number> = {
 export const ACHIEVEMENT_COIN_REWARDS: Record<string, number> = Object.fromEntries(
   ACHIEVEMENTS.map((a, i) => [a.id, i < 12 ? (ACHIEVEMENT_LEGACY_REWARDS[a.id] ?? 200) : 150 + (i % 5) * 25]),
 );
+
+/** Variable gem payout on first unlock (legacy achievements pay more). */
+export const ACHIEVEMENT_GEM_REWARDS: Record<string, number> = Object.fromEntries(
+  ACHIEVEMENTS.map((a, i) => {
+    const legacy = ACHIEVEMENT_LEGACY_REWARDS[a.id];
+    if (legacy !== undefined) return [a.id, legacy >= 400 ? 5 : legacy >= 250 ? 3 : 2];
+    return [a.id, 1 + (i % 3)];
+  }),
+);

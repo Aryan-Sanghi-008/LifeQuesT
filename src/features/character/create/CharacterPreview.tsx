@@ -15,6 +15,7 @@ import {
 } from "@data/gameData";
 import { PRESTIGE_TRAITS } from "@engine/prestigeEngine";
 import { SCENARIOS } from "@data/scenarios";
+import { DYNASTY_CREST_LABELS } from "@data/dynastyShop";
 import { getCreateStyles } from "./styles";
 
 const BIG_FIVE_LABELS: Record<keyof BigFivePersonality, string> = {
@@ -35,6 +36,7 @@ type CharacterPreviewProps = {
   traits: string[];
   personality: BigFivePersonality;
   selectedScenario: ScenarioId;
+  familyCrestId?: string;
 };
 
 export function CharacterPreview({
@@ -47,6 +49,7 @@ export function CharacterPreview({
   traits,
   personality,
   selectedScenario,
+  familyCrestId,
 }: CharacterPreviewProps) {
   const { colors, fonts, radii, spacing, shadows } = useTheme();
   const styles = getCreateStyles(radii, spacing, shadows);
@@ -119,6 +122,30 @@ export function CharacterPreview({
           >
             {displayName}
           </Text>
+
+          {familyCrestId ? (
+            <View
+              style={[
+                styles.previewChip,
+                {
+                  backgroundColor: `${colors.gold}14`,
+                  borderWidth: 1,
+                  borderColor: `${colors.gold}44`,
+                  alignSelf: 'flex-start',
+                  marginTop: 4,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.previewChipText,
+                  { color: colors.gold, fontFamily: fonts.bodySemiBold },
+                ]}
+              >
+                {DYNASTY_CREST_LABELS[familyCrestId] ?? familyCrestId} Crest
+              </Text>
+            </View>
+          ) : null}
 
           <View style={styles.previewRow}>
             {country && (

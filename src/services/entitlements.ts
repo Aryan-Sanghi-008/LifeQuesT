@@ -3,7 +3,7 @@ import { getFirestoreDb } from '@services/firebaseClient';
 import type { UserEntitlements } from '@utils/entitlementGrants';
 
 export type { UserEntitlements } from '@utils/entitlementGrants';
-export { applyEntitlementsToCharacter, hasPendingGrants } from '@utils/entitlementGrants';
+export { applyEntitlementsToCharacter, applyEntitlementsToGlobalPrestige, hasPendingGrants } from '@utils/entitlementGrants';
 
 function getDb() {
   return getFirestoreDb();
@@ -35,6 +35,9 @@ export async function fetchUserEntitlements(uid: string): Promise<UserEntitlemen
     entitlements.luckBoostGrant = data.luckBoostGrant;
   }
   if (data.reincarnationScroll === true) entitlements.reincarnationScroll = true;
+  if (Array.isArray(data.unlockedScenarioIds)) {
+    entitlements.unlockedScenarioIds = data.unlockedScenarioIds as UserEntitlements['unlockedScenarioIds'];
+  }
 
   return entitlements;
 }

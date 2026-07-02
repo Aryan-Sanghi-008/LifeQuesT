@@ -11,6 +11,19 @@ jest.mock('@services/persistence', () => ({
   setDailyBonusLastClaim: jest.fn(),
 }));
 
+jest.mock('@services/userBootstrap', () => ({
+  bootstrapCloudUser: jest.fn(() => Promise.resolve({
+    entitlements: null,
+    settings: null,
+    profileCreated: false,
+  })),
+}));
+
+jest.mock('@services/settingsSync', () => ({
+  applyCloudSettings: jest.fn(),
+  bindSettingsCloudSync: jest.fn(() => null),
+}));
+
 jest.mock('@services/cloudSave', () => ({
   syncSaveToCloud: jest.fn(),
   pullCloudSaveIfNewer: jest.fn(),

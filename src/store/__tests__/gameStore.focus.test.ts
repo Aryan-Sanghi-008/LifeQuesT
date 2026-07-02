@@ -68,8 +68,8 @@ describe('gameStore focus flow', () => {
     jest.clearAllMocks();
   });
 
-  it('blocks ageUp without confirmed focus for teens', () => {
-    useGameStore.getState().ageUp();
+  it('blocks ageUp without confirmed focus for teens', async () => {
+    await useGameStore.getState().ageUp();
     expect(useGameStore.getState().character?.age).toBe(16);
   });
 
@@ -94,12 +94,12 @@ describe('gameStore focus flow', () => {
     expect(useGameStore.getState().character?.focusConfirmedForAge).toBe(16);
   });
 
-  it('allows ageUp after focus is confirmed', () => {
+  it('allows ageUp after focus is confirmed', async () => {
     const character = readyToAgeUp({ age: 24 });
     expect(runAgeUp(character).type).not.toBe('jail_tick');
 
     useGameStore.setState({ character });
-    useGameStore.getState().ageUp();
+    await useGameStore.getState().ageUp();
     expect(useGameStore.getState().character?.age).toBe(25);
     expect(useGameStore.getState().character?.lifePhase).toBe('review');
   });

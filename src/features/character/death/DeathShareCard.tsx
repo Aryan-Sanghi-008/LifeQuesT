@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import ViewShot from 'react-native-view-shot';
 import Svg, { Path } from 'react-native-svg';
 import { useTheme } from '@theme';
+import { CharacterNameText } from '@shared/components/CharacterNameText';
 import { Character } from '@/types';
 import { formatCurrency } from '@utils/currency';
 
@@ -22,12 +23,12 @@ export function DeathShareCard({ character, deathAge, score, country }: Props) {
     try {
       const uri = await shotRef.current?.capture?.();
       if (uri) {
-        await Share.share({ url: uri, message: `${character.name} — ${deathAge} years. LifeQuesT.` });
+        await Share.share({ url: uri, message: `${character.name} — ${deathAge} years. LifeQuest.` });
       } else {
-        await Share.share({ message: `${character.name} lived to age ${deathAge} with a score of ${score}. LifeQuesT.` });
+        await Share.share({ message: `${character.name} lived to age ${deathAge} with a score of ${score}. LifeQuest.` });
       }
     } catch {
-      await Share.share({ message: `${character.name} lived to age ${deathAge}. LifeQuesT.` });
+      await Share.share({ message: `${character.name} lived to age ${deathAge}. LifeQuest.` });
     }
   }, [character.name, deathAge, score]);
 
@@ -39,7 +40,10 @@ export function DeathShareCard({ character, deathAge, score, country }: Props) {
           style={[styles.shareCard, { borderRadius: radii.lg, borderColor: `${colors.gold}40` }]}
         >
           <Text style={[styles.brand, { color: colors.gold, fontFamily: fonts.bodyBold }]}>LIFEQUESTTM</Text>
-          <Text style={[styles.shareName, { color: '#FFFFFF', fontFamily: fonts.displayBlack }]}>{character.name}</Text>
+          <CharacterNameText
+            name={character.name}
+            style={[styles.shareName, { color: '#FFFFFF', fontFamily: fonts.displayBlack }]}
+          />
           <Text style={[styles.shareAge, { color: colors.t3, fontFamily: fonts.body }]}>
             {character.birthYear} – {character.birthYear + deathAge} · Aged {deathAge}
           </Text>

@@ -81,6 +81,18 @@ export async function openLegalUrlSafe(url: string, title: string): Promise<void
   return openLegalUrl(resolved);
 }
 
+export function getSupportUrl(): string | null {
+  const configured = process.env.EXPO_PUBLIC_SUPPORT_URL?.trim();
+  return configured || null;
+}
+
+export async function openSupportUrlSafe(): Promise<boolean> {
+  const url = getSupportUrl();
+  if (!url) return false;
+  await openLegalUrl(url);
+  return true;
+}
+
 export { DEFAULT_PRIVACY_PATH, DEFAULT_TERMS_PATH };
 
 /** COPPA minimum age for account creation */

@@ -31,12 +31,12 @@ export function buildQuestResetBody(
   loginDay = getLoginRewardDay(),
 ): string {
   const topCoins = quests.reduce((max, q) => Math.max(max, q.rewardCoins), 0);
+  if (topCoins > 0) {
+    return `Your daily quests just reset. Today's top reward: 🪙 ${topCoins} Coins`;
+  }
   const loginReward = LOGIN_REWARD_SCHEDULE[(loginDay - 1) % LOGIN_REWARD_SCHEDULE.length];
   if (loginReward?.gems && loginReward.gems > 0) {
     return `Your daily quests just reset. Today's top reward: 💎 ${loginReward.gems} Gems`;
-  }
-  if (topCoins > 0) {
-    return `Your daily quests just reset. Today's top reward: 🪙 ${topCoins} Coins`;
   }
   return 'Your daily quests just reset. Log in to claim rewards and keep your streak!';
 }
@@ -47,7 +47,7 @@ export function buildStreakRiskBody(streak: number): string {
 
 export function buildAbsenceBody(age: number): string {
   const projected = age + 2;
-  return `Life goes on without you... Age ${age} → ${projected} happened while you were away`;
+  return `You were away — time caught up. Your character aged from ${age} to ${projected}. Come back to keep living!`;
 }
 
 export function buildWorldEventBody(event: WorldEvent): string {
@@ -83,6 +83,18 @@ export function getAbsenceTriggerDate(lastActiveDate: string): Date | null {
   trigger.setDate(trigger.getDate() + 2);
   trigger.setHours(10, 0, 0, 0);
   return trigger.getTime() > Date.now() ? trigger : null;
+}
+
+export function getDaysSinceActive(lastActiveDate: string, today = getTodayKey()): number {
+  const lastMs = new Date(`${lastActiveDate}T12:00:00`).getTime();
+  const todayMs = new Date(`${today}T12:00:00`).getTime();
+  if (Number.isNaN(lastMs) || Number.isNaN(todayMs)) return 0;
+  return Math.round((todayMs - lastMs) / (1000 * 60 * 60 * 24));
+}
+
+/** True when the player has already been away 2+ days (missed scheduled absence ping). */
+export function shouldCatchUpAbsenceNotification(lastActiveDate: string): boolean {
+  return getDaysSinceActive(lastActiveDate) >= 2;
 }
 
 export function shouldScheduleStreakRisk(

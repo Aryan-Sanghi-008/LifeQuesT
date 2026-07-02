@@ -11,8 +11,8 @@ type SettingsStorage = {
 };
 
 let settingsStorage: SettingsStorage | null = null;
-let asyncHydrated = false;
-const asyncCache = new Map<string, string>();
+let webFallbackStore = new Map<string, string>();
+let webHydratePromise: Promise<void> | null = null;
 
 function getSettingsStorage(): SettingsStorage {
   if (settingsStorage) return settingsStorage;
@@ -33,30 +33,62 @@ function getSettingsStorage(): SettingsStorage {
   }
 
   settingsStorage = {
-    getString: (key) => asyncCache.get(key),
+    getString: (key) => webFallbackStore.get(key),
     set: (key, value) => {
-      asyncCache.set(key, value);
+      webFallbackStore.set(key, value);
       void AsyncStorage.setItem(`lq_settings:${key}`, value);
     },
   };
   return settingsStorage;
 }
 
-async function hydrateAsyncSettings(): Promise<void> {
-  if (asyncHydrated || isMmkvAvailable()) return;
-  asyncHydrated = true;
-  try {
-    const keys = await AsyncStorage.getAllKeys();
-    const settingKeys = keys.filter(k => k.startsWith('lq_settings:'));
-    if (settingKeys.length === 0) return;
-    const pairs = await AsyncStorage.multiGet(settingKeys);
-    for (const [fullKey, value] of pairs) {
-      if (value == null) continue;
-      asyncCache.set(fullKey.replace('lq_settings:', ''), value);
-    }
-  } catch (e) {
-    console.warn('[settings] AsyncStorage hydrate failed', e);
+async function hydrateWebSettings(): Promise<void> {
+  if (isMmkvAvailable()) return;
+  if (webHydratePromise) {
+    await webHydratePromise;
+    return;
   }
+
+  webHydratePromise = (async () => {
+    try {
+      const keys = await AsyncStorage.getAllKeys();
+      const settingKeys = keys.filter((k) => k.startsWith('lq_settings:'));
+      if (settingKeys.length === 0) return;
+      const pairs = await AsyncStorage.multiGet(settingKeys);
+      for (const [fullKey, value] of pairs) {
+        if (value == null) continue;
+        webFallbackStore.set(fullKey.replace('lq_settings:', ''), value);
+      }
+    } catch (e) {
+      console.warn('[settings] AsyncStorage hydrate failed', e);
+    }
+  })();
+
+  await webHydratePromise;
+}
+
+/** Ensures persisted settings are loaded before reading sound/haptics flags. */
+export async function hydrateSettingsStore(): Promise<void> {
+  await hydrateWebSettings();
+  const patch: Partial<SettingsState> = {
+    masterVolume: load('masterVolume', DEFAULTS.masterVolume),
+    soundEnabled: load('soundEnabled', DEFAULTS.soundEnabled),
+    musicEnabled: load('musicEnabled', DEFAULTS.musicEnabled),
+    musicVolume: load('musicVolume', DEFAULTS.musicVolume),
+    hapticsEnabled: load('hapticsEnabled', DEFAULTS.hapticsEnabled),
+    notificationsEnabled: load('notificationsEnabled', DEFAULTS.notificationsEnabled),
+    reducedMotion: load('reducedMotion', DEFAULTS.reducedMotion),
+    colorScheme: load<'light' | 'dark' | 'system'>('colorScheme', DEFAULTS.colorScheme),
+    appThemeId: load('appThemeId', DEFAULTS.appThemeId),
+    equippedEventSkinId: load<string | null>('equippedEventSkinId', DEFAULTS.equippedEventSkinId),
+    equippedNameFontId: load<string | null>('equippedNameFontId', DEFAULTS.equippedNameFontId),
+    equippedSoundPackId: load<string | null>('equippedSoundPackId', DEFAULTS.equippedSoundPackId),
+    equippedProfileFrameId: load<string | null>('equippedProfileFrameId', DEFAULTS.equippedProfileFrameId),
+    onboardingComplete: load('onboardingComplete', DEFAULTS.onboardingComplete),
+    ageGateVerified: load('ageGateVerified', DEFAULTS.ageGateVerified),
+    verifiedAge: load<number | null>('verifiedAge', DEFAULTS.verifiedAge),
+  };
+  useSettingsStore.setState(patch);
 }
 
 export interface SettingsState {
@@ -75,6 +107,11 @@ export interface SettingsState {
   // Display
   reducedMotion: boolean;
   colorScheme: 'light' | 'dark' | 'system';
+  appThemeId: 'default' | 'dark_slate' | 'midnight' | 'sunrise';
+  equippedEventSkinId: string | null;
+  equippedNameFontId: string | null;
+  equippedSoundPackId: string | null;
+  equippedProfileFrameId: string | null;
 
   // Onboarding / legal
   onboardingComplete: boolean;
@@ -90,6 +127,11 @@ export interface SettingsState {
   setNotificationsEnabled: (v: boolean) => void;
   setReducedMotion: (v: boolean) => void;
   setColorScheme: (v: 'light' | 'dark' | 'system') => void;
+  setAppThemeId: (v: 'default' | 'dark_slate' | 'midnight' | 'sunrise') => void;
+  setEquippedEventSkinId: (v: string | null) => void;
+  setEquippedNameFontId: (v: string | null) => void;
+  setEquippedSoundPackId: (v: string | null) => void;
+  setEquippedProfileFrameId: (v: string | null) => void;
   setOnboardingComplete: (v: boolean) => void;
   setAgeGateVerified: (age: number) => void;
   resetToDefaults: () => void;
@@ -104,6 +146,11 @@ const DEFAULTS = {
   notificationsEnabled: true,
   reducedMotion: false,
   colorScheme: 'system' as 'light' | 'dark' | 'system',
+  appThemeId: 'default' as 'default' | 'dark_slate' | 'midnight' | 'sunrise',
+  equippedEventSkinId: null as string | null,
+  equippedNameFontId: null as string | null,
+  equippedSoundPackId: null as string | null,
+  equippedProfileFrameId: null as string | null,
   onboardingComplete: false,
   ageGateVerified: false,
   verifiedAge: null as number | null,
@@ -117,8 +164,11 @@ function load<T>(key: string, defaultVal: T): T {
     if (typeof defaultVal === 'number') return parseFloat(raw) as unknown as T;
     if (defaultVal === null) {
       if (raw === 'null' || raw === '') return null as T;
-      const n = Number(raw);
-      return (Number.isNaN(n) ? null : n) as T;
+      if (/^-?\d+(\.\d+)?$/.test(raw)) {
+        const n = Number(raw);
+        return (Number.isNaN(n) ? null : n) as T;
+      }
+      return raw as T;
     }
     return JSON.parse(raw) as T;
   } catch {
@@ -155,7 +205,7 @@ function migrateLegacyPreferences(): Partial<SettingsState> {
 
 const legacyPatch = migrateLegacyPreferences();
 
-void hydrateAsyncSettings();
+void hydrateWebSettings();
 
 export const useSettingsStore = create<SettingsState>()((set) => ({
   masterVolume: load('masterVolume', DEFAULTS.masterVolume),
@@ -166,6 +216,11 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
   notificationsEnabled: load('notificationsEnabled', DEFAULTS.notificationsEnabled),
   reducedMotion: load('reducedMotion', DEFAULTS.reducedMotion),
   colorScheme: load<'light' | 'dark' | 'system'>('colorScheme', DEFAULTS.colorScheme),
+  appThemeId: load<'default' | 'dark_slate' | 'midnight' | 'sunrise'>('appThemeId', DEFAULTS.appThemeId),
+  equippedEventSkinId: load<string | null>('equippedEventSkinId', DEFAULTS.equippedEventSkinId),
+  equippedNameFontId: load<string | null>('equippedNameFontId', DEFAULTS.equippedNameFontId),
+  equippedSoundPackId: load<string | null>('equippedSoundPackId', DEFAULTS.equippedSoundPackId),
+  equippedProfileFrameId: load<string | null>('equippedProfileFrameId', DEFAULTS.equippedProfileFrameId),
   onboardingComplete: load('onboardingComplete', DEFAULTS.onboardingComplete),
   ageGateVerified: load('ageGateVerified', DEFAULTS.ageGateVerified),
   verifiedAge: load<number | null>('verifiedAge', DEFAULTS.verifiedAge),
@@ -176,6 +231,12 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
   },
   setSoundEnabled: (v) => {
     save('soundEnabled', v);
+    try {
+      const persistence = require('@services/persistence') as typeof import('@services/persistence');
+      persistence.setSoundEnabled(v);
+    } catch {
+      /* persistence optional in tests */
+    }
     set({ soundEnabled: v });
   },
   setMusicEnabled: (v) => {
@@ -188,6 +249,12 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
   },
   setHapticsEnabled: (v) => {
     save('hapticsEnabled', v);
+    try {
+      const persistence = require('@services/persistence') as typeof import('@services/persistence');
+      persistence.setHapticsEnabled(v);
+    } catch {
+      /* persistence optional in tests */
+    }
     set({ hapticsEnabled: v });
   },
   setNotificationsEnabled: (v) => {
@@ -201,6 +268,26 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
   setColorScheme: (v) => {
     save('colorScheme', v);
     set({ colorScheme: v });
+  },
+  setAppThemeId: (v) => {
+    save('appThemeId', v);
+    set({ appThemeId: v });
+  },
+  setEquippedEventSkinId: (v) => {
+    save('equippedEventSkinId', v ?? '');
+    set({ equippedEventSkinId: v });
+  },
+  setEquippedNameFontId: (v) => {
+    save('equippedNameFontId', v ?? '');
+    set({ equippedNameFontId: v });
+  },
+  setEquippedSoundPackId: (v) => {
+    save('equippedSoundPackId', v ?? '');
+    set({ equippedSoundPackId: v });
+  },
+  setEquippedProfileFrameId: (v) => {
+    save('equippedProfileFrameId', v ?? '');
+    set({ equippedProfileFrameId: v });
   },
   setOnboardingComplete: (v) => {
     save('onboardingComplete', v);

@@ -3,6 +3,8 @@ import { View, Text, Pressable, Animated, StyleSheet } from "react-native";
 import { BottomSheet } from "./BottomSheet";
 import { LifeEvent, EventChoice, Character } from "@/types";
 import { useTheme } from "@theme";
+import { useEquippedEventSkin } from "@shared/hooks/useEquippedEventSkin";
+import type { EventSkinStyle } from "@data/eventSkinStyles";
 import Svg, { Path } from "react-native-svg";
 import { hapticDecision, hapticButtonPress } from "@services/haptics";
 import { playSound } from "@services/audio";
@@ -119,9 +121,10 @@ interface ChoiceCardProps {
   index: number;
   accentColor: string;
   character: Character | null;
+  eventSkin: EventSkinStyle;
 }
 
-function ChoiceCard({ choice, onPress, index, accentColor, character }: ChoiceCardProps) {
+function ChoiceCard({ choice, onPress, index, accentColor, character, eventSkin }: ChoiceCardProps) {
   const { colors, fonts, radii } = useTheme();
   const scale = useRef(new Animated.Value(1)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -215,8 +218,8 @@ function ChoiceCard({ choice, onPress, index, accentColor, character }: ChoiceCa
           style={[
             styles.choiceCard,
             {
-              backgroundColor: colors.bgCard,
-              borderColor: `${accentColor}25`,
+              backgroundColor: eventSkin.id !== 'default' ? eventSkin.cardBg : colors.bgCard,
+              borderColor: eventSkin.id !== 'default' ? eventSkin.cardBorder : `${accentColor}25`,
               borderRadius: radii.md,
             },
           ]}
@@ -245,7 +248,10 @@ function ChoiceCard({ choice, onPress, index, accentColor, character }: ChoiceCa
             <Text
               style={[
                 styles.choiceTitle,
-                { color: colors.t1, fontFamily: fonts.bodySemiBold },
+                {
+                  color: eventSkin.titleColor ?? colors.t1,
+                  fontFamily: fonts.bodySemiBold,
+                },
               ]}
             >
               {choice.text}
@@ -254,7 +260,10 @@ function ChoiceCard({ choice, onPress, index, accentColor, character }: ChoiceCa
               <Text
                 style={[
                   styles.choiceSub,
-                  { color: colors.t3, fontFamily: fonts.body },
+                  {
+                    color: eventSkin.bodyColor ?? colors.t3,
+                    fontFamily: fonts.body,
+                  },
                 ]}
               >
                 {choice.subtext}
@@ -341,6 +350,7 @@ export default function DecisionSheet({
   onClose,
 }: DecisionSheetProps) {
   const { colors, fonts, spacing } = useTheme();
+  const eventSkin = useEquippedEventSkin();
   const character = useGameStore((s) => s.character);
   const [displayEvent, setDisplayEvent] = useState<LifeEvent | null>(null);
 
@@ -397,7 +407,7 @@ export default function DecisionSheet({
         style={[
           styles.title,
           {
-            color: colors.t1,
+            color: eventSkin.titleColor ?? colors.t1,
             fontFamily: fonts.displayBold,
             marginBottom: spacing.sm,
           },
@@ -409,7 +419,7 @@ export default function DecisionSheet({
         style={[
           styles.desc,
           {
-            color: colors.t3,
+            color: eventSkin.bodyColor ?? colors.t3,
             fontFamily: fonts.body,
             marginBottom: spacing.lg,
           },
@@ -466,6 +476,7 @@ export default function DecisionSheet({
             index={i}
             accentColor={accentColor}
             character={character}
+            eventSkin={eventSkin}
             onPress={() => {
               hapticDecision();
               void playSound("decision_made");
