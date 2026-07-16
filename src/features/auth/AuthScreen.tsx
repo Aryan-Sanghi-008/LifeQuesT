@@ -8,9 +8,8 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/types';
 import { useThemedStyles, useTheme } from '@theme';
 import LifeGlyph from '@components/LifeGlyph';
-import { GradientButton } from '@components/index';
 import { DiceBearAvatar } from '@components/Avatars';
-import { signInWithGoogle, signInAsGuest, isGoogleSignInAvailable } from "./services/auth";
+import { signInWithGoogle, isGoogleSignInAvailable } from "./services/auth";
 import { useAuth } from './hooks/useAuth';
 import { useReducedMotion } from '@hooks/useReducedMotion';
 import { logEvent } from '@services/analytics';
@@ -214,12 +213,12 @@ export default function AuthScreen({ navigation: _navigation }: Props) {
   const { colors, isDark } = useTheme();
   const styles = useThemedStyles(createStyles);
   const { onUserChanged } = useAuth();
-  const [loading, setLoading] = useState<'google' | 'guest' | null>(null);
+  const [loading, setLoading] = useState<'google' | null>(null);
   const [legalAccepted, setLegalAccepted] = useState(false);
   const googleSignInAvailable = isGoogleSignInAvailable();
 
   const reducedMotion = useReducedMotion();
-  const anims = useStaggeredEntrance(7, 120, reducedMotion);
+  const anims = useStaggeredEntrance(6, 120, reducedMotion);
 
   const makeEntrance = (idx: number) => ({
     opacity: anims[idx],
@@ -261,20 +260,6 @@ export default function AuthScreen({ navigation: _navigation }: Props) {
       // RootNavigator automatically navigates when user state updates.
     } catch (e) {
       Alert.alert('Sign In Failed', (e as Error).message);
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  const handleGuest = async () => {
-    setLoading('guest');
-    try {
-      const user = await signInAsGuest();
-      await onUserChanged(user);
-      void logEvent('sign_in', { method: 'guest' });
-      // RootNavigator automatically navigates when user state updates.
-    } catch (e) {
-      Alert.alert('Error', (e as Error).message);
     } finally {
       setLoading(null);
     }
@@ -375,34 +360,14 @@ export default function AuthScreen({ navigation: _navigation }: Props) {
               </Pressable>
             ) : (
               <Text style={styles.unavailableHint}>
-                Google Sign-In requires a development build.{`\n`}Use Guest mode to play now.
+                Google Sign-In requires a development build.
               </Text>
             )}
 
-            <GradientButton
-              label={loading === 'guest' ? '' : 'Play as Guest'}
-              accessibilityLabel="Play as guest"
-              onPress={() => void handleGuest()}
-              colors={[colors.sapphire, colors.sapphire2]}
-              textColor="#FFFFFF"
-              loading={loading === 'guest'}
-              disabled={loading !== null || !legalAccepted}
-              style={{ width: '100%' }}
-            />
-          </Animated.View>
-
-          {/* Social proof + rating */}
-          <Animated.View style={[styles.proof, makeEntrance(5)]}>
-            <View style={styles.stars}>
-              {[0,1,2,3,4].map(i => (
-                <Text key={i} style={styles.star}>★</Text>
-              ))}
-            </View>
-            <Text style={styles.proofText}>4.8 · #1 Life Sim · 2M+ lives lived</Text>
           </Animated.View>
 
           {/* Legal note */}
-          <Animated.View style={makeEntrance(6)}>
+          <Animated.View style={makeEntrance(5)}>
             <Text style={styles.legal}>
               You must accept our Terms and Privacy Policy before creating an account.
             </Text>
@@ -577,17 +542,6 @@ const createStyles = ({ colors, fonts, spacing, radii }: ReturnType<typeof useTh
     textAlign: 'center',
     lineHeight: 18,
     paddingHorizontal: spacing.sm,
-  },
-
-  // Social proof
-  proof: { alignItems: 'center', gap: 3 },
-  stars: { flexDirection: 'row', gap: 2 },
-  star: { fontSize: 13, color: colors.gold },
-  proofText: {
-    fontFamily: fonts.body,
-    fontSize: 11,
-    color: colors.t4,
-    textAlign: 'center',
   },
 
   // Legal

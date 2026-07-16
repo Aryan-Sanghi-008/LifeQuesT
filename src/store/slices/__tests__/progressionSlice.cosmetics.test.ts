@@ -50,6 +50,7 @@ jest.mock('@services/audio', () => ({
 }));
 
 import { createTestCharacter } from '../../../test/fixtures/character';
+import { defaultGlobalPrestige } from '../../../test/seedGameStore';
 
 let useGameStore: typeof import('@store/gameStore').useGameStore;
 let useSettingsStore: typeof import('@store/settingsStore').useSettingsStore;
@@ -71,10 +72,8 @@ describe('progressionSlice cosmetics', () => {
     useGameStore.setState({
       character,
       globalPrestige: {
-        totalPrestigePoints: 0,
+        ...defaultGlobalPrestige(),
         unlockedCosmeticIds: [],
-        unlockedScenarioIds: [],
-        plusCosmeticMonth: null,
       },
       isHydrated: true,
     });
