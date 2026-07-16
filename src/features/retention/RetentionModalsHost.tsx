@@ -1,20 +1,22 @@
-import { useGameStore } from '@store/gameStore';
 import { AchievementUnlockModal } from '@features/life/achievements/AchievementUnlockModal';
 import { ReturnAbsenceModal } from '@features/retention/ReturnAbsenceModal';
 import { DynastyMilestoneModal } from '@features/retention/DynastyMilestoneModal';
 import { CollectionSetCompleteModal } from '@features/collections/CollectionSetCompleteModal';
+import { useRetentionModals } from '@features/retention/hooks/useRetentionModals';
 
 /** Global retention modals mounted once at app root. */
 export function RetentionModalsHost() {
-  const character = useGameStore((s) => s.character);
-  const queue = useGameStore((s) => s.achievementUnlockQueue);
-  const dismissAchievement = useGameStore((s) => s.dismissAchievementUnlock);
-  const pendingAbsence = useGameStore((s) => s.pendingAbsenceBonus);
-  const claimAbsence = useGameStore((s) => s.claimAbsenceBonus);
-  const dynastyQueue = useGameStore((s) => s.dynastyMilestoneQueue);
-  const dismissDynasty = useGameStore((s) => s.dismissDynastyMilestone);
-  const collectionQueue = useGameStore((s) => s.collectionSetCompleteQueue);
-  const dismissCollection = useGameStore((s) => s.dismissCollectionSetComplete);
+  const {
+    character,
+    queue,
+    dismissAchievement,
+    pendingAbsence,
+    claimAbsence,
+    dynastyQueue,
+    dismissDynasty,
+    collectionQueue,
+    dismissCollection,
+  } = useRetentionModals();
 
   return (
     <>

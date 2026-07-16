@@ -1,4 +1,4 @@
-import { getCountryEconomy } from './countryEconomy';
+import { scaleEducationCost } from '../engine/countryScaleEngine';
 
 export interface CertificationDefinition {
   id: string;
@@ -54,8 +54,7 @@ export function getCertificationById(id: string): CertificationDefinition | unde
 }
 
 export function getScaledCertificationCost(baseCostUSD: number, countryCode: string): number {
-  const eco = getCountryEconomy(countryCode);
-  return Math.round(baseCostUSD * eco.salaryMultiplier);
+  return scaleEducationCost(baseCostUSD, countryCode);
 }
 
 export function getCertificationLabel(id: string): string {

@@ -33,6 +33,12 @@ export function needsAspirationRoute(state: GameNavState & { pendingAspirationPi
   return Boolean(state.character?.isAlive && state.pendingAspirationPicker);
 }
 
+export function needsCollegeMajorRoute(
+  state: GameNavState & { pendingCollegeMajorPicker?: boolean },
+): boolean {
+  return Boolean(state.character?.isAlive && state.pendingCollegeMajorPicker);
+}
+
 export function needsCourtRoute(state: GameNavState & { pendingCourt?: boolean }): boolean {
   return Boolean(state.character?.isAlive && state.pendingCourt);
 }

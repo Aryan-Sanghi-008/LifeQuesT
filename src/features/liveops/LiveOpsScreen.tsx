@@ -5,6 +5,8 @@ import { useThemedStyles, useTheme } from '@theme';
 import { LinearGradient } from "expo-linear-gradient";
 import { getCurrentSeason, formatModifierPercent } from "../../engine/liveOpsEngine";
 import { computeNetWorth } from "../../engine/economyEngine";
+import { getChallengeWealthTarget } from "../../data/countryEconomy";
+import { formatCurrency } from "@utils/currency";
 import { ScreenHeader } from "@components/ScreenHeader";
 import Svg, { Path } from "react-native-svg";
 
@@ -16,11 +18,13 @@ export default function LiveOpsScreen() {
 
   const netWorth = character ? computeNetWorth(character) : 0;
   const age = character ? character.age : 0;
+  const countryCode = character?.countryCode ?? 'US';
+  const wealthTarget = getChallengeWealthTarget(countryCode, 2_000_000);
 
   const challenge = season.challenge;
   const challengeComplete = character ? challenge.check(character) : false;
   const ageComplete = character ? character.age >= 90 : false;
-  const netWorthComplete = netWorth >= 2000000;
+  const netWorthComplete = netWorth >= wealthTarget;
   const expenseLabel = formatModifierPercent(season.activeModifiers.expenseMultiplier);
   const maintenanceLabel = formatModifierPercent(season.activeModifiers.maintenanceMultiplier);
   const stockLabel = formatModifierPercent(1 + season.activeModifiers.stockReturnBonus);
@@ -166,7 +170,7 @@ export default function LiveOpsScreen() {
                 {/* Net Worth Criteria */}
                 <View style={styles.criteriaRow}>
                   <Text style={styles.criteriaLabel}>
-                    Peak Net Worth {">="} $2M
+                    Peak Net Worth target
                   </Text>
                   <View style={styles.criteriaStatus}>
                     <Text
@@ -177,7 +181,7 @@ export default function LiveOpsScreen() {
                           : { color: "#94A3B8" },
                       ]}
                     >
-                      ${(netWorth / 1000000).toFixed(2)}M / $2.00M
+                      {formatCurrency(netWorth, countryCode)} / {formatCurrency(wealthTarget, countryCode)}
                     </Text>
                     {netWorthComplete ? (
                       <Svg

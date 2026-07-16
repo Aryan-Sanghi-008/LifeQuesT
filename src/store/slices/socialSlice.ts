@@ -97,7 +97,7 @@ export const createSocialSlice: StateCreator<
     const { character } = get();
     if (!character) return { delta: 0, message: "No character." };
 
-    const interaction = getInteraction(interactionId);
+    const interaction = getInteraction(interactionId, character.countryCode);
     if (!interaction) return { delta: 0, message: "Unknown interaction." };
 
     const person = character.people.find((p) => p.id === personId);
@@ -110,13 +110,11 @@ export const createSocialSlice: StateCreator<
       };
     }
 
-    const rolled = rollInteraction(interaction);
-    if (
-      rolled.bankDelta < 0 &&
-      character.bankBalance < Math.abs(rolled.bankDelta)
-    ) {
-      return { delta: 0, message: "Not enough money for that." };
-    }
+    const rolled = rollInteraction(
+      interaction,
+      character.personality,
+      character.traits ?? [],
+    );
 
     const { stats, karma, bankBalance, debt } = applyEffect(
       character.stats,

@@ -579,6 +579,110 @@ export function getDegreesUnlockingCareer(careerId: string): Degree[] {
   return DEGREES.filter((d) => d.unlocksCareerIds.includes(careerId));
 }
 
+/** Prefer region-relevant programs first (same IDs; sort + label overlays only). */
+const COUNTRY_DEGREE_PRIORITY: Record<string, string[]> = {
+  IN: [
+    'be_civil',
+    'be_mechanical',
+    'bsc_cs',
+    'mbbs',
+    'bcom',
+    'llb',
+    'bba',
+    'diploma_cs',
+    'mba',
+    'md',
+    'llm',
+  ],
+  US: [
+    'bsc_cs',
+    'bsc_psychology',
+    'ba_economics',
+    'mbbs',
+    'bba',
+    'llb',
+    'mba',
+    'md',
+    'msc_cs',
+  ],
+  GB: [
+    'bsc_cs',
+    'ba_economics',
+    'llb',
+    'mbbs',
+    'bba',
+    'mba',
+    'msc_cs',
+    'llm',
+  ],
+  AU: [
+    'bsc_cs',
+    'be_civil',
+    'mbbs',
+    'bba',
+    'ba_economics',
+    'mba',
+  ],
+};
+
+const COUNTRY_SHORT_LABELS: Record<string, Record<string, string>> = {
+  IN: {
+    bsc_cs: 'B.Tech CS',
+    be_civil: 'B.E. Civil',
+    be_mechanical: 'B.E. Mech',
+    mbbs: 'MBBS',
+    bcom: 'B.Com',
+    llb: 'LL.B',
+    mba: 'MBA',
+    md: 'M.D.',
+  },
+  US: {
+    bsc_cs: 'B.S. CS',
+    be_civil: 'B.S. Civil Eng',
+    bsc_psychology: 'B.S. Psych',
+    mbbs: 'Pre-Med Track',
+    bba: 'B.B.A.',
+    llb: 'J.D. Track',
+    mba: 'M.B.A.',
+    md: 'M.D.',
+  },
+  GB: {
+    bsc_cs: 'BSc CS',
+    be_civil: 'BEng Civil',
+    mbbs: 'MBChB',
+    ba_economics: 'BA Economics',
+    llb: 'LLB',
+    mba: 'MBA',
+    msc_cs: 'MSc CS',
+  },
+};
+
+export function localizeDegreeForCountry(degree: Degree, countryCode?: string): Degree {
+  const code = countryCode ?? 'US';
+  const short = COUNTRY_SHORT_LABELS[code]?.[degree.id];
+  if (!short) return degree;
+  return { ...degree, shortLabel: short };
+}
+
+export function getDegreesForCountry(countryCode?: string): Degree[] {
+  const code = countryCode ?? 'US';
+  const priority = COUNTRY_DEGREE_PRIORITY[code] ?? COUNTRY_DEGREE_PRIORITY.US ?? [];
+  const rank = new Map(priority.map((id, i) => [id, i]));
+
+  return [...DEGREES]
+    .map((d) => localizeDegreeForCountry(d, code))
+    .sort((a, b) => {
+      const ra = rank.has(a.id) ? rank.get(a.id)! : 1000;
+      const rb = rank.has(b.id) ? rank.get(b.id)! : 1000;
+      if (ra !== rb) return ra - rb;
+      if (a.stage !== b.stage) {
+        const stageOrder = { diploma: 0, undergraduate: 1, masters: 2, phd: 3 };
+        return (stageOrder[a.stage] ?? 9) - (stageOrder[b.stage] ?? 9);
+      }
+      return a.label.localeCompare(b.label);
+    });
+}
+
 /** Map legacy EducationLevel to new EducationStage for backward compat */
 export function legacyLevelToStage(level: string): EducationStage {
   const map: Record<string, EducationStage> = {

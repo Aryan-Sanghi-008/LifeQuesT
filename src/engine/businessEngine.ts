@@ -1,5 +1,9 @@
 import { Business, BusinessEmployee, Character } from '../types';
 import { getCareerById } from '../data/careerPaths';
+import { getFranchiseById, type FranchiseDef } from '../data/franchises';
+import { getDegreeById } from '../data/educationDegrees';
+import { scaleCountryAmount } from './countryScaleEngine';
+import { getFinancedPurchaseTerms } from './financingEngine';
 
 function generateId(prefix: string): string {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
@@ -39,15 +43,100 @@ function isEntrepreneurCareer(character: Character): boolean {
     || character.career?.title === entrepreneurPath.label;
 }
 
+function hasBusinessEducation(character: Character): boolean {
+  const branch = character.educationBranch;
+  if (branch === 'business' || branch === 'commerce') return true;
+  return (character.degreeIds ?? []).some((id) => {
+    const d = getDegreeById(id);
+    return d?.branch === 'business' || d?.branch === 'commerce';
+  });
+}
+
+/** Soft boost: entrepreneur or business education — not a hard gate. */
+export function hasFranchiseSoftBoost(character: Character): boolean {
+  return isEntrepreneurCareer(character)
+    || character.eventHistory.some((e) => e.id === 'startup')
+    || hasBusinessEducation(character);
+}
+
+/** Legacy gate kept for free-form foundBusiness(name). */
 export function canFoundBusiness(character: Character): boolean {
   return isEntrepreneurCareer(character)
     || character.eventHistory.some(e => e.id === 'startup');
 }
 
+export function getFranchiseEntryCost(
+  franchise: FranchiseDef,
+  character: Character,
+): number {
+  const cc = character.countryCode ?? 'US';
+  let cost = scaleCountryAmount(franchise.entryCostUsd, cc, 'cost');
+  if (hasFranchiseSoftBoost(character)) {
+    cost = Math.round(cost * 0.9);
+  }
+  return cost;
+}
+
+export function canFoundFranchise(
+  character: Character,
+  franchiseId: string,
+): { ok: boolean; message: string; entryCost: number; terms?: ReturnType<typeof getFinancedPurchaseTerms> } {
+  const franchise = getFranchiseById(franchiseId);
+  if (!franchise) return { ok: false, message: 'Franchise not found.', entryCost: 0 };
+  if (character.age < franchise.minAge) {
+    return { ok: false, message: `Must be at least ${franchise.minAge}.`, entryCost: 0 };
+  }
+  if ((character.creditScore ?? 650) < franchise.minCredit) {
+    return {
+      ok: false,
+      message: `Need credit score ${franchise.minCredit}+.`,
+      entryCost: 0,
+    };
+  }
+  const entryCost = getFranchiseEntryCost(franchise, character);
+  const terms = getFinancedPurchaseTerms(entryCost, character);
+  if (!terms.approved) {
+    return { ok: false, message: terms.message, entryCost, terms };
+  }
+  return { ok: true, message: '', entryCost, terms };
+}
+
+export function foundFranchise(
+  character: Character,
+  franchiseId: string,
+): { business: Business; terms: ReturnType<typeof getFinancedPurchaseTerms> } | null {
+  const check = canFoundFranchise(character, franchiseId);
+  if (!check.ok || !check.terms) return null;
+  const franchise = getFranchiseById(franchiseId)!;
+  const cc = character.countryCode ?? 'US';
+  const soft = hasFranchiseSoftBoost(character);
+  let baseRevenue = scaleCountryAmount(franchise.baseRevenueUsd, cc, 'salary');
+  if (soft) baseRevenue = Math.round(baseRevenue * 1.1);
+  const expenses = Math.round(baseRevenue * franchise.expenseRatio);
+  return {
+    terms: check.terms,
+    business: {
+      id: generateId('biz'),
+      name: franchise.name,
+      revenue: baseRevenue,
+      expenses,
+      valuation: baseRevenue * 3,
+      employees: [defaultFounder()],
+      payrollMonthly: 0,
+      foundedAge: character.age,
+      franchiseId,
+      industry: franchise.industry,
+      risk: franchise.risk,
+    },
+  };
+}
+
 export function foundBusiness(character: Character, name: string): Business | null {
   if (!canFoundBusiness(character)) return null;
 
-  const baseRevenue = 20000 + character.stats.ambition * 500;
+  const cc = character.countryCode ?? 'US';
+  const baseRevenueUsd = 20000 + character.stats.ambition * 500;
+  const baseRevenue = scaleCountryAmount(baseRevenueUsd, cc, 'salary');
   const employees = [defaultFounder()];
   return {
     id: generateId('biz'),
@@ -63,8 +152,9 @@ export function foundBusiness(character: Character, name: string): Business | nu
 
 export const EMPLOYEE_ROLES = ['Sales', 'Engineer', 'Manager', 'Support', 'Marketing'] as const;
 
-export function hireEmployee(business: Business, role: string): Business {
-  const salary = 25000 + Math.floor(Math.random() * 20000);
+export function hireEmployee(business: Business, role: string, countryCode = 'US'): Business {
+  const salaryUsd = 25000 + Math.floor(Math.random() * 20000);
+  const salary = scaleCountryAmount(salaryUsd, countryCode, 'salary');
   const employee: BusinessEmployee = {
     id: generateId('emp'),
     name: `New ${role}`,
@@ -100,9 +190,11 @@ export function tickBusinessYear(business: Business): BusinessTickResult {
   const payroll = employees.reduce((s, e) => s + e.salary, 0);
   const avgPerformance = employees.reduce((s, e) => s + e.performance, 0) / employees.length;
   const performanceMult = 0.8 + (avgPerformance / 100) * 0.4;
+  const risk = business.risk ?? 0.2;
+  const riskShock = 1 + (Math.random() - 0.5) * risk;
 
   const revenueVariance = 0.8 + Math.random() * 0.4;
-  const revenue = Math.round(business.revenue * revenueVariance * performanceMult);
+  const revenue = Math.round(business.revenue * revenueVariance * performanceMult * riskShock);
   const expenses = Math.round(business.expenses * (0.9 + Math.random() * 0.2) + payroll);
   const profit = revenue - expenses;
   const growth = profit > 0 ? 1.05 : 0.95;

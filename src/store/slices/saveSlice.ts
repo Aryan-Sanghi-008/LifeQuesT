@@ -117,6 +117,7 @@ export const createSaveSlice: StateCreator<
         s.character = char;
         s.activeSlotId = id;
         s.globalPrestige = prestige;
+        s.accountIsPremium = char?.isPremium ?? false;
         s.syncConflict = null;
         s.isHydrated = true;
       });
@@ -197,6 +198,7 @@ export const createSaveSlice: StateCreator<
     set((s) => {
       s.character = selected;
       s.globalPrestige = prestige;
+      s.accountIsPremium = selected.isPremium ?? false;
       s.syncConflict = null;
       s.isHydrated = true;
     });

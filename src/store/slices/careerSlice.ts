@@ -9,6 +9,7 @@ import {
   workHarder,
   askForRaise,
   applyForPromotion,
+  getPromotionTarget,
 } from "../../engine/careerEngine";
 import { ensureCoworkers } from "../../engine/peopleEngine";
 import { clamp } from "../../engine/economyEngine";
@@ -18,7 +19,8 @@ export interface CareerSlice {
   workHarder: () => void;
   askForRaise: () => { success: boolean; message: string };
   quitJob: () => void;
-  applyForPromotion: () => { success: boolean; message: string };
+  applyForPromotion: (options?: { guaranteed?: boolean }) => { success: boolean; message: string };
+  dismissPromotionOffer: () => void;
 }
 
 export const createCareerSlice: StateCreator<
@@ -86,7 +88,7 @@ export const createCareerSlice: StateCreator<
     if (isInJail(character)) return;
     set((s) => {
       if (!s.character?.career) return;
-      s.character.career = workHarder(s.character.career);
+      s.character.career = workHarder(s.character.career, s.character.traits ?? []);
       s.character.stats.health = clamp(s.character.stats.health - 3);
     });
     void get()._persist();
@@ -124,7 +126,7 @@ export const createCareerSlice: StateCreator<
     void get()._persist();
   },
 
-  applyForPromotion: () => {
+  applyForPromotion: (options) => {
     const { character } = get();
     if (!character?.career)
       return { success: false, message: "You need a job first." };
@@ -133,8 +135,16 @@ export const createCareerSlice: StateCreator<
         success: false,
         message: "You cannot work while serving time.",
       };
+    const guaranteed = options?.guaranteed === true;
     const perfOk = character.career.performance >= 55;
-    const success = perfOk && Math.random() < 0.6;
+    const hasTarget = Boolean(getPromotionTarget(character.career));
+    if (!hasTarget) {
+      return {
+        success: false,
+        message: "Not eligible yet — need more years and higher performance.",
+      };
+    }
+    const success = guaranteed ? true : perfOk && Math.random() < 0.6;
     let message = "Promotion denied — improve your performance.";
     set((s) => {
       if (!s.character?.career) return;
@@ -148,6 +158,7 @@ export const createCareerSlice: StateCreator<
         s.character.job = result.newTitle;
         message = `Promoted to ${result.newTitle}!`;
       }
+      s.pendingPromotionOffer = false;
     });
     void get()._persist();
     return {
@@ -156,5 +167,11 @@ export const createCareerSlice: StateCreator<
         ? message
         : "Promotion denied — improve your performance.",
     };
+  },
+
+  dismissPromotionOffer: () => {
+    set((s) => {
+      s.pendingPromotionOffer = false;
+    });
   },
 });

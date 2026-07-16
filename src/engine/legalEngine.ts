@@ -1,5 +1,6 @@
 import type { Character, LegalCase, LegalStage } from '../types';
 import { getCrimeDef } from '../data/crimes';
+import { scaleFineAmount } from './countryScaleEngine';
 
 function clampRange(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v));
@@ -60,7 +61,8 @@ export function resolveTrial(character: Character, legalCase: LegalCase): TrialV
 
   const repeatOffender = (character.criminalRecord?.crimes.length ?? 0) > 2;
   const sentenceYears = crime.baseSentenceYears + (repeatOffender ? 1 : 0);
-  const fine = crime.fineAmount ?? 0;
+  const rawFine = crime.fineAmount ?? 0;
+  const fine = scaleFineAmount(rawFine, character.countryCode ?? 'US');
 
   return {
     guilty: true,

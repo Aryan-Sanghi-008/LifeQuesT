@@ -24,7 +24,9 @@ import {
 } from "@/types";
 import { useTheme } from "@theme";
 import { GradientButton } from "@components/index";
+import { useScreenA11yFocus } from "@hooks/useScreenA11yFocus";
 import { ZODIACS } from "@data/gameData";
+import { canSelectTrait } from "@engine/traitEngine";
 import { useCharacter } from "../hooks/useCharacter";
 import { useGameStore } from "@store/gameStore";
 import {
@@ -52,7 +54,8 @@ export function CharacterCreateScreen({ navigation, route }: Props) {
   const stepColors = getStepColors(colors);
 
   const { createCharacter, character, carriedStatsForCreate: carriedFromStore } = useCharacter();
-  const isPremium = character?.isPremium ?? false;
+  const accountIsPremium = useGameStore((s) => s.accountIsPremium);
+  const isPremium = character?.isPremium ?? accountIsPremium;
   const unlockedPrestigeTraitIds = useGameStore((s) => s.globalPrestige.unlockedTraitIds ?? []);
   const hasDynastyTraitExpansion = useGameStore((s) =>
     (s.globalPrestige.unlockedDynastyPerkIds ?? []).includes('dynasty_trait_expansion'),
@@ -61,6 +64,8 @@ export function CharacterCreateScreen({ navigation, route }: Props) {
   const carriedStats = carriedFromStore ?? route.params?.carriedStats;
   const scenarioId = route.params?.scenarioId;
   const insets = useSafeAreaInsets();
+  const headingRef = useRef<View>(null);
+  useScreenA11yFocus(headingRef);
 
   const [step, setStep] = useState(0);
   const [name, setName] = useState("");
@@ -98,6 +103,7 @@ export function CharacterCreateScreen({ navigation, route }: Props) {
   }, [character, isCreating, navigation]);
 
   const toggleTrait = (id: string) => {
+    if (!canSelectTrait(id, isPremium)) return;
     setTraits((prev) =>
       prev.includes(id)
         ? prev.filter((t) => t !== id)
@@ -140,6 +146,7 @@ export function CharacterCreateScreen({ navigation, route }: Props) {
         activeChallengeId,
         scenarioId: selectedScenario,
         personality,
+        isPremium: isPremium || accountIsPremium,
       });
     }
   };
@@ -167,7 +174,12 @@ export function CharacterCreateScreen({ navigation, route }: Props) {
           keyboardVerticalOffset={Platform.OS === "ios" ? insets.top + 100 : 20}
         >
           <View style={[styles.header, { backgroundColor: colors.bgCard, borderBottomColor: colors.border }]}>
-            <Pressable onPress={prevStep} style={[styles.backBtn, { backgroundColor: colors.bg2, borderColor: colors.border }]}>
+            <Pressable
+              onPress={prevStep}
+              style={[styles.backBtn, { backgroundColor: colors.bg2, borderColor: colors.border }]}
+              accessibilityRole="button"
+              accessibilityLabel={step > 0 ? "Go to previous step" : "Go back"}
+            >
               <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
                 <Path
                   stroke={colors.t2}
@@ -178,7 +190,7 @@ export function CharacterCreateScreen({ navigation, route }: Props) {
                 />
               </Svg>
             </Pressable>
-            <View style={{ flex: 1, alignItems: "center" }}>
+            <View style={{ flex: 1, alignItems: "center" }} ref={headingRef} accessible accessibilityRole="header">
               <Text style={[styles.stepChapterLabel, { color: colors.t4, fontFamily: fonts.body }]}>
                 Step {step + 1} of {STEP_COUNT}
               </Text>
@@ -247,6 +259,7 @@ export function CharacterCreateScreen({ navigation, route }: Props) {
                   isPremium={isPremium}
                   unlockedPrestigeTraitIds={unlockedPrestigeTraitIds}
                   hasDynastyTraitExpansion={hasDynastyTraitExpansion}
+                  onPremiumUpsell={() => navigation.navigate("Shop", { tab: "premium", source: "trait_upsell" })}
                 />
               )}
               {step === 3 && (
@@ -268,6 +281,7 @@ export function CharacterCreateScreen({ navigation, route }: Props) {
             <GradientButton
               label={step < STEP_COUNT - 1 ? "Continue" : "Begin Your Life"}
               onPress={nextStep}
+              accessibilityLabel={step < STEP_COUNT - 1 ? `Continue to step ${step + 2}` : "Begin your life and create character"}
               colors={[
                 stepColors[step],
                 step < STEP_COUNT - 1 ? `${stepColors[step]}CC` : colors.gold3 || "#D97706",

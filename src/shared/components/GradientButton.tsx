@@ -10,8 +10,9 @@ import {
   StyleProp,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { RADII, ANIM, useTheme } from "@theme";
+import { RADII, ANIM, useTheme, MIN_TAP_TARGET } from "@theme";
 import { triggerTapFeedback } from "@services/gameFeedback";
+import { useReducedMotion } from "@hooks/useReducedMotion";
 
 interface GradientButtonProps {
   label: string;
@@ -38,21 +39,26 @@ export function GradientButton({
   size = "lg",
   accessibilityLabel,
 }: GradientButtonProps) {
-  const { colors: themeColors, fonts } = useTheme();
+  const { colors: themeColors, fonts, scaledFonts } = useTheme();
+  const reducedMotion = useReducedMotion();
   const gradientColors = colors ?? [themeColors.gold, themeColors.gold3];
   const scale = useRef(new Animated.Value(1)).current;
 
   const sizeMap = {
-    sm: { paddingVertical: 10, paddingHorizontal: 18, fontSize: 13 },
-    md: { paddingVertical: 14, paddingHorizontal: 22, fontSize: 14 },
-    lg: { paddingVertical: 17, paddingHorizontal: 24, fontSize: 16 },
+    sm: { paddingVertical: 10, paddingHorizontal: 18, fontSize: scaledFonts.md },
+    md: { paddingVertical: 14, paddingHorizontal: 22, fontSize: scaledFonts.base },
+    lg: { paddingVertical: 17, paddingHorizontal: 24, fontSize: scaledFonts.lg },
   };
   const sz = sizeMap[size];
 
-  const onPressIn = () =>
+  const onPressIn = () => {
+    if (reducedMotion) return;
     Animated.spring(scale, { toValue: 0.96, useNativeDriver: true, ...ANIM.spring }).start();
-  const onPressOut = () =>
+  };
+  const onPressOut = () => {
+    if (reducedMotion) return;
     Animated.spring(scale, { toValue: 1, useNativeDriver: true, ...ANIM.spring }).start();
+  };
 
   const handlePress = () => {
     if (disabled || loading) return;
@@ -78,7 +84,11 @@ export function GradientButton({
           end={{ x: 1, y: 0 }}
           style={[
             styles.gradBtn,
-            { paddingVertical: sz.paddingVertical, paddingHorizontal: sz.paddingHorizontal },
+            {
+              paddingVertical: sz.paddingVertical,
+              paddingHorizontal: sz.paddingHorizontal,
+              minHeight: MIN_TAP_TARGET,
+            },
           ]}
         >
           {loading ? (

@@ -1,6 +1,7 @@
 import type { Character, HobbyProgress } from '../types';
-import { HOBBY_MAP } from '../data/hobbies';
+import { HOBBY_MAP, HOBBY_COMPETITIONS, type HobbyCompetitionDef } from '../data/hobbies';
 import { clamp } from './economyEngine';
+import { scaleEventBankEffect } from './countryScaleEngine';
 
 export const XP_PER_LEVEL = 100;
 
@@ -47,11 +48,63 @@ export function practiceHobby(character: Character, hobbyId: string): PracticeHo
   };
 }
 
-export function getEligibleCompetitions(_hobbyId: string, level: number): string[] {
-  if (level >= 50) return ['national_championship'];
-  if (level >= 25) return ['regional_competition'];
-  if (level >= 10) return ['local_showcase'];
-  return [];
+export function getEligibleCompetitions(_hobbyId: string, level: number): HobbyCompetitionDef[] {
+  return HOBBY_COMPETITIONS.filter(c => level >= c.minLevel);
+}
+
+export interface CompetitionTickResult {
+  hobbyId: string;
+  competition: HobbyCompetitionDef;
+  won: boolean;
+  cashDelta: number;
+  progress: HobbyProgress;
+  statPatch: Partial<Character['stats']>;
+  message: string;
+}
+
+export function tickHobbyCompetitions(character: Character): CompetitionTickResult[] {
+  const results: CompetitionTickResult[] = [];
+  const cc = character.countryCode ?? 'US';
+
+  for (const [hobbyId, progress] of Object.entries(character.hobbyProgress ?? {})) {
+    const level = progress.level ?? getHobbyLevel(progress.xp);
+    const comps = getEligibleCompetitions(hobbyId, level);
+    for (const comp of comps) {
+      if (Math.random() > 0.12) continue;
+      const won = Math.random() < comp.winChanceBase + level / 250;
+      const cashDelta = won
+        ? scaleEventBankEffect(comp.cashRewardUsd, cc, 'gift')
+        : 0;
+      const xp = progress.xp + (won ? comp.xpReward : Math.floor(comp.xpReward * 0.2));
+      const nextProgress: HobbyProgress = {
+        xp,
+        level: getHobbyLevel(xp),
+        lastPracticedAge: progress.lastPracticedAge,
+      };
+      const statPatch: Partial<Character['stats']> = {};
+      if (won && comp.statEffect) {
+        for (const [key, val] of Object.entries(comp.statEffect)) {
+          if (val !== undefined && key in character.stats) {
+            const k = key as keyof Character['stats'];
+            statPatch[k] = clamp(character.stats[k] + val);
+          }
+        }
+      }
+      results.push({
+        hobbyId,
+        competition: comp,
+        won,
+        cashDelta,
+        progress: nextProgress,
+        statPatch,
+        message: won
+          ? `You won ${comp.label} in ${HOBBY_MAP[hobbyId]?.label ?? hobbyId}!`
+          : `You competed in ${comp.label} — good effort, keep practicing.`,
+      });
+      break;
+    }
+  }
+  return results;
 }
 
 export function tickHobbyDecay(character: Character): Record<string, HobbyProgress> {
@@ -62,4 +115,16 @@ export function tickHobbyDecay(character: Character): Record<string, HobbyProgre
     }
   }
   return next;
+}
+
+export function getBestHobbyLevelInCategory(
+  hobbyProgress: Character['hobbyProgress'] | undefined,
+  category: string,
+): number {
+  let best = 0;
+  for (const [id, progress] of Object.entries(hobbyProgress ?? {})) {
+    if (HOBBY_MAP[id]?.category !== category) continue;
+    best = Math.max(best, progress.level ?? getHobbyLevel(progress.xp));
+  }
+  return best;
 }

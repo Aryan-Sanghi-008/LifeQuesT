@@ -26,4 +26,11 @@ describe('settingsStore', () => {
     useSettingsStore.getState().setReducedMotion(true);
     expect(useSettingsStore.getState().reducedMotion).toBe(true);
   });
+
+  it('setColorBlindMode persists color blind preference', () => {
+    useSettingsStore.getState().setColorBlindMode('protanopia');
+    expect(useSettingsStore.getState().colorBlindMode).toBe('protanopia');
+    useSettingsStore.getState().setColorBlindMode('deuteranopia');
+    expect(useSettingsStore.getState().colorBlindMode).toBe('deuteranopia');
+  });
 });

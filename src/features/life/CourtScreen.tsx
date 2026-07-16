@@ -1,3 +1,4 @@
+import { useMemo, useState } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -5,12 +6,16 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useThemedStyles, useTheme } from '@theme';
 import { useGameStore } from '@store/gameStore';
 import { getCrimeDef } from '@data/crimes';
+import { ConfirmSpendModal } from '@components/ConfirmSpendModal';
+import { scaleFineAmount, scaleLawyerCost } from '@engine/countryScaleEngine';
+import { formatCurrency } from '@utils/currency';
+import { getMaxPersonalDebtForCharacter } from '@data/countryEconomy';
 import type { RootStackParamList } from '@/types';
 
-const LAWYER_OPTIONS = [
-  { quality: 1, label: 'Public Defender', cost: 0, desc: 'Basic representation' },
-  { quality: 2, label: 'Experienced Attorney', cost: 5000, desc: 'Solid defense strategy' },
-  { quality: 3, label: 'Elite Legal Team', cost: 25000, desc: 'Best chance at acquittal' },
+const LAWYER_OPTIONS_BASE = [
+  { quality: 1, label: 'Public Defender', costUsd: 0, desc: 'Basic representation' },
+  { quality: 2, label: 'Experienced Attorney', costUsd: 5000, desc: 'Solid defense strategy' },
+  { quality: 3, label: 'Elite Legal Team', costUsd: 25000, desc: 'Best chance at acquittal' },
 ] as const;
 
 export function CourtScreen() {
@@ -20,6 +25,17 @@ export function CourtScreen() {
   const character = useGameStore(s => s.character);
   const resolveCourt = useGameStore(s => s.resolveCourt);
   const clearPendingCourt = useGameStore(s => s.clearPendingCourt);
+
+  const [pendingLawyer, setPendingLawyer] = useState<{ quality: number; cost: number; label: string } | null>(null);
+
+  const cc = character?.countryCode ?? 'US';
+  const lawyerOptions = useMemo(
+    () => LAWYER_OPTIONS_BASE.map(opt => ({
+      ...opt,
+      cost: scaleLawyerCost(opt.costUsd, cc),
+    })),
+    [cc],
+  );
 
   if (!character?.legalCase) {
     return (
@@ -35,17 +51,33 @@ export function CourtScreen() {
 
   const crime = getCrimeDef(character.legalCase.crimeId);
   const heat = character.heatLevel ?? character.criminalRecord?.heatLevel ?? 0;
+  const scaledFine = crime?.fineAmount
+    ? scaleFineAmount(crime.fineAmount, cc)
+    : 0;
+  const debt = character.debt ?? 0;
+  const maxDebt = getMaxPersonalDebtForCharacter(character);
 
-  const handleResolve = (quality: number, cost: number) => {
-    if (character.bankBalance < cost) {
-      Alert.alert('Insufficient Funds', `You need ${cost} for this lawyer.`);
+  const requestResolve = (quality: number, cost: number, label: string) => {
+    const projectedDebt = debt + Math.max(0, cost - character.bankBalance);
+    if (cost > 0 && projectedDebt > maxDebt && character.bankBalance < cost) {
+      Alert.alert('Insufficient Funds', `You need ${formatCurrency(cost, cc)} for this lawyer.`);
       return;
     }
-    const result = resolveCourt(quality, cost);
+    setPendingLawyer({ quality, cost, label });
+  };
+
+  const confirmResolve = () => {
+    if (!pendingLawyer) return;
+    const result = resolveCourt(pendingLawyer.quality, pendingLawyer.cost);
+    setPendingLawyer(null);
     Alert.alert('Verdict', result.message, [
       { text: 'OK', onPress: () => navigation.goBack() },
     ]);
   };
+
+  const pendingWarning = pendingLawyer && pendingLawyer.cost > 0 && (
+    character.bankBalance < pendingLawyer.cost || debt > maxDebt * 0.5
+  );
 
   return (
     <SafeAreaView style={styles.root}>
@@ -61,22 +93,22 @@ export function CourtScreen() {
           </Text>
           {crime && (
             <Text style={styles.caseDesc}>
-              Potential sentence: {crime.baseSentenceYears} yr · Fine: {crime.fineAmount ?? 0}
+              Potential sentence: {crime.baseSentenceYears} yr · Fine: {formatCurrency(scaledFine, cc)}
             </Text>
           )}
         </View>
 
         <Text style={styles.section}>Choose Your Lawyer</Text>
-        {LAWYER_OPTIONS.map(opt => (
+        {lawyerOptions.map(opt => (
           <Pressable
             key={opt.quality}
-            onPress={() => handleResolve(opt.quality, opt.cost)}
+            onPress={() => requestResolve(opt.quality, opt.cost, opt.label)}
             style={styles.lawyerCard}
           >
             <Text style={styles.lawyerLabel}>{opt.label}</Text>
             <Text style={styles.lawyerDesc}>{opt.desc}</Text>
             <Text style={styles.lawyerCost}>
-              {opt.cost === 0 ? 'Free' : `$${opt.cost.toLocaleString()}`}
+              {opt.cost === 0 ? 'Free' : formatCurrency(opt.cost, cc)}
             </Text>
           </Pressable>
         ))}
@@ -91,6 +123,19 @@ export function CourtScreen() {
           <Text style={[styles.btnText, { color: colors.t3 }]}>Skip (auto-resolve later)</Text>
         </Pressable>
       </ScrollView>
+
+      <ConfirmSpendModal
+        visible={pendingLawyer !== null}
+        title="Confirm Legal Defense"
+        message={`Hire ${pendingLawyer?.label ?? 'lawyer'}? You may also owe a court fine if found guilty.`}
+        costLabel={pendingLawyer && pendingLawyer.cost > 0
+          ? formatCurrency(pendingLawyer.cost, cc)
+          : undefined}
+        warningLevel={pendingWarning ? 'debt' : 'info'}
+        confirmLabel="Proceed to Trial"
+        onConfirm={confirmResolve}
+        onCancel={() => setPendingLawyer(null)}
+      />
     </SafeAreaView>
   );
 }

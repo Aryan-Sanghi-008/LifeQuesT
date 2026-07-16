@@ -1,4 +1,5 @@
 import type { Person } from '../types';
+import { scaleEventBankEffect } from './countryScaleEngine';
 
 const JOBS = [
   'Teacher', 'Engineer', 'Nurse', 'Office Assistant',
@@ -17,6 +18,7 @@ export function tickNpcAutonomy(
   _characterAge: number,
   _characterWealth: number,
   familyBackground: string,
+  countryCode = 'US',
 ): AutonomyResult {
   const updatedPeople: Person[] = [];
   const logs: string[] = [];
@@ -41,16 +43,17 @@ export function tickNpcAutonomy(
 
         // If parent dies, player gets inheritance
         if (relType === 'father' || relType === 'mother') {
-          let inheritance = 0;
+          let inheritanceUsd = 0;
           if (familyBackground === 'poor') {
-            inheritance = 1000 + Math.floor(Math.random() * 4000);
+            inheritanceUsd = 1000 + Math.floor(Math.random() * 4000);
           } else if (familyBackground === 'middle') {
-            inheritance = 10000 + Math.floor(Math.random() * 40000);
+            inheritanceUsd = 10000 + Math.floor(Math.random() * 40000);
           } else if (familyBackground === 'wealthy') {
-            inheritance = 100000 + Math.floor(Math.random() * 150000);
+            inheritanceUsd = 100000 + Math.floor(Math.random() * 150000);
           } else if (familyBackground === 'royalty') {
-            inheritance = 500000 + Math.floor(Math.random() * 1500000);
+            inheritanceUsd = 500000 + Math.floor(Math.random() * 1500000);
           }
+          const inheritance = scaleEventBankEffect(inheritanceUsd, countryCode, 'gift');
           bankDelta += inheritance;
           logs.push(`Inheritance: You received ${inheritance.toLocaleString()} from your late ${relType}'s estate.`);
         }
@@ -102,9 +105,10 @@ export function tickNpcAutonomy(
         if (gift) {
           logs.push(`Your partner ${nextPerson.name} surprised you with a beautiful gift (+5 Happiness).`);
         } else {
-          const cost = 200 + Math.floor(Math.random() * 800);
-          bankDelta -= cost;
-          logs.push(`Your partner ${nextPerson.name} bought some items for the house (-$${cost}).`);
+          const costUsd = 200 + Math.floor(Math.random() * 800);
+          const cost = scaleEventBankEffect(-costUsd, countryCode, 'cost');
+          bankDelta += cost;
+          logs.push(`Your partner ${nextPerson.name} bought some items for the house (${Math.abs(cost).toLocaleString()}).`);
         }
       }
     } else if (relType === 'father' || relType === 'mother') {

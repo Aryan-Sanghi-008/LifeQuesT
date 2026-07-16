@@ -6,13 +6,13 @@ import {
   Pressable,
   StyleSheet,
 } from "react-native";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { LinearGradient } from "expo-linear-gradient";
 import { useToastStore } from "@store/toastStore";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useThemedStyles, useTheme, SPACING } from '@theme';
-import { useGameStore } from "@store/gameStore";
+import { useShopActions, getShopStoreState } from "./hooks/useShopActions";
 import { FadeInView, CurrencyChip, ScreenHeader } from "@components/index";
 import {
   purchaseProduct,
@@ -44,26 +44,34 @@ import { FeaturedDealHero } from "./FeaturedDealHero";
 import { GemValueCalculator } from "./GemValueCalculator";
 import { PremiumBanner } from "./PremiumBanner";
 import { ProductCard } from "./ProductCard";
+import { PreCharacterPremiumShop } from "./PreCharacterPremiumShop";
 
 export function ShopScreen() {
   const styles = useThemedStyles(createStyles);
   const { colors, fonts, radii, spacing } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const character = useGameStore((s) => s.character);
-  const store = useGameStore();
-  const unlockFantasyDlc = useGameStore((s) => s.unlockFantasyDlc);
-  const purchaseStreakShield = useGameStore((s) => s.purchaseStreakShield);
-  const purchaseMysterySpinWithGems = useGameStore((s) => s.purchaseMysterySpinWithGems);
-  const purchaseCosmetic = useGameStore((s) => s.purchaseCosmetic);
-  const applyCosmetic = useGameStore((s) => s.applyCosmetic);
-  const globalPrestige = useGameStore((s) => s.globalPrestige);
+  const route = useRoute<RouteProp<RootStackParamList, "Shop">>();
+  const traitUpsell = route.params?.source === "trait_upsell";
+  const {
+    character,
+    accountIsPremium,
+    globalPrestige,
+    unlockFantasyDlc,
+    purchaseStreakShield,
+    purchaseMysterySpinWithGems,
+    purchaseCosmetic,
+    applyCosmetic,
+  } = useShopActions();
   const [purchasing, setPurchasing] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<ShopTab>('bundles');
+  const [activeTab, setActiveTab] = useState<ShopTab>(
+    route.params?.tab ?? (traitUpsell ? "premium" : "bundles"),
+  );
   const showToast = useToastStore((s) => s.showToast);
 
   const storeProducts = getIAPProducts();
 
   const grantDevFallback = (productId: IAPProductId) => {
+    const store = getShopStoreState();
     applyPurchaseToStore(productId, store);
     void store._persist();
     showToast('Purchase activated! Enjoy your benefits.', 'success');
@@ -90,6 +98,7 @@ export function ShopScreen() {
     setPurchasing("restore");
     try {
       const purchases = await restorePurchases();
+      const store = getShopStoreState();
       let granted = 0;
       for (const p of purchases) {
         const ok = await processVerifiedPurchase(p, store);
@@ -118,7 +127,23 @@ export function ShopScreen() {
     }
   };
 
+  if (!character) {
+    return (
+      <PreCharacterPremiumShop
+        isPremium={accountIsPremium}
+        traitUpsell={traitUpsell}
+        purchasing={purchasing}
+        storeProducts={storeProducts}
+        onBuyMonthly={() => void buy("premium_monthly")}
+        onBuyYearly={() => void buy("premium_yearly")}
+        onRestore={() => void handleRestore()}
+        onPrivacy={() => void openPrivacy()}
+      />
+    );
+  }
+
   const buyLuckWithCoins = () => {
+    const store = getShopStoreState();
     if (!store.spendCoins(500)) {
       showToast("Not enough coins — you need 500 coins for a Luck Boost.", "error");
       return;
@@ -129,13 +154,13 @@ export function ShopScreen() {
 
   const watchAdForLuck = async () => {
     if (purchasing !== null) return;
-    const c = store.character;
+    const c = getShopStoreState().character;
     if (c?.hasNoAds || c?.isPremium) return;
     setPurchasing("rewarded_luck");
     try {
       const earned = await showRewardedAd();
       if (earned) {
-        store.addLuckBoost(1);
+        getShopStoreState().addLuckBoost(1);
         showToast("You earned 1 Luck Boost!", "success");
       } else {
         showToast("Ad unavailable — try again in a moment.", "info");
@@ -147,13 +172,13 @@ export function ShopScreen() {
 
   const watchAdForCoins = async () => {
     if (purchasing !== null) return;
-    const c = store.character;
+    const c = getShopStoreState().character;
     if (c?.hasNoAds || c?.isPremium) return;
     setPurchasing("rewarded_coins");
     try {
       const earned = await showRewardedAd();
       if (earned) {
-        const granted = store.grantAdRewardCoins(200);
+        const granted = getShopStoreState().grantAdRewardCoins(200);
         showToast(
           granted > 0 ? `You earned ${granted} coins!` : "Daily coin cap reached.",
           granted > 0 ? "success" : "info",
@@ -165,8 +190,6 @@ export function ShopScreen() {
       setPurchasing(null);
     }
   };
-
-  if (!character) return null;
 
   const busy = purchasing !== null;
 
@@ -299,7 +322,7 @@ export function ShopScreen() {
             <Pressable key={tier.tier} style={[styles.rewardedBtn, (claimed || !canClaim) && { opacity: 0.5 }]}
               disabled={claimed}
               onPress={() => {
-                const result = store.claimSeasonTier(tier.tier);
+                const result = getShopStoreState().claimSeasonTier(tier.tier);
                 showToast(result.message, result.ok ? "success" : "error");
               }}>
               <Text style={styles.rewardedText}>{claimed ? "Claimed — " : ""}Tier {tier.tier} — {tier.rewardCoins}c{tier.rewardGems ? ` + ${tier.rewardGems} gems` : ""}</Text>
@@ -565,6 +588,7 @@ export function ShopScreen() {
                       color={item.previewColor ?? colors.sapphire}
                       owned={item.owned}
                       onPress={() => handleCosmeticPress(item, item.owned)}
+                      onOwnedPress={() => handleCosmeticPress(item, true)}
                     />
                   </FadeInView>
                 ))}
@@ -580,6 +604,7 @@ export function ShopScreen() {
                       color={item.previewColor ?? colors.orchid}
                       owned={item.owned}
                       onPress={() => handleCosmeticPress(item, item.owned)}
+                      onOwnedPress={() => handleCosmeticPress(item, true)}
                     />
                   </FadeInView>
                 ))}
@@ -595,6 +620,7 @@ export function ShopScreen() {
                       color={item.previewColor ?? colors.gold}
                       owned={item.owned}
                       onPress={() => handleCosmeticPress(item, item.owned)}
+                      onOwnedPress={() => handleCosmeticPress(item, true)}
                     />
                   </FadeInView>
                 ))}
@@ -610,6 +636,7 @@ export function ShopScreen() {
                       color={item.previewColor ?? colors.teal}
                       owned={item.owned}
                       onPress={() => handleCosmeticPress(item, item.owned)}
+                      onOwnedPress={() => handleCosmeticPress(item, true)}
                     />
                   </FadeInView>
                 ))}
@@ -625,6 +652,7 @@ export function ShopScreen() {
                       color={item.previewColor ?? colors.t3}
                       owned={item.owned}
                       onPress={() => handleCosmeticPress(item, item.owned)}
+                      onOwnedPress={() => handleCosmeticPress(item, true)}
                     />
                   </FadeInView>
                 ))}

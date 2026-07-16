@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { View, Text, Pressable } from "react-native";
+import { useMemo, useState } from "react";
+import { View, Text, Pressable, TextInput, Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import Svg, { Path, Circle } from "react-native-svg";
@@ -15,6 +15,8 @@ import { ACHIEVEMENTS } from "@data/gameData";
 import { ASPIRATION_MAP } from "@data/aspirations";
 import { formatCurrency } from "@utils/currency";
 import { getFinanceSummary } from "@utils/financeSummary";
+import { groupLedgerByAge } from "@engine/financeLedgerEngine";
+import { useGameStore } from "@store/gameStore";
 import { formatCount } from "@utils/formatCount";
 import {
   createSectionStyles,
@@ -59,17 +61,32 @@ function LifeStatRow({
 }
 
 export function FinancesSection({ character }: { character: Character }) {
-  const { colors } = useTheme();
+  const { colors, fonts, spacing, radii } = useTheme();
   const styles = useThemedStyles(createSectionStyles);
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const repayDebt = useGameStore((s) => s.repayDebt);
 
   const cc = character.countryCode ?? "IN";
   const finance = useMemo(() => getFinanceSummary(character), [character]);
   const bankStr = formatCurrency(character.bankBalance, cc);
   const assetsStr = formatCurrency(finance.assetValue, cc);
+  const personalDebt = character.debt ?? 0;
   const debtStr = formatCurrency(finance.totalDebt, cc);
   const netWorthStr = formatCurrency(finance.netWorth, cc);
+  const yearSummaries = useMemo(
+    () => groupLedgerByAge(character.financeLedger ?? []).slice(0, 8),
+    [character.financeLedger],
+  );
+  const [expandedAge, setExpandedAge] = useState<number | null>(null);
+  const [repayInput, setRepayInput] = useState("");
+
+  const maxRepayable = Math.min(personalDebt, character.bankBalance);
+  const runRepay = (amount: number) => {
+    const result = repayDebt(amount);
+    Alert.alert(result.ok ? "Debt repaid" : "Could not repay", result.message);
+    if (result.ok) setRepayInput("");
+  };
 
   return (
     <View style={styles.section}>
@@ -101,6 +118,182 @@ export function FinancesSection({ character }: { character: Character }) {
             </Text>
           </View>
         </View>
+
+        {personalDebt > 0 ? (
+          <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
+            <Text
+              style={{
+                fontFamily: fonts.bodySemiBold,
+                fontSize: 12,
+                color: colors.t3,
+              }}
+            >
+              Personal debt: {formatCurrency(personalDebt, cc)} · Bank does not auto-pay debt
+            </Text>
+            <TextInput
+              value={repayInput}
+              onChangeText={setRepayInput}
+              keyboardType="numeric"
+              placeholder="Repay amount"
+              placeholderTextColor={colors.t4}
+              accessibilityLabel="Debt repayment amount"
+              style={{
+                borderWidth: 1,
+                borderColor: colors.border,
+                borderRadius: radii.sm,
+                paddingHorizontal: spacing.md,
+                paddingVertical: 10,
+                color: colors.t1,
+                fontFamily: fonts.mono,
+              }}
+            />
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: spacing.xs }}>
+              {[0.25, 0.5, 1].map((pct) => (
+                <Pressable
+                  key={pct}
+                  onPress={() =>
+                    setRepayInput(String(Math.floor(maxRepayable * pct)))
+                  }
+                  style={{
+                    paddingHorizontal: spacing.sm,
+                    paddingVertical: 6,
+                    borderRadius: radii.sm,
+                    borderWidth: 1,
+                    borderColor: colors.border,
+                  }}
+                >
+                  <Text style={{ fontFamily: fonts.bodySemiBold, fontSize: 11, color: colors.t2 }}>
+                    {pct === 1 ? "100%" : `${pct * 100}%`}
+                  </Text>
+                </Pressable>
+              ))}
+              <Pressable
+                onPress={() => setRepayInput(String(maxRepayable))}
+                style={{
+                  paddingHorizontal: spacing.sm,
+                  paddingVertical: 6,
+                  borderRadius: radii.sm,
+                  borderWidth: 1,
+                  borderColor: colors.border,
+                }}
+              >
+                <Text style={{ fontFamily: fonts.bodySemiBold, fontSize: 11, color: colors.t2 }}>
+                  Pay all
+                </Text>
+              </Pressable>
+            </View>
+            <Pressable
+              onPress={() => {
+                const amount = Number(repayInput.replace(/[^0-9.]/g, ""));
+                runRepay(amount);
+              }}
+              disabled={maxRepayable <= 0}
+              style={{
+                backgroundColor: colors.sapphire,
+                borderRadius: radii.sm,
+                paddingVertical: 10,
+                alignItems: "center",
+                opacity: maxRepayable <= 0 ? 0.45 : 1,
+              }}
+            >
+              <Text style={{ fontFamily: fonts.bodyBold, color: "#FFF" }}>
+                Repay from bank
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
+          <Text
+            style={{
+              fontFamily: fonts.bodySemiBold,
+              fontSize: 10,
+              color: colors.t4,
+              letterSpacing: 2,
+            }}
+          >
+            EARNINGS & EXPENSES
+          </Text>
+          {yearSummaries.length === 0 ? (
+            <Text style={{ fontFamily: fonts.body, fontSize: 12, color: colors.t4 }}>
+              Cashflow lines appear after Age Up, activities, tuition, and repayments.
+            </Text>
+          ) : (
+            yearSummaries.map((year) => {
+              const open = expandedAge === year.age;
+              return (
+                <View key={year.age}>
+                  <Pressable
+                    onPress={() => setExpandedAge(open ? null : year.age)}
+                    accessibilityLabel={`Age ${year.age} finance summary`}
+                    style={{
+                      flexDirection: "row",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      paddingVertical: 8,
+                      borderBottomWidth: 1,
+                      borderBottomColor: colors.border,
+                    }}
+                  >
+                    <Text style={{ fontFamily: fonts.bodySemiBold, color: colors.t1, fontSize: 13 }}>
+                      Age {year.age}
+                    </Text>
+                    <Text style={{ fontFamily: fonts.mono, fontSize: 11, color: year.net >= 0 ? colors.emerald : colors.crimson }}>
+                      {year.net >= 0 ? "+" : ""}
+                      {formatCurrency(year.net, cc)}
+                      {year.debtChange > 0
+                        ? ` · debt +${formatCurrency(year.debtChange, cc)}`
+                        : year.debtChange < 0
+                          ? ` · debt ${formatCurrency(year.debtChange, cc)}`
+                          : ""}
+                    </Text>
+                  </Pressable>
+                  {open ? (
+                    <View style={{ gap: 6, paddingVertical: spacing.sm }}>
+                      <Text style={{ fontFamily: fonts.body, fontSize: 11, color: colors.t3 }}>
+                        In {formatCurrency(year.income, cc)} · Out {formatCurrency(Math.abs(year.expense), cc)}
+                      </Text>
+                      {year.entries.map((e) => (
+                        <View
+                          key={e.id}
+                          style={{
+                            flexDirection: "row",
+                            justifyContent: "space-between",
+                            gap: spacing.sm,
+                          }}
+                        >
+                          <Text
+                            style={{
+                              flex: 1,
+                              fontFamily: fonts.body,
+                              fontSize: 12,
+                              color: colors.t2,
+                            }}
+                            numberOfLines={2}
+                          >
+                            {e.label}
+                            {e.debtDelta > 0 ? " (raised debt)" : ""}
+                          </Text>
+                          <Text
+                            style={{
+                              fontFamily: fonts.mono,
+                              fontSize: 12,
+                              color: e.amount >= 0 ? colors.emerald : colors.crimson,
+                            }}
+                          >
+                            {e.amount >= 0 ? "+" : ""}
+                            {formatCurrency(e.amount, cc)}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : null}
+                </View>
+              );
+            })
+          )}
+        </View>
+
         <Pressable
           onPress={() => navigation.navigate("Shop")}
           style={[

@@ -83,6 +83,21 @@ jest.mock('@services/userBootstrap', () => ({
   })),
 }));
 
+jest.mock('@services/entitlements', () => ({
+  fetchUserEntitlements: jest.fn(),
+  applyEntitlementsToCharacter: jest.fn((c: unknown) => c),
+  hasPendingGrants: jest.fn(() => false),
+  clearConsumedGrants: jest.fn(),
+}));
+
+jest.mock('@services/cloudSave', () => ({
+  syncSaveToCloud: jest.fn(),
+  loadSaveFromCloud: jest.fn(),
+  deleteCloudSave: jest.fn(),
+  listCloudSlots: jest.fn(() => []),
+  pullCloudSaveIfNewer: jest.fn(),
+}));
+
 jest.mock('@services/settingsSync', () => ({
   applyCloudSettings: jest.fn(),
   bindSettingsCloudSync: jest.fn(() => null),
@@ -90,4 +105,17 @@ jest.mock('@services/settingsSync', () => ({
   pushSettingsToCloud: jest.fn(() => Promise.resolve()),
   cloudSettingsFromStore: jest.fn(() => ({})),
   __resetSettingsSyncForTests: jest.fn(),
+}));
+
+jest.mock('@services/widgetSnapshot', () => ({
+  writeWidgetSnapshot: jest.fn(),
+  buildWidgetSnapshot: jest.fn(() => ({
+    name: 'Test',
+    age: 22,
+    job: 'Unemployed',
+    health: 70,
+    coins: 0,
+    mentalHealth: 70,
+    updatedAt: Date.now(),
+  })),
 }));

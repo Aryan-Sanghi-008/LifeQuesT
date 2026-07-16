@@ -10,7 +10,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import Svg, { Path, Circle } from "react-native-svg";
-import { useTheme } from "@theme";
+import { useTheme, MIN_TAP_TARGET } from "@theme";
 import { useGameStore } from "@store/gameStore";
 import { ALL_COLLECTION_ITEMS, COLLECTION_SETS } from "@data/collections";
 import { evaluateUnlockedCollectionIds, getSetProgress } from "@engine/collectionsEngine";
@@ -383,7 +383,7 @@ export function CollectionsScreen() {
               onPress={() => setActiveCategory(cat.id)}
               style={{
                 flexShrink: 0,
-                minHeight: 36,
+                minHeight: MIN_TAP_TARGET,
                 justifyContent: 'center',
                 paddingHorizontal: 16,
                 borderRadius: radii.full,

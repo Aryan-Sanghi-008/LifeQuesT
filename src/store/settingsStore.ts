@@ -4,6 +4,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { isMmkvAvailable } from '@utils/nativeAvailability';
+import type { ColorBlindMode } from '@theme/colorBlind';
 
 type SettingsStorage = {
   getString: (key: string) => string | undefined;
@@ -78,6 +79,7 @@ export async function hydrateSettingsStore(): Promise<void> {
     hapticsEnabled: load('hapticsEnabled', DEFAULTS.hapticsEnabled),
     notificationsEnabled: load('notificationsEnabled', DEFAULTS.notificationsEnabled),
     reducedMotion: load('reducedMotion', DEFAULTS.reducedMotion),
+    colorBlindMode: load<ColorBlindMode>('colorBlindMode', DEFAULTS.colorBlindMode),
     colorScheme: load<'light' | 'dark' | 'system'>('colorScheme', DEFAULTS.colorScheme),
     appThemeId: load('appThemeId', DEFAULTS.appThemeId),
     equippedEventSkinId: load<string | null>('equippedEventSkinId', DEFAULTS.equippedEventSkinId),
@@ -106,6 +108,7 @@ export interface SettingsState {
 
   // Display
   reducedMotion: boolean;
+  colorBlindMode: ColorBlindMode;
   colorScheme: 'light' | 'dark' | 'system';
   appThemeId: 'default' | 'dark_slate' | 'midnight' | 'sunrise';
   equippedEventSkinId: string | null;
@@ -126,6 +129,7 @@ export interface SettingsState {
   setHapticsEnabled: (v: boolean) => void;
   setNotificationsEnabled: (v: boolean) => void;
   setReducedMotion: (v: boolean) => void;
+  setColorBlindMode: (v: ColorBlindMode) => void;
   setColorScheme: (v: 'light' | 'dark' | 'system') => void;
   setAppThemeId: (v: 'default' | 'dark_slate' | 'midnight' | 'sunrise') => void;
   setEquippedEventSkinId: (v: string | null) => void;
@@ -145,6 +149,7 @@ const DEFAULTS = {
   hapticsEnabled: true,
   notificationsEnabled: true,
   reducedMotion: false,
+  colorBlindMode: 'none' as ColorBlindMode,
   colorScheme: 'system' as 'light' | 'dark' | 'system',
   appThemeId: 'default' as 'default' | 'dark_slate' | 'midnight' | 'sunrise',
   equippedEventSkinId: null as string | null,
@@ -162,6 +167,7 @@ function load<T>(key: string, defaultVal: T): T {
     if (raw === undefined) return defaultVal;
     if (typeof defaultVal === 'boolean') return (raw === 'true') as unknown as T;
     if (typeof defaultVal === 'number') return parseFloat(raw) as unknown as T;
+    if (typeof defaultVal === 'string') return raw as T;
     if (defaultVal === null) {
       if (raw === 'null' || raw === '') return null as T;
       if (/^-?\d+(\.\d+)?$/.test(raw)) {
@@ -215,6 +221,7 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
   hapticsEnabled: legacyPatch.hapticsEnabled ?? load('hapticsEnabled', DEFAULTS.hapticsEnabled),
   notificationsEnabled: load('notificationsEnabled', DEFAULTS.notificationsEnabled),
   reducedMotion: load('reducedMotion', DEFAULTS.reducedMotion),
+  colorBlindMode: load<ColorBlindMode>('colorBlindMode', DEFAULTS.colorBlindMode),
   colorScheme: load<'light' | 'dark' | 'system'>('colorScheme', DEFAULTS.colorScheme),
   appThemeId: load<'default' | 'dark_slate' | 'midnight' | 'sunrise'>('appThemeId', DEFAULTS.appThemeId),
   equippedEventSkinId: load<string | null>('equippedEventSkinId', DEFAULTS.equippedEventSkinId),
@@ -264,6 +271,10 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
   setReducedMotion: (v) => {
     save('reducedMotion', v);
     set({ reducedMotion: v });
+  },
+  setColorBlindMode: (v) => {
+    save('colorBlindMode', v);
+    set({ colorBlindMode: v });
   },
   setColorScheme: (v) => {
     save('colorScheme', v);

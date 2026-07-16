@@ -18,6 +18,7 @@ import {
 } from "@utils/genetics";
 import { TRAITS, COUNTRIES } from "../../data/gameData";
 import { getStartingBalance } from "../../data/countryEconomy";
+import { scaleEventBankEffect } from "../../engine/countryScaleEngine";
 import { generateParents } from "@utils/npcGenerator";
 import { clamp } from "../../engine/economyEngine";
 import {
@@ -29,6 +30,7 @@ import {
   setStarterOfferEligible,
 } from "../../services/persistence";
 import { processCharacterDeath } from "../../engine/prestigeEngine";
+import { evaluateSeasonalChallenge } from "../../engine/liveOpsEngine";
 import { logEvent } from "../../services/analytics";
 import { handlePostAgeUpNotifications, syncGameRetentionNotifications } from "@services/notificationSync";
 import { runAgeUp } from "../../engine/ageUpEngine";
@@ -82,7 +84,15 @@ function buildCharacter(data: CreateCharacterPayload): Character {
   }
 
   const geneticTraits = determineTraitsFromPersonality(personality, dna);
-  const traits = Array.from(new Set([...data.traits, ...geneticTraits]));
+  const isPremium = data.isPremium ?? false;
+  const traits = Array.from(new Set([
+    ...data.traits.filter((id) => {
+      const t = TRAITS.find((x) => x.id === id);
+      if (t?.premiumOnly && !isPremium) return false;
+      return true;
+    }),
+    ...geneticTraits,
+  ]));
 
   const traitEffect: Partial<CharacterStats> = {};
   traits.forEach((traitId) => {
@@ -148,7 +158,7 @@ function buildCharacter(data: CreateCharacterPayload): Character {
 
   let bankBalance = getStartingBalance(data.familyBackground, data.countryCode);
   if (data.traits.includes("prestige_royal_blood")) {
-    bankBalance += 150000;
+    bankBalance += scaleEventBankEffect(150000, data.countryCode ?? "US", "gift");
   }
   const id = generateId();
   const parents = generateParents(
@@ -203,9 +213,9 @@ function buildCharacter(data: CreateCharacterPayload): Character {
     isAlive: true,
     coins: 500,
     gems: 0,
-    isPremium: false,
-    hasNoAds: false,
-    luckBoostsRemaining: 0,
+    isPremium,
+    hasNoAds: isPremium,
+    luckBoostsRemaining: isPremium ? 5 : 0,
     hasReincarnationScroll: false,
     businesses: [],
     socialFollowers: 0,
@@ -217,7 +227,7 @@ function buildCharacter(data: CreateCharacterPayload): Character {
     educationStage: "none",
     educationBranch: "none",
     seasonXp: 0,
-    hasSeasonPass: false,
+    hasSeasonPass: isPremium,
     claimedSeasonTiers: [],
     criminalRecord: { crimes: [], jailYearsRemaining: 0, onProbation: false },
     dna,
@@ -264,11 +274,20 @@ export interface CharacterSlice {
   pendingReincarnation: boolean;
   pendingAspirationPicker: boolean;
   pendingCourt: boolean;
+  pendingCollegeMajorPicker: boolean;
+  pendingPromotionOffer: boolean;
+  tutorialStep: number;
+  tutorialComplete: boolean;
   showConfetti: boolean;
+  accountIsPremium: boolean;
 
   createCharacter: (payload: CreateCharacterPayload) => void;
   ageUp: () => Promise<void>;
   clearAgeUpNotice: () => void;
+  setTutorialStep: (step: number) => void;
+  completeTutorial: () => void;
+  markTutorialScreenSeen: (screenId: string) => void;
+  resetTutorial: () => void;
   setShowConfetti: (val: boolean) => void;
   clearPendingReincarnation: () => void;
   resolveDecision: (choiceId: string) => void;
@@ -309,7 +328,12 @@ export const createCharacterSlice: StateCreator<
   pendingReincarnation: false,
   pendingAspirationPicker: false,
   pendingCourt: false,
+  pendingCollegeMajorPicker: false,
+  pendingPromotionOffer: false,
+  tutorialStep: 0,
+  tutorialComplete: false,
   showConfetti: false,
+  accountIsPremium: false,
 
   createCharacter: (payload) => {
     incrementLoadGeneration();
@@ -318,9 +342,11 @@ export const createCharacterSlice: StateCreator<
     const partnerDNA = get().carriedPartnerDNA;
     const parentPers = get().carriedParentPersonality;
     const partnerPers = get().carriedPartnerPersonality;
+    const accountIsPremium = get().accountIsPremium;
 
     const char = buildCharacter({
       ...payload,
+      isPremium: payload.isPremium || accountIsPremium,
       carriedStats: carried ?? payload.carriedStats,
       parentDNA: parentDNA ?? payload.parentDNA,
       partnerDNA: partnerDNA ?? payload.partnerDNA,
@@ -442,14 +468,21 @@ export const createCharacterSlice: StateCreator<
         character,
         get().globalPrestige,
       );
+      const seasonChallengeResult = evaluateSeasonalChallenge(character);
       set((s) => {
         if (!s.character) return;
         Object.assign(s.character, outcome.patch);
         s.character.dailyStreak = nextStreak;
         s.character.lastActiveDate = today;
         s.globalPrestige = prestigeRes.nextState;
+        if (seasonChallengeResult.success) {
+          s.character.seasonXp = (s.character.seasonXp ?? 0) + seasonChallengeResult.rewardXp;
+        }
         s.isProcessing = false;
       });
+      if (seasonChallengeResult.success) {
+        useToastStore.getState().showToast(seasonChallengeResult.message, 'success');
+      }
       saveGlobalPrestige(prestigeRes.nextState);
       setStarterOfferEligible(true);
       hapticDeath();
@@ -476,6 +509,8 @@ export const createCharacterSlice: StateCreator<
         s.sessionAges += 1;
         s.ageUpsSinceAd += 1;
         if (outcome.needsAspirationPick) s.pendingAspirationPicker = true;
+        if (outcome.needsCollegeMajorPick) s.pendingCollegeMajorPicker = true;
+        if (outcome.needsPromotionOffer) s.pendingPromotionOffer = true;
         if ("needsCourt" in outcome && outcome.needsCourt)
           s.pendingCourt = true;
         if (withDecision && outcome.type === "pending_decision") {
@@ -483,6 +518,11 @@ export const createCharacterSlice: StateCreator<
         }
         if (s.character) applyCountriesLived(s.character);
       });
+      if (outcome.notices?.length) {
+        outcome.notices.forEach((n) =>
+          useToastStore.getState().showToast(n, "info"),
+        );
+      }
     };
 
     void playSound("age_up");
@@ -554,6 +594,40 @@ export const createCharacterSlice: StateCreator<
     set((s) => {
       s.lastAgeUpNotice = null;
     }),
+
+  setTutorialStep: (step) =>
+    set((s) => {
+      s.tutorialStep = step;
+    }),
+
+  completeTutorial: () =>
+    set((s) => {
+      s.tutorialComplete = true;
+    }),
+
+  markTutorialScreenSeen: (screenId) => {
+    set((s) => {
+      if (!s.character) return;
+      if (!s.character.tutorialScreensSeen) s.character.tutorialScreensSeen = [];
+      if (!s.character.tutorialScreensSeen.includes(screenId)) {
+        s.character.tutorialScreensSeen.push(screenId);
+      }
+      const required = ['home', 'life', 'activities', 'people', 'assets'];
+      if (required.every((id) => s.character!.tutorialScreensSeen!.includes(id))) {
+        s.tutorialComplete = true;
+      }
+    });
+    void get()._persist();
+  },
+
+  resetTutorial: () => {
+    set((s) => {
+      s.tutorialComplete = false;
+      s.tutorialStep = 0;
+      if (s.character) s.character.tutorialScreensSeen = [];
+    });
+    void get()._persist();
+  },
 
   setShowConfetti: (val) =>
     set((s) => {
@@ -627,6 +701,9 @@ export const createCharacterSlice: StateCreator<
       s.carriedPartnerPersonality = partnerPers;
       s.character = null;
       s.pendingDecision = null;
+      s.pendingCollegeMajorPicker = false;
+      s.pendingPromotionOffer = false;
+      s.pendingAspirationPicker = false;
       s.sessionAges = 0;
       s.pendingReincarnation = true;
       s.slotList = buildLocalSlotList();
@@ -641,6 +718,7 @@ export const createCharacterSlice: StateCreator<
 
   setPremium: (v) => {
     set((s) => {
+      s.accountIsPremium = v;
       if (!s.character) return;
       s.character.isPremium = v;
       if (v) {

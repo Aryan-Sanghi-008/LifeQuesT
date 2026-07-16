@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -7,6 +8,9 @@ import { useGameStore } from '@store/gameStore';
 import { PROPERTY_MAP } from '@data/properties';
 import { calculateMortgagePayment } from '@engine/housingEngine';
 import { formatCurrency } from '@utils/currency';
+import { ConfirmSpendModal } from '@components/ConfirmSpendModal';
+import { createPropertyAsset } from '@engine/housingEngine';
+import { getMaxPersonalDebtForCharacter } from '@data/countryEconomy';
 import type { RootStackParamList } from '@/types';
 
 export function MortgageScreen() {
@@ -15,6 +19,7 @@ export function MortgageScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'Mortgage'>>();
   const character = useGameStore(s => s.character);
   const purchaseProperty = useGameStore(s => s.purchaseProperty);
+  const [confirmPurchase, setConfirmPurchase] = useState(false);
 
   const def = PROPERTY_MAP[route.params.propertyDefId];
 
@@ -31,12 +36,20 @@ export function MortgageScreen() {
 
   const cc = character.countryCode ?? 'IN';
   const fmt = (n: number) => formatCurrency(n, cc);
-  const downPayment = Math.round(def.value * def.downPaymentPct);
-  const mortgage = def.value - downPayment;
+  const { asset } = createPropertyAsset(def, character.age, cc);
+  const downPayment = asset.value - (asset.debt ?? 0);
+  const mortgage = asset.debt ?? 0;
   const monthly = calculateMortgagePayment(mortgage, def.mortgageRate, def.termYears);
-  const canAfford = character.bankBalance >= downPayment && character.age >= def.minAge;
+  const maxDebt = getMaxPersonalDebtForCharacter(character);
+  const projectedDebt = (character.debt ?? 0) + Math.max(0, downPayment - character.bankBalance);
+  const canAfford = projectedDebt <= maxDebt && character.age >= def.minAge;
 
   const handlePurchase = () => {
+    setConfirmPurchase(true);
+  };
+
+  const confirmPurchaseAction = () => {
+    setConfirmPurchase(false);
     const result = purchaseProperty(def.id);
     Alert.alert(result.ok ? 'Purchased' : 'Cannot Purchase', result.message, [
       { text: 'OK', onPress: () => result.ok && navigation.goBack() },
@@ -52,7 +65,7 @@ export function MortgageScreen() {
         <View style={styles.row}>
           <View style={styles.metric}>
             <Text style={styles.metricLabel}>List Price</Text>
-            <Text style={styles.metricValue}>{fmt(def.value)}</Text>
+            <Text style={styles.metricValue}>{fmt(asset.value)}</Text>
           </View>
           <View style={styles.metric}>
             <Text style={styles.metricLabel}>Down Payment</Text>
@@ -92,6 +105,17 @@ export function MortgageScreen() {
           <Text style={styles.backText}>Cancel</Text>
         </Pressable>
       </ScrollView>
+
+      <ConfirmSpendModal
+        visible={confirmPurchase}
+        title="Confirm Property Purchase"
+        message={`Buy ${def.name}? Down payment will be deducted from your balance.`}
+        costLabel={fmt(downPayment)}
+        warningLevel={projectedDebt > character.bankBalance ? 'debt' : 'info'}
+        confirmLabel="Purchase"
+        onConfirm={confirmPurchaseAction}
+        onCancel={() => setConfirmPurchase(false)}
+      />
     </SafeAreaView>
   );
 }

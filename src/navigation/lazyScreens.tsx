@@ -45,6 +45,10 @@ export const LazyAspirationPickerScreen = lazyNamed(
   () => import('@features/life/AspirationPickerScreen'),
   'AspirationPickerScreen',
 );
+export const LazyCollegeMajorPickerScreen = lazyNamed(
+  () => import('@features/life/CollegeMajorPickerScreen'),
+  'CollegeMajorPickerScreen',
+);
 export const LazyCourtScreen = lazyNamed(
   () => import('@features/life/CourtScreen'),
   'CourtScreen',

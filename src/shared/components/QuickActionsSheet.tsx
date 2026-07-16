@@ -106,6 +106,8 @@ export function QuickActionsSheet({ visible, onClose }: Props) {
         {/* Age Up action */}
         <Pressable
           onPress={handleAgeUpClick}
+          accessibilityRole="button"
+          accessibilityLabel="Age up one year"
           style={({ pressed }) => [
             styles.actionRow,
             { borderColor: `${colors.emerald}30`, backgroundColor: colors.bgCard },
@@ -128,6 +130,8 @@ export function QuickActionsSheet({ visible, onClose }: Props) {
         {/* General Activities */}
         <Pressable
           onPress={() => handleNavigate("Activities")}
+          accessibilityRole="button"
+          accessibilityLabel="Open activities"
           style={({ pressed }) => [
             styles.actionRow,
             { borderColor: `${colors.sapphire}30`, backgroundColor: colors.bgCard },
@@ -153,6 +157,8 @@ export function QuickActionsSheet({ visible, onClose }: Props) {
             onClose();
             navigation.navigate("Activities" as never);
           }}
+          accessibilityRole="button"
+          accessibilityLabel="Commit crime in activities"
           style={({ pressed }) => [
             styles.actionRow,
             { borderColor: `${colors.crimson}30`, backgroundColor: colors.bgCard },
@@ -178,6 +184,8 @@ export function QuickActionsSheet({ visible, onClose }: Props) {
             onClose();
             navigation.navigate("Shop" as never);
           }}
+          accessibilityRole="button"
+          accessibilityLabel="Open shop"
           style={({ pressed }) => [
             styles.actionRow,
             { borderColor: `${colors.gold}30`, backgroundColor: colors.bgCard },
@@ -203,6 +211,8 @@ export function QuickActionsSheet({ visible, onClose }: Props) {
         {/* Social Media */}
         <Pressable
           onPress={() => handleNavigate("SocialMedia")}
+          accessibilityRole="button"
+          accessibilityLabel="Open social media"
           style={({ pressed }) => [
             styles.actionRow,
             { borderColor: `${colors.orchid}30`, backgroundColor: colors.bgCard },

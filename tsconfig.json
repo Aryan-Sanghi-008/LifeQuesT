@@ -21,7 +21,8 @@
       "@config/*": ["./src/config/*"],
       "@theme": ["./src/shared/theme/index.ts"],
       "@theme/*": ["./src/shared/theme/*"],
-      "@data/*": ["./src/data/*"]
+      "@data/*": ["./src/data/*"],
+      "@test/*": ["./src/test/*"]
     }
   },
   "include": ["src", "App.tsx", "index.ts", "nativewind-env.d.ts"],

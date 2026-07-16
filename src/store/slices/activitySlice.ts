@@ -3,7 +3,11 @@ import { GameStore } from "../types";
 import { FocusAllocation, AspirationId, WillDetails } from "../../types";
 import { ACTIVITIES } from "../../data/gameData";
 import { applySuccessChance, consumeLuckBoost } from "../../engine/eventEngine";
+import { getLuckRollBonusPercent } from "../../engine/traitEngine";
 import { applyEffect, computeNetWorth } from "../../engine/economyEngine";
+import { scaleActivityCost } from "../../engine/countryScaleEngine";
+import { appendFinanceLedger, createLedgerEntry } from "../../engine/financeLedgerEngine";
+import { getMaxPersonalDebtForCharacter } from "../../data/countryEconomy";
 import { generatePet } from "@utils/npcGenerator";
 import { recordCrime } from "../../engine/crimeEngine";
 import { isFeatureEnabled, getActivityFeatureGate } from "../../engine/scenarioEngine";
@@ -68,31 +72,33 @@ export const createActivitySlice: StateCreator<
     if (activity.cost && character.coins < activity.cost) {
       return { success: false, message: "Not enough coins." };
     }
-    if (
-      activity.bankEffect &&
-      activity.bankEffect < 0 &&
-      character.bankBalance < Math.abs(activity.bankEffect)
-    ) {
-      return { success: false, message: "Not enough money." };
+    const scaledBankEffect = activity.bankEffect
+      ? scaleActivityCost(activity.bankEffect, character.countryCode, character.age)
+      : 0;
+    if (scaledBankEffect < 0) {
+      const maxDebt = getMaxPersonalDebtForCharacter(character);
+      const projected = (character.debt ?? 0) + Math.max(0, Math.abs(scaledBankEffect) - character.bankBalance);
+      if (projected > maxDebt) {
+        return { success: false, message: "Not enough money — you'd exceed your debt limit." };
+      }
     }
 
-    const isLucky =
-      character.traits.includes("lucky") ||
-      character.traits.includes("prestige_lucky_star");
+    const luckBonus = getLuckRollBonusPercent(character.traits ?? []);
     const hadChance = activity.successChance !== undefined;
     let luckBoosts = character.luckBoostsRemaining;
     const success = applySuccessChance(
       activity.successChance,
-      isLucky,
+      luckBonus,
       luckBoosts,
     );
     if (hadChance && luckBoosts > 0)
-      luckBoosts = consumeLuckBoost(isLucky, luckBoosts, hadChance);
+      luckBoosts = consumeLuckBoost(luckBonus, luckBoosts, hadChance);
 
     const effect = success
       ? activity.statEffect
       : (activity.failStatEffect ?? activity.statEffect);
-    const bankDelta = success ? (activity.bankEffect ?? 0) : 0;
+    const bankDelta = success ? scaledBankEffect : 0;
+    const debtBefore = character.debt ?? 0;
     const { stats, karma, bankBalance, debt } = applyEffect(
       character.stats,
       character.karma,
@@ -110,6 +116,20 @@ export const createActivitySlice: StateCreator<
       s.character.bankBalance = bankBalance;
       s.character.debt = debt;
       s.character.luckBoostsRemaining = luckBoosts;
+      if (bankDelta !== 0) {
+        s.character.financeLedger = appendFinanceLedger(
+          s.character.financeLedger,
+          createLedgerEntry({
+            age: character.age,
+            category: "activity",
+            label: activity.label,
+            amount: bankDelta,
+            bankAfter: bankBalance,
+            debtAfter: debt,
+            debtBefore,
+          }),
+        );
+      }
       if (activity.cost) s.character.coins -= activity.cost;
       if (activity.addsPerson === "pet")
         s.character.people.push(generatePet("dog"));

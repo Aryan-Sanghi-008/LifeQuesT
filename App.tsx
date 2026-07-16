@@ -47,6 +47,7 @@ import { hydrateSettingsStore } from "@store/settingsStore";
 import { useTheme } from "@theme";
 import { incrementAppSessionCount } from "@services/persistence";
 import { isCloudUser } from "@store/storeHelpers";
+import { preloadAvatarStyleAssets } from "@shared/utils/preloadAssets";
 
 void SplashScreen.preventAutoHideAsync().catch(() => {
   /* splash plugin unavailable in some builds */
@@ -141,6 +142,13 @@ export default function App() {
     return () => sub.remove();
   }, []);
 
+  useEffect(() => {
+    if (!isHydrated || (!fontsLoaded && !fontError)) return;
+    if (__DEV__) {
+      console.log("[perf] cold_start:interactive", Date.now());
+    }
+  }, [isHydrated, fontsLoaded, fontError]);
+
   // Defer native monetization SDKs until UI is ready (avoids launch-time native crashes).
   useEffect(() => {
     if (!fontsLoaded && !fontError) return;
@@ -161,14 +169,30 @@ export default function App() {
     const task = InteractionManager.runAfterInteractions(() => {
       if (cancelled) return;
       void (async () => {
-        await hydrateSettingsStore();
-        const { hydratePersistence } = await import('@services/persistence');
-        await hydratePersistence();
-        await initAudio();
-        const { initRemoteConfig } = await import('@services/remoteConfig');
-        await initRemoteConfig();
-        const { fetchLiveOpsConfig } = await import('@services/liveOpsConfig');
-        await fetchLiveOpsConfig();
+        const hydrateStart = performance.now();
+        const { hydratePersistence } = await import("@services/persistence");
+        await Promise.all([hydrateSettingsStore(), hydratePersistence()]);
+        if (__DEV__) {
+          console.log(
+            `[perf] cold_start:hydrate=${Math.round(performance.now() - hydrateStart)}ms`,
+          );
+        }
+
+        preloadAvatarStyleAssets();
+
+        const postStart = performance.now();
+        const { initRemoteConfig } = await import("@services/remoteConfig");
+        const { fetchLiveOpsConfig } = await import("@services/liveOpsConfig");
+        await Promise.all([
+          initAudio(),
+          initRemoteConfig(),
+          fetchLiveOpsConfig(),
+        ]);
+        if (__DEV__) {
+          console.log(
+            `[perf] cold_start:post_hydrate=${Math.round(performance.now() - postStart)}ms`,
+          );
+        }
       })();
       void initAds();
       void initCrashReporting();

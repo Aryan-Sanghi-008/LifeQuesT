@@ -12,14 +12,21 @@ import { getLifeStage } from "@utils/lifeStage";
 import { generatePartner, generatePet } from "@utils/npcGenerator";
 import {
   applyEffect,
-  applyCashDelta,
   tickAnnualEconomy,
   computeNetWorth,
   clamp,
   checkDebtCrisis,
   AnnualEconomyResult,
 } from "./economyEngine";
-import { getCountryEconomy } from "../data/countryEconomy";
+import { getCountryEconomy, getLifeExpectancy } from "../data/countryEconomy";
+import { scaleEventBankEffect } from "./countryScaleEngine";
+import {
+  applyTrackedCashDelta,
+  appendFinanceLedger,
+  createLedgerEntry,
+  type FinanceLedgerEntry,
+  type FinanceLedgerCategory,
+} from "./financeLedgerEngine";
 import {
   pickWeightedEvents,
   getGuaranteedMilestones,
@@ -39,9 +46,16 @@ import {
   incrementCareerYear,
   syncJobLabel,
   applyJobTitleUpdate,
+  getPromotionTarget,
 } from "./careerEngine";
-import { advanceEducationByAge, initGPA, tickGPA } from "./educationEngine";
-import { EducationStage } from "../data/educationDegrees";
+import {
+  advanceEducationByAge,
+  initGPA,
+  tickGPA,
+  tickDegreeEnrollment,
+  shouldPromptCollegeMajor,
+} from "./educationEngine";
+import type { EducationStage } from "../data/educationDegrees";
 import {
   ensureClassmates,
   ensureCoworkers,
@@ -51,6 +65,10 @@ import {
 import { ensureScenarioAgeNPCs } from "./scenarioNpcEngine";
 import { driftKarmaTowardNeutral } from "./economyCapEngine";
 import { tickMentalHealth } from "./mentalHealthEngine";
+import {
+  hasStoicCrimeStressImmunity,
+  getResilientHealthEventMultiplier,
+} from "./traitEngine";
 import {
   recordCrime,
   tickJail,
@@ -66,11 +84,27 @@ import { tickAllBusinesses } from "./businessEngine";
 import {
   getAnnualMortgagePayments,
   getPropertyMaintenanceCost,
+  getAnnualRentalIncome,
   tickPropertyYear,
+  applyPropertyHappinessBonus,
+  rollPropertyDisaster,
 } from "./housingEngine";
+import {
+  tickVehicleYear,
+  tickCatalogInvestment,
+  tickCollectibleYear,
+  getVehicleHappinessBonus,
+} from "./assetCatalogEngine";
+import { tickMarketHoldings, tickAngelStake, generateAngelOpportunities } from "./marketEngine";
+import { tickCreditScore } from "./creditScoreEngine";
+import {
+  totalAnnualPremiums,
+  applyInsuranceCoverage,
+} from "../data/insurancePolicies";
 import { tickAllPets } from "./petEngine";
 import { tickSocialYear } from "./socialMediaEngine";
-import { tickHobbyDecay } from "./hobbyEngine";
+import { tickHobbyDecay, tickHobbyCompetitions } from "./hobbyEngine";
+import { getPersonalityMods } from "./personalityModifiers";
 import { advanceToTrial } from "./legalEngine";
 import { runAnnualSimulation } from "./simulationEngine";
 import { computeDeathChance } from "./mortalityEngine";
@@ -198,6 +232,9 @@ export type AgeUpOutcome =
       netWorthPeak: number;
       needsAspirationPick?: boolean;
       needsCourt?: boolean;
+      needsCollegeMajorPick?: boolean;
+      needsPromotionOffer?: boolean;
+      notices?: string[];
     }
   | {
       type: "complete";
@@ -207,6 +244,9 @@ export type AgeUpOutcome =
       karma: number;
       needsAspirationPick?: boolean;
       needsCourt?: boolean;
+      needsCollegeMajorPick?: boolean;
+      needsPromotionOffer?: boolean;
+      notices?: string[];
     };
 
 export interface AgeUpOptions {
@@ -279,22 +319,39 @@ export function runAgeUp(
   };
 
   let debt = character.debt ?? 0;
+  let bankBalance = character.bankBalance;
   let gpa = character.gpa;
+  const financeEntries: FinanceLedgerEntry[] = [];
+  const pushCash = (
+    delta: number,
+    category: FinanceLedgerCategory,
+    label: string,
+  ) => {
+    const tracked = applyTrackedCashDelta(bankBalance, debt, delta, {
+      age: newAge,
+      category,
+      label,
+    });
+    bankBalance = tracked.bankBalance;
+    debt = tracked.debt;
+    if (tracked.entry) financeEntries.push(tracked.entry);
+  };
 
   let {
     stats,
     karma,
-    bankBalance,
+    bankBalance: agedBank,
     debt: nextDebt,
   } = applyEffect(
     character.stats,
     character.karma,
-    character.bankBalance,
+    bankBalance,
     agingEffect,
     0,
     character.assets,
     debt,
   );
+  bankBalance = agedBank;
   debt = nextDebt;
 
   const neuroticism = character.personality?.neuroticism ?? 50;
@@ -303,20 +360,31 @@ export function runAgeUp(
     lowHappiness: stats.happiness < 30,
     neuroticism,
     conscientiousness,
+    mentalHealthDecayMod: character.personality
+      ? getPersonalityMods(character.personality).mentalHealthDecayMod
+      : 1,
+    stoicTrait: character.traits.includes('stoic'),
+    stoicCrimeImmunity: hasStoicCrimeStressImmunity(character.traits ?? []),
   });
 
   let businesses = character.businesses ?? [];
   if (businesses.length > 0) {
     const bizTick = tickAllBusinesses(businesses);
     businesses = bizTick.businesses;
-    const bizCash = applyCashDelta(bankBalance, debt, bizTick.totalProfit);
-    bankBalance = bizCash.bankBalance;
-    debt = bizCash.debt;
+    if (bizTick.totalProfit !== 0) {
+      pushCash(
+        bizTick.totalProfit,
+        "business",
+        bizTick.totalProfit >= 0 ? "Business profit" : "Business loss",
+      );
+    }
   }
 
   let career = character.career ? incrementCareerYear(character.career) : null;
   let totalCareerYears = character.totalCareerYears ?? 0;
   if (character.career) totalCareerYears += 1;
+
+  const promotionOfferNeeded = Boolean(career && getPromotionTarget(career));
   const salary = career?.salary ?? 0;
   const countryCode = character.countryCode ?? "US";
   const economy = tickAnnualEconomy(
@@ -328,6 +396,17 @@ export function runAgeUp(
     countryCode,
   );
 
+  // Re-apply annual economy via tracked cash so the ledger shows salary vs living separately.
+  if (economy.salaryNet > 0) {
+    pushCash(economy.salaryNet, "salary", "Net salary");
+  }
+  if (economy.livingExpenses > 0) {
+    pushCash(-economy.livingExpenses, "living", "Living expenses");
+  }
+  // Sync result object for downstream records / live ops adjustment base
+  economy.bankBalance = bankBalance;
+  economy.debt = debt;
+
   // Apply Live Ops season modifiers to living expenses
   const liveOps = getCurrentSeason().activeModifiers;
   if (liveOps.expenseMultiplier !== 1.0 && economy.livingExpenses > 0) {
@@ -336,19 +415,10 @@ export function runAgeUp(
       originalLivingExpenses * liveOps.expenseMultiplier,
     );
     const extraExpense = adjustedExpenses - originalLivingExpenses;
-    const cashRes = applyCashDelta(
-      economy.bankBalance,
-      economy.debt,
-      -extraExpense,
-    );
-    bankBalance = cashRes.bankBalance;
-    debt = cashRes.debt;
-    economy.bankBalance = bankBalance;
-    economy.debt = debt;
+    if (extraExpense > 0) {
+      pushCash(-extraExpense, "living", "Season living-cost surge");
+    }
     economy.livingExpenses = adjustedExpenses;
-  } else {
-    bankBalance = economy.bankBalance;
-    debt = economy.debt;
   }
 
   // Apply world event tax modifiers
@@ -356,14 +426,19 @@ export function runAgeUp(
     const extraTax = Math.round(salary * worldModifiers.taxRateDelta);
     economy.taxPaid += extraTax;
     economy.salaryNet = Math.max(0, economy.salaryNet - extraTax);
-    const cashRes = applyCashDelta(bankBalance, debt, -extraTax);
-    bankBalance = cashRes.bankBalance;
-    debt = cashRes.debt;
-    economy.bankBalance = bankBalance;
-    economy.debt = debt;
+    if (extraTax > 0) {
+      pushCash(-extraTax, "other", "Extra world-event tax");
+    }
+  }
+
+  // Insurance premiums (cash)
+  const insurancePremiums = totalAnnualPremiums(character.insurancePolicies);
+  if (insurancePremiums > 0) {
+    pushCash(-insurancePremiums, "other", "Insurance premiums");
   }
 
   // Tick properties with world appreciation multiplier and investments
+  const disasterLogs: string[] = [];
   let assets = character.assets.map((a) => {
     if (a.type === "property") {
       const nextAsset = tickPropertyYear(a);
@@ -378,12 +453,48 @@ export function runAgeUp(
           Math.round(nextAsset.value * (1 + extraAppreciation)),
         );
       }
+      const disaster = rollPropertyDisaster(nextAsset);
+      if (disaster) {
+        const rawLoss = nextAsset.value - disaster.value;
+        const { coveredLoss, payout } = applyInsuranceCoverage(
+          character.insurancePolicies,
+          "home",
+          rawLoss,
+        );
+        const finalValue = nextAsset.value - coveredLoss;
+        if (payout > 0) {
+          pushCash(payout, "other", "Home insurance payout");
+        }
+        disasterLogs.push(
+          `${nextAsset.name} suffered damage — value reduced to ${finalValue.toLocaleString()}.`,
+        );
+        return { ...disaster, value: finalValue };
+      }
       return nextAsset;
     }
+    if (a.type === "vehicle") {
+      return tickVehicleYear(a);
+    }
+    if (a.type === "collectible") {
+      return tickCollectibleYear(a, newAge);
+    }
+    if (a.type === "angel_stake") {
+      return tickAngelStake(a, newAge);
+    }
     if (a.type === "investment") {
-      const baseReturn = 0.07;
       const bonus =
         worldModifiers.investmentReturnDelta + liveOps.stockReturnBonus;
+      if (a.catalogId) {
+        const ticked = tickCatalogInvestment(a, bonus);
+        return {
+          ...ticked,
+          priceHistory: [
+            ...(a.priceHistory ?? []),
+            { age: newAge, value: ticked.value },
+          ].slice(-20),
+        };
+      }
+      const baseReturn = 0.07;
       const volatility = 0.12;
       const marketReturn =
         baseReturn + bonus + (Math.random() - 0.5) * volatility;
@@ -392,10 +503,27 @@ export function runAgeUp(
         0,
         Math.round(nextAsset.value * (1 + marketReturn)),
       );
+      nextAsset.priceHistory = [
+        ...(a.priceHistory ?? []),
+        { age: newAge, value: nextAsset.value },
+      ].slice(-20);
       return nextAsset;
     }
     return a;
   });
+
+  // Extra market event pass for equity/crypto mult when world crashes/booms
+  if (worldModifiers.investmentReturnDelta !== 0) {
+    const equityMult = 1 + worldModifiers.investmentReturnDelta;
+    const marketTick = tickMarketHoldings(assets, newAge, {
+      equityMult,
+      cryptoMult: equityMult * 1.2,
+      bondMult: 1 + worldModifiers.investmentReturnDelta * 0.3,
+    });
+    // Prefer priceHistory from marketTick for investment assets already updated;
+    // only apply if we want double-tick — skip to avoid double applying.
+    void marketTick;
+  }
 
   const mortgagePayments = getAnnualMortgagePayments(assets);
   const baseMaintenance = getPropertyMaintenanceCost(assets);
@@ -404,9 +532,12 @@ export function runAgeUp(
   );
   const housingCosts = mortgagePayments + adjustedMaintenance;
   if (housingCosts > 0) {
-    const housingCash = applyCashDelta(bankBalance, debt, -housingCosts);
-    bankBalance = housingCash.bankBalance;
-    debt = housingCash.debt;
+    pushCash(-housingCosts, "housing", "Housing (mortgage + maintenance)");
+  }
+
+  const rentalIncome = getAnnualRentalIncome(assets);
+  if (rentalIncome > 0) {
+    pushCash(rentalIncome, "other", "Rental income");
   }
 
   const simResult = runAnnualSimulation({
@@ -424,11 +555,27 @@ export function runAgeUp(
     age: character.age,
   });
   const statsBeforeFocus = { ...stats };
-  stats = applyFocusStatModifiers(stats, focusAllocation);
+  stats = applyFocusStatModifiers(stats, focusAllocation, character.traits ?? []);
   stats = {
     ...stats,
+    happiness: clamp(
+      applyPropertyHappinessBonus({ ...character, assets, stats })
+      + getVehicleHappinessBonus(assets),
+    ),
     wealth: clamp(computeNetWorth({ bankBalance, assets, debt }) / 10000),
   };
+
+  // Disaster entries are deferred until newRecords is declared below
+  const disasterEntries: LifeEventRecord[] = disasterLogs.map((desc) => ({
+    id: `property_disaster_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+    age: newAge,
+    title: "Property Damage",
+    description: desc,
+    statEffect: { happiness: -5 },
+    category: "financial" as const,
+    color: "#F59E0B",
+    timestamp: Date.now(),
+  }));
 
   const economyRecords = buildEconomyLedgerRecords(
     newAge,
@@ -448,6 +595,7 @@ export function runAgeUp(
     assets,
     debt,
     countryCode,
+    familyBackground: character.familyBackground,
   });
 
   if (debtCrisis.crisis) {
@@ -461,7 +609,7 @@ export function runAgeUp(
 
   const newLifeStage: LifeStage = getLifeStage(newAge);
 
-  const deathChance = computeDeathChance(newAge, stats);
+  const deathChance = computeDeathChance(newAge, stats, getLifeExpectancy(countryCode));
   const isDead =
     options?.forceDeath ||
     stats.health <= 0 ||
@@ -519,6 +667,68 @@ export function runAgeUp(
     }
   }
 
+  let degreeIds = [...(character.degreeIds ?? [])];
+  let enrolledDegreeId = character.enrolledDegreeId;
+  let enrolledDegreeYearsRemaining = character.enrolledDegreeYearsRemaining;
+  let educationBranch = character.educationBranch;
+  let scholarshipDiscount = character.scholarshipDiscount;
+  let educationMajorSkipped = character.educationMajorSkipped;
+  const ageUpNotices: string[] = [];
+
+  if (character.enrolledDegreeId) {
+    const degreeTick = tickDegreeEnrollment({
+      ...character,
+      bankBalance,
+      debt,
+      enrolledDegreeYearsRemaining,
+      degreeIds,
+      educationStage: updatedEducationStage,
+      educationLevel: updatedEducation,
+      age: newAge,
+      scholarshipDiscount,
+    });
+    if (degreeTick.tuitionPaid > 0) {
+      pushCash(-degreeTick.tuitionPaid, "tuition", "Degree tuition");
+      if ((scholarshipDiscount ?? 0) > 0) {
+        scholarshipDiscount = undefined;
+      }
+    }
+    if (degreeTick.graduated && degreeTick.graduation?.ok) {
+      if (degreeTick.degreeId && !degreeIds.includes(degreeTick.degreeId)) {
+        degreeIds.push(degreeTick.degreeId);
+      }
+      if (degreeTick.newEducationLevel) updatedEducation = degreeTick.newEducationLevel;
+      if (degreeTick.newStage) updatedEducationStage = degreeTick.newStage;
+      if (degreeTick.educationBranch) educationBranch = degreeTick.educationBranch;
+      if (degreeTick.intelligenceGain) {
+        stats.intelligence = clamp(stats.intelligence + degreeTick.intelligenceGain);
+      }
+      enrolledDegreeId = undefined;
+      enrolledDegreeYearsRemaining = undefined;
+      eduMilestoneRecords.push({
+        id: `degree_grad_${degreeTick.degreeId}_${newAge}`,
+        age: newAge,
+        title: "Graduation",
+        description: degreeTick.graduation.message,
+        statEffect: { intelligence: degreeTick.intelligenceGain ?? 2 },
+        category: "education",
+        color: "#14B8A6",
+        timestamp: Date.now(),
+      });
+      // Masters/PhD are manual via Study — no auto-enroll after undergrad/masters.
+    } else if (degreeTick.yearsRemaining !== undefined) {
+      enrolledDegreeYearsRemaining = degreeTick.yearsRemaining;
+    }
+  }
+
+  const collegeMajorPickNeeded = shouldPromptCollegeMajor({
+    age: newAge,
+    educationStage: updatedEducationStage,
+    enrolledDegreeId,
+    degreeIds,
+    educationMajorSkipped,
+  });
+
   const charForEvents = {
     ...character,
     age: newAge,
@@ -553,6 +763,7 @@ export function runAgeUp(
     ...economyRecords,
     ...stressRecords,
     ...eduMilestoneRecords,
+    ...disasterEntries,
   ];
 
   // Push world event logs into newRecords
@@ -583,6 +794,7 @@ export function runAgeUp(
     newAge,
     stats.wealth,
     character.familyBackground,
+    countryCode,
   );
   updatedPeople = autonomyResult.people;
   autonomyResult.logs.forEach((log) => {
@@ -598,9 +810,11 @@ export function runAgeUp(
     });
   });
   if (autonomyResult.bankDelta !== 0) {
-    const cashRes = applyCashDelta(bankBalance, debt, autonomyResult.bankDelta);
-    bankBalance = cashRes.bankBalance;
-    debt = cashRes.debt;
+    pushCash(
+      autonomyResult.bankDelta,
+      "other",
+      autonomyResult.bankDelta > 0 ? "Family/NPC income" : "Family/NPC expense",
+    );
   }
 
   if (newAge >= 5 && newAge <= 18) {
@@ -628,11 +842,40 @@ export function runAgeUp(
   });
   let socialPosts = socialTick.posts;
   let socialFollowers = socialTick.socialFollowers;
+  if (socialTick.followerIncome > 0) {
+    pushCash(socialTick.followerIncome, "social", "Follower income");
+  }
 
   const hobbyProgress = tickHobbyDecay({
     ...character,
     hobbyProgress: character.hobbyProgress,
   });
+  const competitionResults = tickHobbyCompetitions({
+    ...character,
+    hobbyProgress,
+  });
+  let mergedHobbyProgress = { ...hobbyProgress };
+  for (const comp of competitionResults) {
+    mergedHobbyProgress[comp.hobbyId] = comp.progress;
+    if (comp.cashDelta !== 0) {
+      pushCash(
+        comp.cashDelta,
+        "other",
+        comp.won ? "Competition prize" : "Competition costs",
+      );
+    }
+    stats = { ...stats, ...comp.statPatch } as typeof stats;
+    newRecords.push({
+      id: `hobby_comp_${comp.competition.id}_${Date.now()}`,
+      age: newAge,
+      title: comp.won ? 'Competition Won!' : 'Competition Entry',
+      description: comp.message,
+      statEffect: comp.statPatch,
+      category: 'random',
+      color: comp.won ? '#10B981' : '#6366F1',
+      timestamp: Date.now(),
+    });
+  }
   const heatLevel = decayHeat({
     ...character,
     heatLevel: character.heatLevel ?? character.criminalRecord?.heatLevel,
@@ -650,12 +893,33 @@ export function runAgeUp(
   let updatedChildren = character.children;
 
   for (const event of autoEvents) {
+    const scaledBankEffect = scaleEventBankEffect(
+      event.bankEffect ?? 0,
+      countryCode,
+      event.category === 'crime' ? 'fine' : 'cost',
+      event.category,
+      newAge,
+    );
+    let statEffect = event.statEffect;
+    if (event.category === 'health') {
+      const resilientMult = getResilientHealthEventMultiplier(character.traits ?? []);
+      if (resilientMult !== 1) {
+        statEffect = { ...statEffect };
+        if (statEffect.health != null && statEffect.health < 0) {
+          statEffect.health = Math.round(statEffect.health * resilientMult);
+        }
+        if (statEffect.mentalHealth != null && statEffect.mentalHealth < 0) {
+          statEffect.mentalHealth = Math.round(statEffect.mentalHealth * resilientMult);
+        }
+      }
+    }
+    const debtBeforeEvent = debt;
     const res = applyEffect(
       stats,
       karma,
       bankBalance,
-      event.statEffect,
-      event.bankEffect ?? 0,
+      statEffect,
+      scaledBankEffect,
       character.assets,
       debt,
     );
@@ -663,6 +927,19 @@ export function runAgeUp(
     karma = res.karma;
     bankBalance = res.bankBalance;
     debt = res.debt;
+    if (scaledBankEffect !== 0) {
+      financeEntries.push(
+        createLedgerEntry({
+          age: newAge,
+          category: "event",
+          label: event.title,
+          amount: scaledBankEffect,
+          bankAfter: bankBalance,
+          debtAfter: debt,
+          debtBefore: debtBeforeEvent,
+        }),
+      );
+    }
 
     const hapEffect = event.statEffect?.happiness ?? 0;
     if (hapEffect <= -15) {
@@ -777,6 +1054,21 @@ export function runAgeUp(
 
   updatedJob = syncJobLabel(newAge, career, updatedJob);
 
+  const creditTick = tickCreditScore(
+    {
+      ...character,
+      age: newAge,
+      assets,
+      debt,
+      bankBalance,
+      businesses,
+    },
+    {
+      onTimePayment: housingCosts > 0,
+      missedPayment: (debt ?? 0) > (character.debt ?? 0) + 1 && housingCosts > 0,
+    },
+  );
+
   // Trigger Fantasy DLC age-up events
   const dlcRecords = triggerDlcAgeUpEvents({
     ...character,
@@ -842,6 +1134,7 @@ export function runAgeUp(
     karma,
     bankBalance,
     debt,
+    financeLedger: appendFinanceLedger(character.financeLedger, financeEntries),
     assets,
     lifeStage: newLifeStage,
     job: updatedJob,
@@ -849,6 +1142,12 @@ export function runAgeUp(
     totalCareerYears,
     educationLevel: updatedEducation,
     educationStage: updatedEducationStage,
+    educationBranch,
+    degreeIds,
+    enrolledDegreeId,
+    enrolledDegreeYearsRemaining,
+    scholarshipDiscount,
+    educationMajorSkipped,
     certificationIds,
     people: updatedPeople,
     relationships: updatedRelationships,
@@ -859,9 +1158,17 @@ export function runAgeUp(
     socialPosts,
     gpa,
     heatLevel,
-    hobbyProgress,
+    hobbyProgress: mergedHobbyProgress,
     legalCase,
-    creditScore: character.creditScore ?? 650,
+    creditScore: creditTick.creditScore,
+    creditFactors: creditTick.creditFactors,
+    creditInquiries: creditTick.creditInquiries,
+    insurancePolicies: character.insurancePolicies,
+    angelOpportunities:
+      character.angelOpportunities && character.angelOpportunities.length > 0
+        ? character.angelOpportunities
+        : generateAngelOpportunities({ ...character, age: newAge, bankBalance }),
+    creditHistoryStartAge: character.creditHistoryStartAge,
     netWorthPeak,
     eventCooldowns: updatedCooldowns,
     memories,
@@ -911,6 +1218,9 @@ export function runAgeUp(
       netWorthPeak,
       needsAspirationPick: aspirationPickNeeded,
       needsCourt: courtNeeded,
+      needsCollegeMajorPick: collegeMajorPickNeeded,
+      needsPromotionOffer: promotionOfferNeeded,
+      notices: ageUpNotices.length ? ageUpNotices : undefined,
     };
   }
 
@@ -922,5 +1232,8 @@ export function runAgeUp(
     karma,
     needsAspirationPick: aspirationPickNeeded,
     needsCourt: courtNeeded,
+    needsCollegeMajorPick: collegeMajorPickNeeded,
+    needsPromotionOffer: promotionOfferNeeded,
+    notices: ageUpNotices.length ? ageUpNotices : undefined,
   };
 }

@@ -1,14 +1,15 @@
-import { View, Text, ScrollView, Pressable, ActivityIndicator } from "react-native";
-import { useState } from "react";
+import { View, Text, ScrollView, Pressable, ActivityIndicator, Animated } from "react-native";
+import { useState, useRef } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import Svg, { Path } from "react-native-svg";
 import { LinearGradient } from "expo-linear-gradient";
-import { useTheme } from "@theme";
+import { useTheme, ANIM } from "@theme";
+import { useReducedMotion } from "@hooks/useReducedMotion";
 import { SCENARIOS, ScenarioId } from "@data/scenarios";
 import type { RootStackParamList } from "@/types";
-import { useGameStore } from "@store/gameStore";
+import { useScenarioPurchase, getScenarioPurchaseStore } from "@features/scenarios/hooks/useScenarioPurchase";
 import { purchaseProduct, getIAPProducts, applyPurchaseToStore } from "@services/iap";
 import { useToastStore } from "@store/toastStore";
 import { IAPProductId } from "@/types";
@@ -20,10 +21,20 @@ export function ScenarioDetailScreen() {
   const { colors, fonts, spacing, radii } = useTheme();
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
-  const store = useGameStore();
-  const isScenarioOwned = useGameStore((s) => s.isScenarioOwned);
+  const { isScenarioOwned } = useScenarioPurchase();
   const showToast = useToastStore((s) => s.showToast);
   const [purchasing, setPurchasing] = useState(false);
+  const reducedMotion = useReducedMotion();
+  const ctaScale = useRef(new Animated.Value(1)).current;
+
+  const onCtaPressIn = () => {
+    if (reducedMotion) return;
+    Animated.spring(ctaScale, { toValue: 0.96, useNativeDriver: true, ...ANIM.spring }).start();
+  };
+  const onCtaPressOut = () => {
+    if (reducedMotion) return;
+    Animated.spring(ctaScale, { toValue: 1, useNativeDriver: true, ...ANIM.spring }).start();
+  };
 
   const scenario = SCENARIOS.find((s) => s.id === (route.params.scenarioId as ScenarioId));
 
@@ -51,7 +62,7 @@ export function ScenarioDetailScreen() {
     try {
       const catalog = getIAPProducts();
       if (catalog.length === 0) {
-        // Dev build: grant immediately
+        const store = getScenarioPurchaseStore();
         applyPurchaseToStore(scenario.iapProductId as IAPProductId, store);
         await store._persist();
         showToast(`${scenario.name} unlocked!`, "success");
@@ -182,24 +193,28 @@ export function ScenarioDetailScreen() {
       <View style={{ position: "absolute", bottom: 0, left: 0, right: 0,
         padding: spacing.lg, backgroundColor: colors.bg,
         borderTopWidth: 1, borderTopColor: colors.border }}>
-        <Pressable
-          onPress={handleCTA}
-          disabled={purchasing}
-          style={[
-            { borderRadius: radii.md, paddingVertical: 14, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8 },
-            owned
-              ? { backgroundColor: accent }
-              : { backgroundColor: colors.gold },
-          ]}
-        >
-          {purchasing && <ActivityIndicator size="small" color="#FFF" />}
-          <Text style={{
-            color: "#FFFFFF",
-            fontFamily: fonts.displayBold, fontSize: 15,
-          }}>
-            {ctaLabel}
-          </Text>
-        </Pressable>
+        <Animated.View style={{ transform: [{ scale: ctaScale }] }}>
+          <Pressable
+            onPress={handleCTA}
+            onPressIn={onCtaPressIn}
+            onPressOut={onCtaPressOut}
+            disabled={purchasing}
+            style={[
+              { borderRadius: radii.md, paddingVertical: 14, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8 },
+              owned
+                ? { backgroundColor: accent }
+                : { backgroundColor: colors.gold },
+            ]}
+          >
+            {purchasing && <ActivityIndicator size="small" color="#FFF" />}
+            <Text style={{
+              color: "#FFFFFF",
+              fontFamily: fonts.displayBold, fontSize: 15,
+            }}>
+              {ctaLabel}
+            </Text>
+          </Pressable>
+        </Animated.View>
       </View>
     </SafeAreaView>
   );

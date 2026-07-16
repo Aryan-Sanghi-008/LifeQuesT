@@ -1,5 +1,6 @@
 import type { Character } from '../types';
 import { computeNetWorth } from './economyEngine';
+import { getChallengeWealthTarget } from '../data/countryEconomy';
 import { FOCUS_DOMAINS } from '../data/focusDomains';
 
 export function evaluateAchievements(character: Character): Set<string> {
@@ -91,7 +92,9 @@ export function evaluateAchievements(character: Character): Set<string> {
   if (gen >= 5) earned.add('dynasty_5');
   if (character.will?.type === 'charity') earned.add('will_charity');
   if (character.will?.type === 'heir') earned.add('will_heir');
-  if (character.bankBalance >= 1000000 && gen > 1) earned.add('dynasty_millionaire');
+  if (character.bankBalance >= getChallengeWealthTarget(character.countryCode ?? 'US') && gen > 1) {
+    earned.add('dynasty_millionaire');
+  }
   
   const hasRecession = character.eventHistory.some(e => e.description.toLowerCase().includes('recession'));
   const hasPandemic = character.eventHistory.some(e => e.description.toLowerCase().includes('pandemic'));

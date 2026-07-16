@@ -6,6 +6,8 @@
 import { Character, CharacterStats } from '../types';
 import { getCountryEconomy, getAnnualCostOfLiving, applyTax } from '../data/countryEconomy';
 import { clamp } from '../engine/economyEngine';
+import { scaleCountryAmount } from './countryScaleEngine';
+import { getAthleticHealthBonus } from './traitEngine';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,12 +35,16 @@ export function runAnnualSimulation(character: Character): SimulationResult {
   const warnings: string[] = [];
   const stats = character.stats;
   const eco = getCountryEconomy(character.countryCode);
+  const cc = character.countryCode ?? 'US';
 
-  const annualCoL = getAnnualCostOfLiving(character.countryCode);
-  const adjustedCoL = Math.round(annualCoL * eco.costOfLivingIndex * (1 + eco.inflationRate * 0.5));
+  const annualCoL = getAnnualCostOfLiving(cc);
+  const adjustedCoL = Math.round(annualCoL * (1 + eco.inflationRate * 0.5));
+
+  const moderateDebtFloor = -scaleCountryAmount(500_000, cc, 'cost');
+  const majorDebtFloor = -scaleCountryAmount(10_000, cc, 'cost');
 
   // ── Financial stress (stat effects only — bank already updated) ─────────────
-  if (character.bankBalance <= 0 && character.bankBalance > -500_000 && character.age >= 13) {
+  if (character.bankBalance <= 0 && character.bankBalance > moderateDebtFloor && character.age >= 13) {
     effects.push({
       type: 'financial_stress',
       description: 'Your expenses are exceeding your income. Savings are depleting.',
@@ -48,7 +54,7 @@ export function runAnnualSimulation(character: Character): SimulationResult {
     patches.happiness = (patches.happiness ?? 0) - 4;
   }
 
-  if (character.bankBalance < -10_000) {
+  if (character.bankBalance < majorDebtFloor) {
     effects.push({
       type: 'financial_stress',
       description: 'Debt is mounting. Financial stress is taking a serious toll.',
@@ -193,8 +199,7 @@ export function estimateLifeExpectancy(character: Pick<Character, 'stats' | 'cou
   const mentalMod    = (mentalHealth - 50) * 0.08;
   const happinessMod = (happiness - 50) * 0.05;
 
-  const traitMod = character.traits.includes('athletic') ? 3 :
-                   character.traits.includes('healthy')  ? 2 : 0;
+  const traitMod = getAthleticHealthBonus(character.traits ?? []);
 
   return Math.round(baseline + healthMod + fitnessMod + mentalMod + happinessMod + traitMod);
 }

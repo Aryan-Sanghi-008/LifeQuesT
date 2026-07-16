@@ -35,6 +35,8 @@ export interface CareerRequirements {
   forbiddenCriminalRecord?: boolean;
   minYearsExperience?: number;      // In any career
   certifications?: string[];        // e.g. ['bar_exam', 'cpa', 'pilot_license']
+  minHobbyLevel?: number;
+  requiredHobbyCategory?: import('../types').HobbyCategory;
 }
 
 export interface CareerProgression {
@@ -287,7 +289,7 @@ export const CAREER_PATHS: CareerPath[] = [
     label: 'Professional Athlete', category: 'sports', isEntryLevel: true, seniorityLevel: 2,
     description: 'Compete professionally in your chosen sport.',
     company: 'Sports Club', baseSalary: 40000, maxSalary: 2000000, stressLevel: 7, workLifeBalance: 5,
-    requirements: { minAge: 16, maxAge: 35, minEducationStage: 'none', minIntelligence: 20, minFitness: 80 },
+    requirements: { minAge: 16, maxAge: 35, minEducationStage: 'none', minIntelligence: 20, minFitness: 80, minHobbyLevel: 10, requiredHobbyCategory: 'sports' },
     progressionPaths: [{ id: 'sports_captain', minYearsInRole: 5, minPerformance: 85, requiresPromotion: true }] },
 
   { id: 'sports_coach',

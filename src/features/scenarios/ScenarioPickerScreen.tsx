@@ -4,6 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import Svg, { Path } from "react-native-svg";
 import { useTheme } from "@theme";
+import { FadeInView } from "@components/index";
 import { SCENARIOS, Scenario } from "@data/scenarios";
 import type { RootStackParamList, ScenarioId } from "@/types";
 import { useGameStore } from "@store/gameStore";
@@ -160,12 +161,14 @@ export function ScenarioPickerScreen() {
             <Text style={{ color: colors.gold, fontFamily: fonts.bodyBold, fontSize: 11, letterSpacing: 0.5 }}>
               FEATURED SCENARIO
             </Text>
+            <FadeInView delay={0}>
             <ScenarioCard
               scenario={featuredScenario}
               owned={isScenarioOwned(featuredScenario.id)}
               subtitle="Featured this week"
               onPress={() => navigation.navigate("ScenarioDetail", { scenarioId: featuredScenario.id })}
             />
+            </FadeInView>
           </>
         )}
 
@@ -179,17 +182,18 @@ export function ScenarioPickerScreen() {
                 {plusCredits} left
               </Text>
             </View>
-            {plusScenarios.map((s) => {
+            {plusScenarios.map((s, idx) => {
               const owned = isScenarioOwned(s.id);
               const pickedThisMonth = plusMonthIds.includes(s.id);
               return (
-                <ScenarioCard
-                  key={`plus-${s.id}`}
-                  scenario={s}
-                  owned={owned}
-                  subtitle={pickedThisMonth ? 'This month' : 'Use pick'}
-                  onPress={() => handlePlusPick(s.id)}
-                />
+                <FadeInView key={`plus-${s.id}`} delay={idx * 80}>
+                  <ScenarioCard
+                    scenario={s}
+                    owned={owned}
+                    subtitle={pickedThisMonth ? 'This month' : 'Use pick'}
+                    onPress={() => handlePlusPick(s.id)}
+                  />
+                </FadeInView>
               );
             })}
             <View style={{ height: 8 }} />
@@ -197,24 +201,26 @@ export function ScenarioPickerScreen() {
         )}
 
         <Text style={{ color: colors.t3, fontFamily: fonts.bodyBold, fontSize: 11, letterSpacing: 0.5 }}>FREE</Text>
-        {freeScenarios.map((s) => (
-          <ScenarioCard
-            key={s.id}
-            scenario={s}
-            owned={isScenarioOwned(s.id)}
-            onPress={() => navigation.navigate("ScenarioDetail", { scenarioId: s.id })}
-          />
+        {freeScenarios.map((s, idx) => (
+          <FadeInView key={s.id} delay={idx * 80}>
+            <ScenarioCard
+              scenario={s}
+              owned={isScenarioOwned(s.id)}
+              onPress={() => navigation.navigate("ScenarioDetail", { scenarioId: s.id })}
+            />
+          </FadeInView>
         ))}
 
         <View style={{ height: 8 }} />
         <Text style={{ color: colors.t3, fontFamily: fonts.bodyBold, fontSize: 11, letterSpacing: 0.5 }}>PREMIUM</Text>
-        {premiumScenarios.map((s) => (
-          <ScenarioCard
-            key={s.id}
-            scenario={s}
-            owned={isScenarioOwned(s.id)}
-            onPress={() => navigation.navigate("ScenarioDetail", { scenarioId: s.id })}
-          />
+        {premiumScenarios.map((s, idx) => (
+          <FadeInView key={s.id} delay={idx * 80}>
+            <ScenarioCard
+              scenario={s}
+              owned={isScenarioOwned(s.id)}
+              onPress={() => navigation.navigate("ScenarioDetail", { scenarioId: s.id })}
+            />
+          </FadeInView>
         ))}
       </ScrollView>
     </SafeAreaView>

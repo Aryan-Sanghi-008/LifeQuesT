@@ -3,8 +3,13 @@ import {
   getAnnualCostOfLiving,
   getCountryEconomy,
   applyTax,
-  getMaxPersonalDebt,
+  getMaxPersonalDebtForCharacter,
 } from "../data/countryEconomy";
+import { scaleCountryAmount } from "./countryScaleEngine";
+import {
+  canAffordCashInvestment,
+  getMaxInvestableAmountStrict,
+} from "./financingEngine";
 
 export const clamp = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
 
@@ -95,7 +100,7 @@ export function tickAnnualEconomy(
   const eco = getCountryEconomy(countryCode);
   const baseCoL = getAnnualCostOfLiving(countryCode);
   const inflationAdjusted = Math.round(
-    baseCoL * eco.costOfLivingIndex * (1 + eco.inflationRate * 0.5),
+    baseCoL * (1 + eco.inflationRate * 0.5),
   );
   const livingExpenses = Math.round(
     inflationAdjusted * livingExpenseAgeFactor(age),
@@ -137,63 +142,111 @@ export function getTotalDebt(
   return cashDebt + assetDebt;
 }
 
+type DebtCharacter = Pick<Character, "bankBalance" | "assets" | "debt" | "countryCode"> & {
+  familyBackground?: Character["familyBackground"];
+};
+
 export function checkDebtCrisis(
-  character: Pick<Character, "bankBalance" | "assets" | "debt" | "countryCode">,
+  character: DebtCharacter,
 ): DebtCrisisResult {
   const totalDebt = getTotalDebt(character);
-  const limit = getMaxPersonalDebt(character.countryCode ?? "IN");
+  const limit = getMaxPersonalDebtForCharacter(character);
   return { crisis: totalDebt >= limit, limit, totalDebt };
 }
 
-const MIN_INVESTMENT = 10000;
+const MIN_INVESTMENT_USD = 1;
+export const STOCK_SUGGESTED_USD = 10_000;
+
+/** Smallest allowed investment in local currency (~$1 USD anchor). */
+export function getMinInvestment(countryCode = "US"): number {
+  return Math.max(1, scaleCountryAmount(MIN_INVESTMENT_USD, countryCode, "cost"));
+}
+
+/** Typical stock buy used for UI defaults and playability benchmarks. */
+export function getSuggestedStockInvestment(countryCode = "US"): number {
+  return scaleCountryAmount(STOCK_SUGGESTED_USD, countryCode, "cost");
+}
+
+/** Cash-only by default; pass useMargin when credit ≥ 750 and player opts in. */
+export function getMaxInvestableAmount(
+  character: DebtCharacter & { creditScore?: number },
+  options?: { useMargin?: boolean; orderAmount?: number },
+): number {
+  return getMaxInvestableAmountStrict(character, options);
+}
+
+export function validateInvestmentAmount(
+  amount: number,
+  countryCode = "US",
+): { ok: boolean; message: string } {
+  const minInvestment = getMinInvestment(countryCode);
+  if (!Number.isFinite(amount) || amount < minInvestment) {
+    return {
+      ok: false,
+      message: `Minimum investment is ${minInvestment.toLocaleString()}.`,
+    };
+  }
+  return { ok: true, message: "" };
+}
 
 export interface InvestResult {
   ok: boolean;
   message: string;
   bankBalance: number;
+  debt?: number;
   asset?: Character["assets"][number];
 }
 
 export function investInMarket(
-  character: Pick<Character, "bankBalance" | "assets" | "age">,
+  character: DebtCharacter & Pick<Character, "age" | "assets" | "creditScore">,
   amount: number,
+  options?: { useMargin?: boolean; catalogId?: string; name?: string },
 ): InvestResult {
-  if (amount < MIN_INVESTMENT) {
+  const cc = character.countryCode ?? "US";
+  const validation = validateInvestmentAmount(amount, cc);
+  if (!validation.ok) {
     return {
       ok: false,
-      message: `Minimum investment is ${MIN_INVESTMENT.toLocaleString()}.`,
+      message: validation.message,
       bankBalance: character.bankBalance,
     };
   }
-  if (character.bankBalance < amount) {
+  const afford = canAffordCashInvestment(
+    character,
+    amount,
+    options?.useMargin ?? false,
+  );
+  if (!afford.ok) {
     return {
       ok: false,
-      message: "Not enough funds in your bank account.",
+      message: afford.message,
       bankBalance: character.bankBalance,
     };
   }
 
-  // Volatility model: normal-ish distribution centred at 1.0, std dev ~0.18
-  const u1 = Math.random() || 1e-10;
-  const u2 = Math.random();
-  const normal = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-  const variance = Math.max(0.5, Math.min(1.8, 1.0 + normal * 0.18));
-  const value = Math.round(amount * variance);
+  const debt = character.debt ?? 0;
+  // Cost basis equals amount; mark-to-market happens on age-up via marketEngine
+  const value = Math.round(amount);
   const asset: Character["assets"][number] = {
     id: `invest_${Date.now()}`,
     type: "investment",
-    name: "Stock Portfolio",
+    name: options?.name ?? "Stock Portfolio",
     value,
     purchasedAge: character.age,
+    catalogId: options?.catalogId ?? "stock_index",
+    costBasis: amount,
+    priceHistory: [{ age: character.age, value }],
   };
 
-  const gain = value - amount;
-  const gainLabel =
-    gain >= 0 ? `+${gain.toLocaleString()}` : `${gain.toLocaleString()}`;
+  const cash = applyCashDelta(character.bankBalance, debt, -amount);
   return {
     ok: true,
-    message: `Invested ${amount.toLocaleString()}. Market returned ${value.toLocaleString()} (${gainLabel}).`,
-    bankBalance: character.bankBalance - amount,
+    message:
+      afford.marginUsed > 0
+        ? `Invested ${amount.toLocaleString()} (${afford.marginUsed.toLocaleString()} on margin).`
+        : `Invested ${amount.toLocaleString()} from cash.`,
+    bankBalance: cash.bankBalance,
+    debt: cash.debt,
     asset,
   };
 }

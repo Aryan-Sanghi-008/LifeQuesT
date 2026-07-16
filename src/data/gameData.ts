@@ -39,56 +39,89 @@ export const AVATARS: Array<{ id: AvatarId; label: string }> = [
 ];
 
 // ─── Countries ───────────────────────────────────────────────────────────────
-export const COUNTRIES = [
-  // Asia
-  { code: 'IN', flag: '🇮🇳', name: 'India',         wealthMod: 0   },
-  { code: 'CN', flag: '🇨🇳', name: 'China',          wealthMod: 8   },
-  { code: 'JP', flag: '🇯🇵', name: 'Japan',          wealthMod: 12  },
-  { code: 'KR', flag: '🇰🇷', name: 'South Korea',    wealthMod: 12  },
-  { code: 'SG', flag: '🇸🇬', name: 'Singapore',      wealthMod: 22  },
-  { code: 'MY', flag: '🇲🇾', name: 'Malaysia',       wealthMod: 5   },
-  { code: 'TH', flag: '🇹🇭', name: 'Thailand',       wealthMod: 2   },
-  { code: 'VN', flag: '🇻🇳', name: 'Vietnam',        wealthMod: -2  },
-  { code: 'PH', flag: '🇵🇭', name: 'Philippines',    wealthMod: -3  },
-  { code: 'ID', flag: '🇮🇩', name: 'Indonesia',      wealthMod: 0   },
-  { code: 'PK', flag: '🇵🇰', name: 'Pakistan',       wealthMod: -8  },
-  { code: 'BD', flag: '🇧🇩', name: 'Bangladesh',     wealthMod: -10 },
-  // Middle East
-  { code: 'AE', flag: '🇦🇪', name: 'UAE',            wealthMod: 25  },
-  { code: 'SA', flag: '🇸🇦', name: 'Saudi Arabia',   wealthMod: 20  },
-  { code: 'TR', flag: '🇹🇷', name: 'Turkey',         wealthMod: 3   },
-  { code: 'IL', flag: '🇮🇱', name: 'Israel',         wealthMod: 18  },
-  // Europe
-  { code: 'GB', flag: '🇬🇧', name: 'United Kingdom', wealthMod: 15  },
-  { code: 'DE', flag: '🇩🇪', name: 'Germany',        wealthMod: 18  },
-  { code: 'FR', flag: '🇫🇷', name: 'France',         wealthMod: 16  },
-  { code: 'ES', flag: '🇪🇸', name: 'Spain',          wealthMod: 12  },
-  { code: 'IT', flag: '🇮🇹', name: 'Italy',          wealthMod: 12  },
-  { code: 'NL', flag: '🇳🇱', name: 'Netherlands',    wealthMod: 18  },
-  { code: 'SE', flag: '🇸🇪', name: 'Sweden',         wealthMod: 20  },
-  { code: 'NO', flag: '🇳🇴', name: 'Norway',         wealthMod: 22  },
-  { code: 'CH', flag: '🇨🇭', name: 'Switzerland',    wealthMod: 25  },
-  { code: 'PL', flag: '🇵🇱', name: 'Poland',         wealthMod: 8   },
-  { code: 'RU', flag: '🇷🇺', name: 'Russia',         wealthMod: 5   },
-  // Americas
-  { code: 'US', flag: '🇺🇸', name: 'USA',            wealthMod: 20  },
-  { code: 'CA', flag: '🇨🇦', name: 'Canada',         wealthMod: 18  },
-  { code: 'MX', flag: '🇲🇽', name: 'Mexico',         wealthMod: 0   },
-  { code: 'BR', flag: '🇧🇷', name: 'Brazil',         wealthMod: -5  },
-  { code: 'AR', flag: '🇦🇷', name: 'Argentina',      wealthMod: -2  },
-  { code: 'CO', flag: '🇨🇴', name: 'Colombia',       wealthMod: -5  },
-  { code: 'CL', flag: '🇨🇱', name: 'Chile',          wealthMod: 2   },
-  // Africa
-  { code: 'NG', flag: '🇳🇬', name: 'Nigeria',        wealthMod: -10 },
-  { code: 'ZA', flag: '🇿🇦', name: 'South Africa',   wealthMod: -5  },
-  { code: 'EG', flag: '🇪🇬', name: 'Egypt',          wealthMod: -5  },
-  { code: 'KE', flag: '🇰🇪', name: 'Kenya',          wealthMod: -8  },
-  { code: 'GH', flag: '🇬🇭', name: 'Ghana',          wealthMod: -8  },
-  { code: 'ET', flag: '🇪🇹', name: 'Ethiopia',       wealthMod: -12 },
-  // Oceania
-  { code: 'AU', flag: '🇦🇺', name: 'Australia',      wealthMod: 15  },
-  { code: 'NZ', flag: '🇳🇿', name: 'New Zealand',    wealthMod: 15  },
+export type CountryRegion =
+  | 'asia'
+  | 'middle_east'
+  | 'europe'
+  | 'americas'
+  | 'africa'
+  | 'oceania';
+
+export interface CountryDef {
+  code: string;
+  flag: string;
+  name: string;
+  wealthMod: number;
+  region: CountryRegion;
+}
+
+export const COUNTRY_REGIONS: { id: CountryRegion; label: string }[] = [
+  { id: 'asia', label: 'Asia' },
+  { id: 'middle_east', label: 'Middle East' },
+  { id: 'europe', label: 'Europe' },
+  { id: 'americas', label: 'Americas' },
+  { id: 'africa', label: 'Africa' },
+  { id: 'oceania', label: 'Oceania' },
 ];
+
+export const COUNTRIES: CountryDef[] = [
+  // Asia
+  { code: 'IN', flag: '🇮🇳', name: 'India',         wealthMod: 0,   region: 'asia' },
+  { code: 'CN', flag: '🇨🇳', name: 'China',          wealthMod: 8,   region: 'asia' },
+  { code: 'JP', flag: '🇯🇵', name: 'Japan',          wealthMod: 12,  region: 'asia' },
+  { code: 'KR', flag: '🇰🇷', name: 'South Korea',    wealthMod: 12,  region: 'asia' },
+  { code: 'SG', flag: '🇸🇬', name: 'Singapore',      wealthMod: 22,  region: 'asia' },
+  { code: 'MY', flag: '🇲🇾', name: 'Malaysia',       wealthMod: 5,   region: 'asia' },
+  { code: 'TH', flag: '🇹🇭', name: 'Thailand',       wealthMod: 2,   region: 'asia' },
+  { code: 'VN', flag: '🇻🇳', name: 'Vietnam',        wealthMod: -2,  region: 'asia' },
+  { code: 'PH', flag: '🇵🇭', name: 'Philippines',    wealthMod: -3,  region: 'asia' },
+  { code: 'ID', flag: '🇮🇩', name: 'Indonesia',      wealthMod: 0,   region: 'asia' },
+  { code: 'PK', flag: '🇵🇰', name: 'Pakistan',       wealthMod: -8,  region: 'asia' },
+  { code: 'BD', flag: '🇧🇩', name: 'Bangladesh',     wealthMod: -10, region: 'asia' },
+  // Middle East
+  { code: 'AE', flag: '🇦🇪', name: 'UAE',            wealthMod: 25,  region: 'middle_east' },
+  { code: 'SA', flag: '🇸🇦', name: 'Saudi Arabia',   wealthMod: 20,  region: 'middle_east' },
+  { code: 'TR', flag: '🇹🇷', name: 'Turkey',         wealthMod: 3,   region: 'middle_east' },
+  { code: 'IL', flag: '🇮🇱', name: 'Israel',         wealthMod: 18,  region: 'middle_east' },
+  // Europe
+  { code: 'GB', flag: '🇬🇧', name: 'United Kingdom', wealthMod: 15,  region: 'europe' },
+  { code: 'DE', flag: '🇩🇪', name: 'Germany',        wealthMod: 18,  region: 'europe' },
+  { code: 'FR', flag: '🇫🇷', name: 'France',         wealthMod: 16,  region: 'europe' },
+  { code: 'ES', flag: '🇪🇸', name: 'Spain',          wealthMod: 12,  region: 'europe' },
+  { code: 'IT', flag: '🇮🇹', name: 'Italy',          wealthMod: 12,  region: 'europe' },
+  { code: 'NL', flag: '🇳🇱', name: 'Netherlands',    wealthMod: 18,  region: 'europe' },
+  { code: 'SE', flag: '🇸🇪', name: 'Sweden',         wealthMod: 20,  region: 'europe' },
+  { code: 'NO', flag: '🇳🇴', name: 'Norway',         wealthMod: 22,  region: 'europe' },
+  { code: 'CH', flag: '🇨🇭', name: 'Switzerland',    wealthMod: 25,  region: 'europe' },
+  { code: 'PL', flag: '🇵🇱', name: 'Poland',         wealthMod: 8,   region: 'europe' },
+  { code: 'RU', flag: '🇷🇺', name: 'Russia',         wealthMod: 5,   region: 'europe' },
+  // Americas
+  { code: 'US', flag: '🇺🇸', name: 'USA',            wealthMod: 20,  region: 'americas' },
+  { code: 'CA', flag: '🇨🇦', name: 'Canada',         wealthMod: 18,  region: 'americas' },
+  { code: 'MX', flag: '🇲🇽', name: 'Mexico',         wealthMod: 0,   region: 'americas' },
+  { code: 'BR', flag: '🇧🇷', name: 'Brazil',         wealthMod: -5,  region: 'americas' },
+  { code: 'AR', flag: '🇦🇷', name: 'Argentina',      wealthMod: -2,  region: 'americas' },
+  { code: 'CO', flag: '🇨🇴', name: 'Colombia',       wealthMod: -5,  region: 'americas' },
+  { code: 'CL', flag: '🇨🇱', name: 'Chile',          wealthMod: 2,   region: 'americas' },
+  // Africa
+  { code: 'NG', flag: '🇳🇬', name: 'Nigeria',        wealthMod: -10, region: 'africa' },
+  { code: 'ZA', flag: '🇿🇦', name: 'South Africa',   wealthMod: -5,  region: 'africa' },
+  { code: 'EG', flag: '🇪🇬', name: 'Egypt',          wealthMod: -5,  region: 'africa' },
+  { code: 'KE', flag: '🇰🇪', name: 'Kenya',          wealthMod: -8,  region: 'africa' },
+  { code: 'GH', flag: '🇬🇭', name: 'Ghana',          wealthMod: -8,  region: 'africa' },
+  { code: 'ET', flag: '🇪🇹', name: 'Ethiopia',       wealthMod: -12, region: 'africa' },
+  // Oceania
+  { code: 'AU', flag: '🇦🇺', name: 'Australia',      wealthMod: 15,  region: 'oceania' },
+  { code: 'NZ', flag: '🇳🇿', name: 'New Zealand',    wealthMod: 15,  region: 'oceania' },
+];
+
+export function getCountriesByRegion(region: CountryRegion): CountryDef[] {
+  return COUNTRIES.filter((c) => c.region === region);
+}
+
+export function getCountryRegion(countryCode: string): CountryRegion {
+  return COUNTRIES.find((c) => c.code === countryCode)?.region ?? 'asia';
+}
 
 // ─── Zodiac Signs ────────────────────────────────────────────────────────────
 export const ZODIACS = [

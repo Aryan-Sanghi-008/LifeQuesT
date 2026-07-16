@@ -1,14 +1,15 @@
 import { Character, Challenge, ChallengeId } from '../types';
 import { computeNetWorth } from './economyEngine';
+import { getChallengeWealthTarget } from '../data/countryEconomy';
 
 export const CHALLENGES: Record<ChallengeId, Challenge> = {
   rags_to_riches: {
     id: 'rags_to_riches',
     title: 'Rags to Riches',
-    description: 'Born in a poor family, build a net worth of at least $1,000,000 by age 50.',
+    description: 'Born poor — reach wealth target by age 50.',
     rules: [
       'Must start with Poor family background',
-      'Net worth must reach $1,000,000 by age 50',
+      'Net worth must reach the local wealth target by age 50',
     ],
     pointsReward: 500,
   },
@@ -45,13 +46,36 @@ export const CHALLENGES: Record<ChallengeId, Challenge> = {
   speedrun_millionaire: {
     id: 'speedrun_millionaire',
     title: 'Speedrun Millionaire',
-    description: 'Acquire a net worth of at least $1,000,000 by the young age of 30.',
+    description: 'Acquire target net worth by age 30.',
     rules: [
-      'Net worth must reach $1,000,000 by age 30',
+      'Net worth must reach the local wealth target by age 30',
     ],
     pointsReward: 500,
   },
 };
+
+export function getChallengeWealthTargetForCharacter(character: Pick<Character, 'countryCode'>): number {
+  return getChallengeWealthTarget(character.countryCode ?? 'US');
+}
+
+export function getChallengeProgress(
+  character: Character,
+): { progressPct: number; target: number; current: number; challengeId?: ChallengeId } | null {
+  const activeId = character.activeChallengeId as ChallengeId | undefined;
+  if (!activeId || !CHALLENGES[activeId]) return null;
+
+  if (activeId === 'rags_to_riches' || activeId === 'speedrun_millionaire') {
+    const target = getChallengeWealthTargetForCharacter(character);
+    const current = computeNetWorth(character);
+    return {
+      progressPct: Math.min(100, Math.round((current / target) * 100)),
+      target,
+      current,
+      challengeId: activeId,
+    };
+  }
+  return null;
+}
 
 export function evaluateChallenge(character: Character): { success: boolean; message: string; points: number } {
   const activeId = character.activeChallengeId as ChallengeId | undefined;
@@ -63,6 +87,7 @@ export function evaluateChallenge(character: Character): { success: boolean; mes
   const age = character.deathAge ?? character.age;
   const netWorth = computeNetWorth(character);
   const karma = character.karma ?? 50;
+  const wealthTarget = getChallengeWealthTargetForCharacter(character);
 
   switch (activeId) {
     case 'rags_to_riches': {
@@ -70,8 +95,8 @@ export function evaluateChallenge(character: Character): { success: boolean; mes
       if (!startPoor) {
         return { success: false, message: 'Failed: You did not start with a Poor background.', points: 0 };
       }
-      if (netWorth < 1000000) {
-        return { success: false, message: 'Failed: You did not reach $1,000,000 in net worth.', points: 0 };
+      if (netWorth < wealthTarget) {
+        return { success: false, message: 'Failed: You did not reach the wealth target.', points: 0 };
       }
       if (age > 50) {
         return { success: false, message: 'Failed: You did not achieve this by age 50.', points: 0 };
@@ -114,8 +139,8 @@ export function evaluateChallenge(character: Character): { success: boolean; mes
     }
 
     case 'speedrun_millionaire': {
-      if (netWorth < 1000000) {
-        return { success: false, message: 'Failed: You did not reach $1,000,000 in net worth.', points: 0 };
+      if (netWorth < wealthTarget) {
+        return { success: false, message: 'Failed: You did not reach the wealth target.', points: 0 };
       }
       if (age > 30) {
         return { success: false, message: 'Failed: You did not achieve this by age 30.', points: 0 };

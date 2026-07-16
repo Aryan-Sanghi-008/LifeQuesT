@@ -45,6 +45,8 @@ const AVATAR_STYLE_OPTIONS: AvatarStyleId[] = [
 type ProfileOverviewProps = {
   character: Character;
   showOverviewSections: boolean;
+  /** Tablet split: hero only, sections only, or full (default). */
+  variant?: 'full' | 'hero' | 'sections';
   onSetAvatarStyle: (style: AvatarStyleId) => void;
   onReset: () => void;
   user: AppUser | null;
@@ -55,6 +57,7 @@ type ProfileOverviewProps = {
 export function ProfileOverview({
   character,
   showOverviewSections,
+  variant = 'full',
   onSetAvatarStyle,
   onReset,
   user,
@@ -132,8 +135,13 @@ export function ProfileOverview({
 
   const frameColor = getPlusFrameColor(equippedProfileFrameId) ?? avatarRingColor;
 
+  const showHero = variant !== 'sections';
+  const showSections =
+    variant === 'sections' || (variant !== 'hero' && showOverviewSections);
+
   return (
     <>
+      {showHero ? (
       <View style={heroStyles.hero}>
         <LinearGradient
           colors={[
@@ -278,8 +286,9 @@ export function ProfileOverview({
           <StatChip label="Wealth" value={stats.wealth} color={colors.wealth} />
         </Pressable>
       </View>
+      ) : null}
 
-      {showOverviewSections && (
+      {showSections && (
         <>
           <View style={sectionStyles.section}>
             <SeasonPassCard

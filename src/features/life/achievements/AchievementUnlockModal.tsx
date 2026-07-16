@@ -3,6 +3,7 @@ import { Modal, View, Text, Pressable, Share, StyleSheet } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useTheme } from '@theme';
 import { Character } from '@/types';
+import { ModalPrimaryButton } from '@components/ModalPrimaryButton';
 import { ACHIEVEMENTS, ACHIEVEMENT_COIN_REWARDS, ACHIEVEMENT_GEM_REWARDS } from '@data/gameData';
 import { AchievementCategoryIcon } from './AchievementCategoryIcon';
 import { getAchievementIconCategory } from './achievementIconCategories';
@@ -78,7 +79,7 @@ export function AchievementUnlockModal({
         animationType="slide"
         onRequestClose={onDismiss}
       >
-        <View style={[styles.overlay, { backgroundColor: 'rgba(0, 0, 0, 0.75)' }]}>
+        <View style={[styles.overlay, { backgroundColor: colors.overlayScrim }]}>
           <View
             style={[
               styles.card,
@@ -142,14 +143,12 @@ export function AchievementUnlockModal({
               </Text>
             </Pressable>
 
-            <Pressable
+            <ModalPrimaryButton
+              label="Awesome!"
               onPress={onDismiss}
-              style={[styles.dismissBtn, { backgroundColor: colors.emerald, borderRadius: radii.md }]}
-            >
-              <Text style={[styles.dismissText, { color: '#FFFFFF', fontFamily: fonts.bodyBold }]}>
-                Awesome!
-              </Text>
-            </Pressable>
+              color={colors.emerald}
+              fullWidth
+            />
           </View>
         </View>
       </Modal>
@@ -204,16 +203,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
+    paddingHorizontal: 18,
     borderWidth: 1,
     marginTop: 4,
-  },
-  dismissBtn: {
-    width: '100%',
-    paddingVertical: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dismissText: {
-    fontSize: 14,
   },
 });

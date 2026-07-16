@@ -9,6 +9,10 @@ import Svg, { Path } from "react-native-svg";
 import { hapticDecision, hapticButtonPress } from "@services/haptics";
 import { playSound } from "@services/audio";
 import { useGameStore } from "@store/gameStore";
+import { ConfirmSpendModal } from "./ConfirmSpendModal";
+import { scaleEventBankEffect } from "@engine/countryScaleEngine";
+import { formatCurrency } from "@utils/currency";
+import { getMaxPersonalDebtForCharacter } from "@data/countryEconomy";
 
 interface DecisionSheetProps {
   event: LifeEvent | null;
@@ -33,7 +37,7 @@ function ChevronRight({ color }: { color: string }) {
 
 // ─── Success Chance Bar ───────────────────────────────────────────────────────
 function SuccessBar({ chance }: { chance: number }) {
-  const { colors, fonts } = useTheme();
+  const { colors, fonts, scaledFonts } = useTheme();
   const width = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -68,7 +72,7 @@ function SuccessBar({ chance }: { chance: number }) {
       <Text
         style={[
           sb.label,
-          { color: barColor, fontFamily: fonts.monoSemiBold },
+          { color: barColor, fontFamily: fonts.monoSemiBold, fontSize: scaledFonts.xs },
         ]}
       >
         {chance}% chance
@@ -211,6 +215,7 @@ function ChoiceCard({ choice, onPress, index, accentColor, character, eventSkin 
         }}
         accessibilityRole="button"
         accessibilityLabel={choice.text}
+        accessibilityHint="Hold to reveal consequences before choosing"
         android_ripple={{ color: `${accentColor}15` }}
         style={{ borderRadius: radii.md, overflow: "hidden" }}
       >
@@ -349,10 +354,28 @@ export default function DecisionSheet({
   onChoice,
   onClose,
 }: DecisionSheetProps) {
-  const { colors, fonts, spacing } = useTheme();
+  const { colors, fonts, spacing, scaledFonts } = useTheme();
   const eventSkin = useEquippedEventSkin();
   const character = useGameStore((s) => s.character);
   const [displayEvent, setDisplayEvent] = useState<LifeEvent | null>(null);
+  const [pendingChoiceId, setPendingChoiceId] = useState<string | null>(null);
+
+  const pendingChoice = useMemo(
+    () => displayEvent?.choices?.find((c) => c.id === pendingChoiceId),
+    [displayEvent, pendingChoiceId],
+  );
+
+  const pendingCost = useMemo(() => {
+    if (!pendingChoice || !displayEvent || !character) return 0;
+    const raw = pendingChoice.bankEffect ?? displayEvent.bankEffect ?? 0;
+    if (raw >= 0) return 0;
+    return Math.abs(scaleEventBankEffect(
+      raw,
+      character.countryCode ?? 'US',
+      displayEvent.category === 'crime' ? 'fine' : 'cost',
+      displayEvent.category,
+    ));
+  }, [pendingChoice, displayEvent, character]);
 
   // Timer countdown states
   const [timeLeft, setTimeLeft] = useState<number>(0);
@@ -394,12 +417,50 @@ export default function DecisionSheet({
 
   const accentColor = displayEvent.color ?? colors.gold;
   const isTimerActive = event && displayEvent.timerSeconds && timeLeft > 0;
+  const cc = character?.countryCode ?? 'US';
+
+  const submitChoice = (choiceId: string) => {
+    hapticDecision();
+    void playSound("decision_made");
+    onChoice(choiceId);
+  };
+
+  const handleChoicePress = (choiceId: string) => {
+    const choice = displayEvent.choices?.find((c) => c.id === choiceId);
+    const raw = choice?.bankEffect ?? displayEvent.bankEffect ?? 0;
+    const scaledSpend = raw < 0
+      ? Math.abs(scaleEventBankEffect(raw, cc, displayEvent.category === 'crime' ? 'fine' : 'cost', displayEvent.category))
+      : 0;
+    const debt = character?.debt ?? 0;
+    const maxDebtLimit = character
+      ? getMaxPersonalDebtForCharacter(character)
+      : getMaxPersonalDebtForCharacter({ countryCode: cc });
+    const needsConfirm = scaledSpend > 0 && (
+      displayEvent.category === 'crime'
+      || scaledSpend >= 5000
+      || debt > maxDebtLimit * 0.25
+    );
+    if (needsConfirm) {
+      setPendingChoiceId(choiceId);
+      return;
+    }
+    submitChoice(choiceId);
+  };
+
+  const confirmPendingChoice = () => {
+    if (pendingChoiceId) {
+      const id = pendingChoiceId;
+      setPendingChoiceId(null);
+      submitChoice(id);
+    }
+  };
 
   return (
     <BottomSheet
       visible={!!event}
       onClose={onClose}
       onDismissed={() => setDisplayEvent(null)}
+      title={displayEvent?.title}
     >
       <EventIconBox color={accentColor} />
 
@@ -409,6 +470,7 @@ export default function DecisionSheet({
           {
             color: eventSkin.titleColor ?? colors.t1,
             fontFamily: fonts.displayBold,
+            fontSize: scaledFonts.xxl,
             marginBottom: spacing.sm,
           },
         ]}
@@ -421,6 +483,7 @@ export default function DecisionSheet({
           {
             color: eventSkin.bodyColor ?? colors.t3,
             fontFamily: fonts.body,
+            fontSize: scaledFonts.base,
             marginBottom: spacing.lg,
           },
         ]}
@@ -461,6 +524,7 @@ export default function DecisionSheet({
           {
             color: colors.t4,
             fontFamily: fonts.bodySemiBold,
+            fontSize: scaledFonts.xs,
             marginBottom: spacing.md,
           },
         ]}
@@ -477,14 +541,20 @@ export default function DecisionSheet({
             accentColor={accentColor}
             character={character}
             eventSkin={eventSkin}
-            onPress={() => {
-              hapticDecision();
-              void playSound("decision_made");
-              onChoice(choice.id);
-            }}
+            onPress={() => handleChoicePress(choice.id)}
           />
         ))}
       </View>
+
+      <ConfirmSpendModal
+        visible={pendingChoiceId !== null}
+        title={displayEvent.category === 'crime' ? 'Illegal Action' : 'Confirm Spend'}
+        message={pendingChoice?.text ?? 'Proceed with this choice?'}
+        costLabel={pendingCost > 0 ? formatCurrency(pendingCost, cc) : undefined}
+        warningLevel={displayEvent.category === 'crime' ? 'illegal' : 'debt'}
+        onConfirm={confirmPendingChoice}
+        onCancel={() => setPendingChoiceId(null)}
+      />
     </BottomSheet>
   );
 }

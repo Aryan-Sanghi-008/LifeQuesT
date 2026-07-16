@@ -3,8 +3,8 @@ import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { useToastStore } from "@store/toastStore";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useGameStore } from "@store/gameStore";
 import { useTheme } from "@theme";
+import { useBreakpoints } from "@hooks/useBreakpoints";
 import { GlassCard, ScreenShell, Card, StreakBadge, ScenarioBanner, FeedbackPressable } from "@components/index";
 import { StreakDetailModal } from "@components/StreakDetailModal";
 import { triggerTapFeedback } from "@services/gameFeedback";
@@ -13,7 +13,11 @@ import { AvatarByCharacter } from "@components/Avatars";
 import { CharacterNameText } from "@shared/components/CharacterNameText";
 import { getSeasonPassLevel } from "@utils/seasonPassHelper";
 import { WORLD_EVENTS_POOL } from "@engine/worldEngine";
-import { CHALLENGES } from "@engine/challengeEngine";
+import { CHALLENGES, getChallengeProgress } from "@engine/challengeEngine";
+import { MYSTERY_SEGMENTS } from "@store/slices/progressionSlice";
+import { formatCurrency } from "@utils/currency";
+import { ContextualTutorial } from "@shared/components/ContextualTutorial";
+import { SEASON_PASS_TIERS } from "@data/gameData";
 import { SCENARIOS } from "@data/scenarios";
 import { DynastyProgressCard } from "@features/retention/DynastyProgressCard";
 import { LegacyNudgeCard } from "@features/retention/LegacyNudgeCard";
@@ -21,6 +25,10 @@ import {
   DAILY_GAMEPLAY_COIN_CAP,
   getGameplayCoinsEarnedToday,
 } from "@engine/economyCapEngine";
+import { useHomeHub } from "@features/life/hooks/useHomeHub";
+import { MetaProgressHelpSheet } from "@shared/components/MetaProgressHelpSheet";
+import { getCurrentSeason } from "@engine/liveOpsEngine";
+import { useScreenA11yFocus } from "@hooks/useScreenA11yFocus";
 
 function getTimeGreeting(): string {
   const hour = new Date().getHours();
@@ -41,28 +49,36 @@ function getMidnightCountdown(): string {
 }
 
 export function HomeScreen() {
-  const { colors, fonts, spacing, radii } = useTheme();
+  const { colors, fonts, spacing, radii, scaledFonts } = useTheme();
+  const { isTablet, contentMaxWidth } = useBreakpoints();
   const navigation = useNavigation<NativeStackNavigationProp<any>>();
 
-  const character = useGameStore((s) => s.character);
-  const dailyQuests = useGameStore((s) => s.dailyQuests);
-  const loadDailyQuests = useGameStore((s) => s.loadDailyQuests);
-  const claimQuestReward = useGameStore((s) => s.claimQuestReward);
-  const getLoginRewardState = useGameStore((s) => s.getLoginRewardState);
-  const claimLoginReward = useGameStore((s) => s.claimLoginReward);
-  const canSpinMysteryBox = useGameStore((s) => s.canSpinMysteryBox);
-  const canSpinMysteryBoxWithTicket = useGameStore((s) => s.canSpinMysteryBoxWithTicket);
-  const mysteryTickets = useGameStore((s) => s.character?.mysteryTickets ?? 0);
+  const {
+    character,
+    dailyQuests,
+    loadDailyQuests,
+    claimQuestReward,
+    getLoginRewardState,
+    claimLoginReward,
+    canSpinMysteryBox,
+    canSpinMysteryBoxWithTicket,
+    purchaseStreakShield,
+  } = useHomeHub();
+
+  const showToast = useToastStore((s) => s.showToast);
+  const headingRef = useRef<View>(null);
+  useScreenA11yFocus(headingRef);
+
+  const mysteryTickets = character?.mysteryTickets ?? 0;
   const coinsEarnedToday = character
     ? getGameplayCoinsEarnedToday(character)
     : 0;
   const atDailyCoinCap = coinsEarnedToday >= DAILY_GAMEPLAY_COIN_CAP;
-  const purchaseStreakShield = useGameStore((s) => s.purchaseStreakShield);
-
-  const showToast = useToastStore((s) => s.showToast);
 
   const [countdown, setCountdown] = useState(getMidnightCountdown);
   const [streakModalOpen, setStreakModalOpen] = useState(false);
+  const [metaHelpOpen, setMetaHelpOpen] = useState(false);
+  const liveSeason = getCurrentSeason();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -108,6 +124,10 @@ export function HomeScreen() {
   const activeChallengeTitle = activeChallenge
     ? activeChallenge.title
     : "No active challenge — browse catalog";
+  const challengeProgress = character ? getChallengeProgress(character) : null;
+  const nextSeasonTier = character
+    ? SEASON_PASS_TIERS.find((t) => (character.seasonXp ?? 0) < t.xpRequired)
+    : undefined;
 
   const handleClaimLoginReward = () => {
     if (rewardClaimed) {
@@ -128,324 +148,436 @@ export function HomeScreen() {
     showToast(res.message, res.ok ? "success" : "error");
   };
 
+  const scenarioData =
+    SCENARIOS.find((s) => s.id === (character.scenarioId ?? 'classic')) ?? SCENARIOS[0];
+
+  const headerStrip = (
+    <View style={styles.header}>
+      <View style={styles.headerLeft}>
+        <View style={[styles.avatarRing, { borderColor: colors.gold, backgroundColor: colors.bgCard }]}>
+          <AvatarByCharacter character={character} size={50} clipCircular />
+        </View>
+        <View style={styles.profileText} ref={headingRef} accessible accessibilityRole="header">
+          <Text style={[styles.welcome, { color: colors.t3, fontFamily: fonts.body, fontSize: scaledFonts.md }]}>
+            {getTimeGreeting()},
+          </Text>
+          <CharacterNameText
+            name={character.name}
+            style={[styles.name, { fontFamily: fonts.bodyBold, fontSize: scaledFonts.lg }]}
+          />
+          <Text style={[styles.subText, { color: colors.t3, fontFamily: fonts.body, fontSize: scaledFonts.md }]} numberOfLines={1} ellipsizeMode="tail">
+            Age {character.age} · {character.countryFlag} {character.country}
+          </Text>
+        </View>
+      </View>
+      <View style={styles.headerRight}>
+        <StreakBadge
+          count={character.dailyStreak ?? 0}
+          shieldCount={character.streakShieldCount ?? 0}
+          showMilestoneProgress
+          onPress={() => {
+            triggerTapFeedback();
+            setStreakModalOpen(true);
+          }}
+        />
+      </View>
+    </View>
+  );
+
+  const scenarioBanner = (
+    <View style={{ paddingHorizontal: spacing.lg }}>
+      <ScenarioBanner
+        type={scenarioData.id}
+        scenarioName={scenarioData.name}
+        description={scenarioData.tagline}
+      />
+    </View>
+  );
+
+  const currencyStrip = (
+    <GlassCard style={styles.currencyCard}>
+      <View style={styles.currencyCol}>
+        <Text style={[styles.currencyLabel, { color: colors.t3, fontFamily: fonts.body, fontSize: scaledFonts.xs }]}>COINS</Text>
+        <Text style={[styles.currencyVal, { color: colors.emerald2, fontFamily: fonts.monoSemiBold, fontSize: scaledFonts.lg }]}>
+          🪙 {character.coins.toLocaleString()}
+        </Text>
+      </View>
+      <View style={[styles.currencyDivider, { backgroundColor: colors.border }]} />
+      <View style={styles.currencyCol}>
+        <Text style={[styles.currencyLabel, { color: colors.t3, fontFamily: fonts.body, fontSize: scaledFonts.xs }]}>GEMS</Text>
+        <Text style={[styles.currencyVal, { color: colors.gold, fontFamily: fonts.monoSemiBold, fontSize: scaledFonts.lg }]}>
+          💎 {character.gems.toLocaleString()}
+        </Text>
+      </View>
+    </GlassCard>
+  );
+
+  const worldEventBanner = activeEventIds.length > 0 && activeEvent ? (
+    <FeedbackPressable
+      onPress={() => navigation.navigate("WorldEvents")}
+      style={[styles.worldEventCard, { backgroundColor: `${colors.health}12`, borderColor: colors.health, borderRadius: radii.md }]}
+    >
+      <View style={styles.worldEventHeader}>
+        <Text style={[styles.worldEventTitle, { color: colors.health, fontFamily: fonts.bodyBold, fontSize: scaledFonts.base }]}>
+          {activeEvent.title}
+        </Text>
+        <Text style={[styles.worldEventTitle, { color: colors.health, fontFamily: fonts.body, fontSize: scaledFonts.sm }]}>
+          {activeEventIds.length} active · Tap to view
+        </Text>
+      </View>
+      <Text style={[styles.worldEventDesc, { color: colors.t2, fontFamily: fonts.body, fontSize: scaledFonts.md }]} numberOfLines={2}>
+        {activeEvent.description}
+      </Text>
+    </FeedbackPressable>
+  ) : null;
+
+  const seasonPassCard = (
+    <Card style={styles.sectionCard}>
+      <View style={styles.cardHeader}>
+        <Text style={[styles.cardTitle, { color: colors.t1, fontFamily: fonts.bodyBold, fontSize: scaledFonts.lg }]}>
+          Season Pass Progression
+        </Text>
+        <View style={[styles.tag, { backgroundColor: `${colors.teal}15` }]}>
+          <Text style={[styles.tagText, { color: colors.teal, fontFamily: fonts.bodyBold, fontSize: scaledFonts.xs }]}>
+            {character.hasSeasonPass ? "PLUS ACTIVE" : "FREE TIER"}
+          </Text>
+        </View>
+      </View>
+      <XPBar level={level} currentXp={currentXp} maxXp={maxXp} />
+      {nextSeasonTier ? (
+        <Text style={{ color: colors.t3, fontFamily: fonts.body, fontSize: scaledFonts.sm, marginBottom: spacing.sm }}>
+          Next tier: +{nextSeasonTier.rewardCoins ?? 0} coins{nextSeasonTier.rewardGems ? `, ${nextSeasonTier.rewardGems} gems` : ""} · Luck boosts improve event outcomes
+        </Text>
+      ) : null}
+      <FeedbackPressable
+        onPress={() => navigation.navigate("Shop")}
+        style={[styles.buyPassBtn, {
+          backgroundColor: character.hasSeasonPass ? `${colors.teal}18` : colors.gold,
+          borderRadius: radii.sm,
+          borderWidth: character.hasSeasonPass ? 1 : 0,
+          borderColor: `${colors.teal}40`,
+        }]}
+      >
+        <Text style={[styles.buyPassText, {
+          color: character.hasSeasonPass ? colors.teal : colors.bgCard,
+          fontFamily: fonts.bodyBold,
+          fontSize: scaledFonts.md,
+        }]}>
+          {character.hasSeasonPass ? "Visit Life Store" : "Unlock Premium Pass"}
+        </Text>
+      </FeedbackPressable>
+    </Card>
+  );
+
+  const dynastyCards = (
+    <View style={{ paddingHorizontal: 0 }}>
+      <DynastyProgressCard />
+      <LegacyNudgeCard />
+    </View>
+  );
+
+  const metaHubCards = (
+    <>
+      <FeedbackPressable onPress={() => setMetaHelpOpen(true)}>
+        <Card style={styles.sectionCard}>
+          <Text style={{ color: colors.t1, fontFamily: fonts.bodyBold, fontSize: scaledFonts.base }}>How Meta Progress Works</Text>
+          <Text style={{ color: colors.t3, fontFamily: fonts.body, fontSize: scaledFonts.sm, marginTop: 4 }}>
+            Dynasty heirs, season pass XP, daily quests, and live ops seasons
+          </Text>
+        </Card>
+      </FeedbackPressable>
+      <FeedbackPressable onPress={() => navigation.navigate("LiveOps")}>
+        <Card style={styles.sectionCard}>
+          <Text style={{ color: colors.t1, fontFamily: fonts.bodyBold, fontSize: scaledFonts.base }}>Live Season · {liveSeason.title}</Text>
+          <Text style={{ color: colors.t3, fontFamily: fonts.body, fontSize: scaledFonts.sm, marginTop: 4 }}>
+            {liveSeason.description}
+          </Text>
+        </Card>
+      </FeedbackPressable>
+      <FeedbackPressable onPress={() => navigation.navigate("Leaderboard")}>
+        <Card style={styles.sectionCard}>
+          <Text style={{ color: colors.t1, fontFamily: fonts.bodyBold, fontSize: scaledFonts.base }}>Global Leaderboard</Text>
+          <Text style={{ color: colors.t3, fontFamily: fonts.body, fontSize: scaledFonts.sm, marginTop: 4 }}>
+            Compare your best life scores · filter by country
+          </Text>
+        </Card>
+      </FeedbackPressable>
+    </>
+  );
+
+  const dailyRewardsCard = (
+    <FeedbackPressable
+      onPress={handleClaimLoginReward}
+      accessibilityLabel={rewardClaimed ? "View daily rewards, already claimed" : `Claim day ${rewardDay} daily login reward`}
+    >
+      <Card style={styles.sectionCard}>
+        <View style={styles.dailyBonusContent}>
+          <View style={[styles.giftBox, { backgroundColor: rewardClaimed ? colors.bg2 : `${colors.gold}15` }]}>
+            <Text style={{ fontSize: 28 }}>🎁</Text>
+          </View>
+          <View style={styles.dailyBonusTextCol}>
+            <Text style={[styles.bonusTitle, { color: colors.t1, fontFamily: fonts.bodySemiBold, fontSize: scaledFonts.base }]}>
+              {rewardClaimed ? "Day Claimed!" : `Day ${rewardDay} reward ready`}
+            </Text>
+            <Text style={[styles.bonusDesc, { color: colors.t3, fontFamily: fonts.body, fontSize: scaledFonts.sm }]}>
+              {rewardClaimed
+                ? `Resets in ${countdown}`
+                : "Tap to claim your 30-day login reward."}
+            </Text>
+          </View>
+          <View style={[styles.claimBonusBtn, {
+            backgroundColor: rewardClaimed ? colors.bg2 : colors.gold,
+            borderRadius: radii.sm,
+          }]}>
+            <Text style={[styles.claimBonusText, {
+              color: rewardClaimed ? colors.t4 : "#FFFFFF",
+              fontFamily: fonts.bodyBold,
+              fontSize: scaledFonts.md,
+            }]}>
+              {rewardClaimed ? "Claimed" : "Claim"}
+            </Text>
+          </View>
+        </View>
+      </Card>
+    </FeedbackPressable>
+  );
+
+  const mysteryBoxCard = (
+    <FeedbackPressable
+      onPress={() => navigation.navigate("MysteryBox" as never)}
+      accessibilityLabel="Open weekly mystery box"
+    >
+      <Card style={styles.sectionCard}>
+        <View style={styles.cardHeader}>
+          <Text style={[styles.cardTitle, { color: colors.t1, fontFamily: fonts.bodyBold, fontSize: scaledFonts.lg }]}>
+            Weekly Mystery Box
+          </Text>
+          {mysteryTickets > 0 ? (
+            <View style={[styles.tag, { backgroundColor: `${colors.orchid}15` }]}>
+              <Text style={[styles.tagText, { color: colors.orchid, fontFamily: fonts.bodyBold, fontSize: scaledFonts.xs }]}>
+                {mysteryTickets} ticket{mysteryTickets === 1 ? "" : "s"}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm, paddingVertical: spacing.sm }}>
+          {MYSTERY_SEGMENTS.slice(0, 6).map((seg, idx) => (
+            <View key={idx} style={[styles.giftBox, { backgroundColor: `${colors.orchid}12`, width: 56, height: 56, alignItems: "center", justifyContent: "center" }]}>
+              <Text style={{ fontSize: 22 }}>{seg.type === "gems" ? "💎" : seg.type === "coins" ? "🪙" : seg.type === "luck" ? "🍀" : "🎁"}</Text>
+              <Text style={{ color: colors.t4, fontFamily: fonts.mono, fontSize: 7, marginTop: 2, textAlign: 'center' }} numberOfLines={2}>{seg.label.length > 12 ? seg.label.slice(0, 11) + '…' : seg.label}</Text>
+            </View>
+          ))}
+        </ScrollView>
+        <Text style={[styles.bonusDesc, { color: colors.t3, fontFamily: fonts.body, fontSize: scaledFonts.sm, marginTop: spacing.xs }]}>
+          {mysterySpinAvailable
+            ? "Free weekly spin ready — tap to open the wheel!"
+            : mysteryTicketSpinAvailable
+              ? "Use a ticket to spin again."
+              : "Preview rewards above · full spin on Mystery Box screen."}
+        </Text>
+        <View style={{ flexDirection: "row", justifyContent: "flex-end", marginTop: spacing.sm }}>
+          <View style={[styles.claimBonusBtn, {
+            backgroundColor: mysterySpinAvailable || mysteryTicketSpinAvailable ? colors.orchid : `${colors.orchid}12`,
+            borderRadius: radii.sm,
+            paddingHorizontal: spacing.lg,
+            paddingVertical: spacing.sm,
+          }]}>
+            <Text style={[styles.claimBonusText, {
+              color: mysterySpinAvailable || mysteryTicketSpinAvailable ? "#FFFFFF" : colors.orchid,
+              fontFamily: fonts.bodyBold,
+              fontSize: scaledFonts.md,
+            }]}>
+              {mysterySpinAvailable ? "Spin" : mysteryTicketSpinAvailable ? "Use Ticket" : "Open"}
+            </Text>
+          </View>
+        </View>
+      </Card>
+    </FeedbackPressable>
+  );
+
+  const challengesCard = (
+    <FeedbackPressable onPress={() => navigation.navigate("ChallengeMode" as never)}>
+      <Card style={styles.sectionCard}>
+        <View style={styles.dailyBonusContent}>
+          <View style={[styles.giftBox, { backgroundColor: `${colors.catCareer}12` }]}>
+            <Text style={{ fontSize: 28 }}>⚔️</Text>
+          </View>
+          <View style={styles.dailyBonusTextCol}>
+            <Text style={[styles.bonusTitle, { color: colors.t1, fontFamily: fonts.bodySemiBold, fontSize: scaledFonts.base }]}>
+              Challenges
+            </Text>
+            <Text style={[styles.bonusDesc, { color: colors.t3, fontFamily: fonts.body, fontSize: scaledFonts.sm }]}>
+              {activeChallengeTitle}
+              {challengeProgress ? ` · ${challengeProgress.progressPct}% (${formatCurrency(challengeProgress.current, character.countryCode)} / ${formatCurrency(challengeProgress.target, character.countryCode)})` : ""}
+            </Text>
+          </View>
+          <View style={[styles.claimBonusBtn, { backgroundColor: `${colors.catCareer}12`, borderRadius: radii.sm }]}>
+            <Text style={[styles.claimBonusText, { color: colors.catCareer, fontFamily: fonts.bodyBold, fontSize: scaledFonts.md }]}>
+              View
+            </Text>
+          </View>
+        </View>
+      </Card>
+    </FeedbackPressable>
+  );
+
+  const dailyQuestsCard = (
+    <Card style={styles.sectionCard}>
+      <View style={styles.cardHeader}>
+        <Text style={[styles.cardTitle, { color: colors.t1, fontFamily: fonts.bodyBold, fontSize: scaledFonts.lg }]}>
+          Daily Quests
+        </Text>
+        {dailyQuests.length > 0 && (
+          <Text style={[styles.tagText, { color: colors.t3, fontFamily: fonts.mono, fontSize: scaledFonts.xs }]}>
+            {doneQuests}/{dailyQuests.length} done
+          </Text>
+        )}
+      </View>
+      <Text style={[styles.dailyEarnCap, { color: atDailyCoinCap ? colors.gold : colors.t3, fontFamily: fonts.mono, fontSize: scaledFonts.sm }]}>
+        Daily earn: {coinsEarnedToday.toLocaleString()} / {DAILY_GAMEPLAY_COIN_CAP.toLocaleString()}
+        {atDailyCoinCap ? ' · Resets tomorrow' : ''}
+      </Text>
+      <View style={styles.questsList}>
+        {dailyQuests.length === 0 ? (
+          <Text style={[styles.noQuests, { color: colors.t3, fontFamily: fonts.body, fontSize: scaledFonts.md }]}>
+            No quests active. Check back later or age up!
+          </Text>
+        ) : (
+          dailyQuests.map((quest) => {
+            const isComplete = quest.progress >= quest.target;
+            return (
+              <View
+                key={quest.id}
+                style={[
+                  styles.questRow,
+                  { borderColor: colors.border },
+                ]}
+              >
+                <View style={styles.questInfo}>
+                  <Text style={[styles.questTitle, { color: colors.t1, fontFamily: fonts.bodySemiBold, fontSize: scaledFonts.base }]}>
+                    {quest.title}
+                  </Text>
+                  <Text style={[styles.questDesc, { color: colors.t3, fontFamily: fonts.body, fontSize: scaledFonts.sm }]}>
+                    {quest.description}
+                  </Text>
+                  <View style={styles.questProgressContainer}>
+                    <View style={[styles.progressTrack, { backgroundColor: colors.bg2, borderRadius: radii.full }]}>
+                      <View
+                        style={[
+                          styles.progressFill,
+                          {
+                            backgroundColor: isComplete ? colors.emerald : colors.sapphire,
+                            borderRadius: radii.full,
+                            width: `${Math.min(100, (quest.progress / quest.target) * 100)}%`,
+                          },
+                        ]}
+                      />
+                    </View>
+                    <Text style={[styles.progressText, { color: colors.t2, fontFamily: fonts.mono, fontSize: scaledFonts.sm }]}>
+                      {quest.progress}/{quest.target}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.questAction}>
+                  <Text style={[styles.questReward, { color: colors.emerald2, fontFamily: fonts.monoSemiBold, fontSize: scaledFonts.sm }]}>
+                    🪙 {quest.rewardCoins}
+                  </Text>
+                      <FeedbackPressable
+                        onPress={() => handleClaimQuest(quest.id)}
+                        disabled={!isComplete || quest.claimed}
+                        accessibilityLabel={
+                          quest.claimed
+                            ? `Quest ${quest.title}, already claimed`
+                            : isComplete
+                            ? `Claim reward for quest ${quest.title}`
+                            : `Quest ${quest.title}, not complete`
+                        }
+                        style={[
+                      styles.questBtn,
+                      {
+                        backgroundColor: quest.claimed
+                          ? colors.bg2
+                          : isComplete
+                          ? colors.emerald
+                          : colors.bg2,
+                        borderRadius: radii.sm,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.questBtnText,
+                        {
+                          color: quest.claimed
+                            ? colors.t4
+                            : isComplete
+                            ? "#FFFFFF"
+                            : colors.t4,
+                          fontFamily: fonts.bodyBold,
+                          fontSize: scaledFonts.sm,
+                        },
+                      ]}
+                    >
+                      {quest.claimed ? "Claimed" : isComplete ? "Claim" : "Locked"}
+                    </Text>
+                  </FeedbackPressable>
+                </View>
+              </View>
+            );
+          })
+        )}
+      </View>
+    </Card>
+  );
+
+  const phoneFeed = (
+    <>
+      {headerStrip}
+      {scenarioBanner}
+      {currencyStrip}
+      {worldEventBanner}
+      {seasonPassCard}
+      {dynastyCards}
+      {metaHubCards}
+      {dailyRewardsCard}
+      {mysteryBoxCard}
+      {challengesCard}
+      {dailyQuestsCard}
+    </>
+  );
+
+  const tabletFeed = (
+    <View style={styles.tabletRow}>
+      <View style={styles.tabletCol}>
+        {headerStrip}
+        {scenarioBanner}
+        {currencyStrip}
+        {seasonPassCard}
+        {dynastyCards}
+        {metaHubCards}
+      </View>
+      <View style={styles.tabletCol}>
+        {worldEventBanner}
+        {dailyRewardsCard}
+        {mysteryBoxCard}
+        {challengesCard}
+        {dailyQuestsCard}
+      </View>
+    </View>
+  );
+
   return (
     <>
     <ScreenShell>
       <ScrollView
-        contentContainerStyle={[styles.scrollContainer, { paddingBottom: spacing.xxl }]}
+        contentContainerStyle={[
+          styles.scrollContainer,
+          { paddingBottom: spacing.xxl },
+          contentMaxWidth ? { maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' } : null,
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header Strip */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <View style={[styles.avatarRing, { borderColor: colors.gold, backgroundColor: colors.bgCard }]}>
-              <AvatarByCharacter character={character} size={50} clipCircular />
-            </View>
-            <View style={styles.profileText}>
-              <Text style={[styles.welcome, { color: colors.t3, fontFamily: fonts.body }]}>
-                {getTimeGreeting()},
-              </Text>
-              <CharacterNameText
-                name={character.name}
-                style={[styles.name, { fontFamily: fonts.bodyBold }]}
-              />
-              <Text style={[styles.subText, { color: colors.t3, fontFamily: fonts.body }]} numberOfLines={1} ellipsizeMode="tail">
-                Age {character.age} · {character.countryFlag} {character.country}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.headerRight}>
-            <StreakBadge
-              count={character.dailyStreak ?? 0}
-              shieldCount={character.streakShieldCount ?? 0}
-              showMilestoneProgress
-              onPress={() => {
-                triggerTapFeedback();
-                setStreakModalOpen(true);
-              }}
-            />
-          </View>
-        </View>
-
-        {(() => {
-          const scenarioData =
-            SCENARIOS.find((s) => s.id === (character.scenarioId ?? 'classic')) ?? SCENARIOS[0];
-          return (
-            <View style={{ paddingHorizontal: spacing.lg }}>
-              <ScenarioBanner
-                type={scenarioData.id}
-                scenarioName={scenarioData.name}
-                description={scenarioData.tagline}
-              />
-            </View>
-          );
-        })()}
-
-        {/* Currency summary strip */}
-        <GlassCard style={styles.currencyCard}>
-          <View style={styles.currencyCol}>
-            <Text style={[styles.currencyLabel, { color: colors.t3, fontFamily: fonts.body }]}>COINS</Text>
-            <Text style={[styles.currencyVal, { color: colors.emerald2, fontFamily: fonts.monoSemiBold }]}>
-              🪙 {character.coins.toLocaleString()}
-            </Text>
-          </View>
-          <View style={[styles.currencyDivider, { backgroundColor: colors.border }]} />
-          <View style={styles.currencyCol}>
-            <Text style={[styles.currencyLabel, { color: colors.t3, fontFamily: fonts.body }]}>GEMS</Text>
-            <Text style={[styles.currencyVal, { color: colors.gold, fontFamily: fonts.monoSemiBold }]}>
-              💎 {character.gems.toLocaleString()}
-            </Text>
-          </View>
-        </GlassCard>
-
-        {/* Active World Event Banner */}
-        {activeEventIds.length > 0 && activeEvent && (
-          <FeedbackPressable
-            onPress={() => navigation.navigate("WorldEvents")}
-            style={[styles.worldEventCard, { backgroundColor: `${colors.health}12`, borderColor: colors.health, borderRadius: radii.md }]}
-          >
-            <View style={styles.worldEventHeader}>
-              <Text style={[styles.worldEventTitle, { color: colors.health, fontFamily: fonts.bodyBold }]}>
-                {activeEvent.title}
-              </Text>
-              <Text style={[styles.worldEventTitle, { color: colors.health, fontFamily: fonts.body, fontSize: 11 }]}>
-                {activeEventIds.length} active · Tap to view
-              </Text>
-            </View>
-            <Text style={[styles.worldEventDesc, { color: colors.t2, fontFamily: fonts.body }]} numberOfLines={2}>
-              {activeEvent.description}
-            </Text>
-          </FeedbackPressable>
-        )}
-
-        {/* Season Pass Progress Card */}
-        <Card style={styles.sectionCard}>
-          <View style={styles.cardHeader}>
-            <Text style={[styles.cardTitle, { color: colors.t1, fontFamily: fonts.bodyBold }]}>
-              Season Pass Progression
-            </Text>
-            <View style={[styles.tag, { backgroundColor: `${colors.teal}15` }]}>
-              <Text style={[styles.tagText, { color: colors.teal, fontFamily: fonts.bodyBold }]}>
-                {character.hasSeasonPass ? "PLUS ACTIVE" : "FREE TIER"}
-              </Text>
-            </View>
-          </View>
-          <XPBar level={level} currentXp={currentXp} maxXp={maxXp} />
-          <FeedbackPressable
-            onPress={() => navigation.navigate("Shop")}
-            style={[styles.buyPassBtn, {
-              backgroundColor: character.hasSeasonPass ? `${colors.teal}18` : colors.gold,
-              borderRadius: radii.sm,
-              borderWidth: character.hasSeasonPass ? 1 : 0,
-              borderColor: `${colors.teal}40`,
-            }]}
-          >
-            <Text style={[styles.buyPassText, {
-              color: character.hasSeasonPass ? colors.teal : colors.bgCard,
-              fontFamily: fonts.bodyBold,
-            }]}>
-              {character.hasSeasonPass ? "Visit Life Store" : "Unlock Premium Pass"}
-            </Text>
-          </FeedbackPressable>
-        </Card>
-
-        {/* Dynasty Legacy Progress Card */}
-        <View style={{ paddingHorizontal: 0 }}>
-          <DynastyProgressCard />
-          <LegacyNudgeCard />
-        </View>
-
-        {/* Daily Rewards Summary Card */}
-        <FeedbackPressable onPress={handleClaimLoginReward}>
-          <Card style={styles.sectionCard}>
-            <View style={styles.dailyBonusContent}>
-              <View style={[styles.giftBox, { backgroundColor: rewardClaimed ? colors.bg2 : `${colors.gold}15` }]}>
-                <Text style={{ fontSize: 28 }}>🎁</Text>
-              </View>
-              <View style={styles.dailyBonusTextCol}>
-                <Text style={[styles.bonusTitle, { color: colors.t1, fontFamily: fonts.bodySemiBold }]}>
-                  {rewardClaimed ? "Day Claimed!" : `Day ${rewardDay} reward ready`}
-                </Text>
-                <Text style={[styles.bonusDesc, { color: colors.t3, fontFamily: fonts.body }]}>
-                  {rewardClaimed
-                    ? `Resets in ${countdown}`
-                    : "Tap to claim your 30-day login reward."}
-                </Text>
-              </View>
-              <View style={[styles.claimBonusBtn, {
-                backgroundColor: rewardClaimed ? colors.bg2 : colors.gold,
-                borderRadius: radii.sm,
-              }]}>
-                <Text style={[styles.claimBonusText, {
-                  color: rewardClaimed ? colors.t4 : "#FFFFFF",
-                  fontFamily: fonts.bodyBold,
-                }]}>
-                  {rewardClaimed ? "Claimed" : "Claim"}
-                </Text>
-              </View>
-            </View>
-          </Card>
-        </FeedbackPressable>
-
-        {/* Mystery Box summary card */}
-        <FeedbackPressable onPress={() => navigation.navigate("MysteryBox" as never)}>
-          <Card style={styles.sectionCard}>
-            <View style={styles.dailyBonusContent}>
-              <View style={[styles.giftBox, { backgroundColor: `${colors.orchid}12` }]}>
-                <Text style={{ fontSize: 28 }}>🎲</Text>
-              </View>
-              <View style={styles.dailyBonusTextCol}>
-                <Text style={[styles.bonusTitle, { color: colors.t1, fontFamily: fonts.bodySemiBold }]}>
-                  Weekly Mystery Box
-                </Text>
-                <Text style={[styles.bonusDesc, { color: colors.t3, fontFamily: fonts.body }]}>
-                  {mysterySpinAvailable
-                    ? "Free weekly spin available!"
-                    : mysteryTicketSpinAvailable
-                      ? `${mysteryTickets} ticket${mysteryTickets === 1 ? "" : "s"} ready to spin.`
-                      : mysteryTickets > 0
-                        ? `Free spin used · ${mysteryTickets} ticket${mysteryTickets === 1 ? "" : "s"} left`
-                        : "Free spin used this week — check back soon."}
-                </Text>
-              </View>
-              <View style={[styles.claimBonusBtn, {
-                backgroundColor: mysterySpinAvailable || mysteryTicketSpinAvailable ? colors.orchid : `${colors.orchid}12`,
-                borderRadius: radii.sm,
-              }]}>
-                <Text style={[styles.claimBonusText, {
-                  color: mysterySpinAvailable || mysteryTicketSpinAvailable ? "#FFFFFF" : colors.orchid,
-                  fontFamily: fonts.bodyBold,
-                }]}>
-                  {mysterySpinAvailable ? "Spin" : mysteryTicketSpinAvailable ? "Use Ticket" : "View"}
-                </Text>
-              </View>
-            </View>
-          </Card>
-        </FeedbackPressable>
-
-        {/* Challenges Card */}
-        <FeedbackPressable onPress={() => navigation.navigate("ChallengeMode" as never)}>
-          <Card style={styles.sectionCard}>
-            <View style={styles.dailyBonusContent}>
-              <View style={[styles.giftBox, { backgroundColor: `${colors.catCareer}12` }]}>
-                <Text style={{ fontSize: 28 }}>⚔️</Text>
-              </View>
-              <View style={styles.dailyBonusTextCol}>
-                <Text style={[styles.bonusTitle, { color: colors.t1, fontFamily: fonts.bodySemiBold }]}>
-                  Challenges
-                </Text>
-                <Text style={[styles.bonusDesc, { color: colors.t3, fontFamily: fonts.body }]}>
-                  {activeChallengeTitle}
-                </Text>
-              </View>
-              <View style={[styles.claimBonusBtn, { backgroundColor: `${colors.catCareer}12`, borderRadius: radii.sm }]}>
-                <Text style={[styles.claimBonusText, { color: colors.catCareer, fontFamily: fonts.bodyBold }]}>
-                  View
-                </Text>
-              </View>
-            </View>
-          </Card>
-        </FeedbackPressable>
-
-        {/* Daily Quests Card */}
-        <Card style={styles.sectionCard}>
-          <View style={styles.cardHeader}>
-            <Text style={[styles.cardTitle, { color: colors.t1, fontFamily: fonts.bodyBold }]}>
-              Daily Quests
-            </Text>
-            {dailyQuests.length > 0 && (
-              <Text style={[styles.tagText, { color: colors.t3, fontFamily: fonts.mono }]}>
-                {doneQuests}/{dailyQuests.length} done
-              </Text>
-            )}
-          </View>
-          <Text style={[styles.dailyEarnCap, { color: atDailyCoinCap ? colors.gold : colors.t3, fontFamily: fonts.mono }]}>
-            Daily earn: {coinsEarnedToday.toLocaleString()} / {DAILY_GAMEPLAY_COIN_CAP.toLocaleString()}
-            {atDailyCoinCap ? ' · Resets tomorrow' : ''}
-          </Text>
-          <View style={styles.questsList}>
-            {dailyQuests.length === 0 ? (
-              <Text style={[styles.noQuests, { color: colors.t3, fontFamily: fonts.body }]}>
-                No quests active. Check back later or age up!
-              </Text>
-            ) : (
-              dailyQuests.map((quest) => {
-                const isComplete = quest.progress >= quest.target;
-                return (
-                  <View
-                    key={quest.id}
-                    style={[
-                      styles.questRow,
-                      { borderColor: colors.border },
-                    ]}
-                  >
-                    <View style={styles.questInfo}>
-                      <Text style={[styles.questTitle, { color: colors.t1, fontFamily: fonts.bodySemiBold }]}>
-                        {quest.title}
-                      </Text>
-                      <Text style={[styles.questDesc, { color: colors.t3, fontFamily: fonts.body }]}>
-                        {quest.description}
-                      </Text>
-                      <View style={styles.questProgressContainer}>
-                        <View style={[styles.progressTrack, { backgroundColor: colors.bg2, borderRadius: radii.full }]}>
-                          <View
-                            style={[
-                              styles.progressFill,
-                              {
-                                backgroundColor: isComplete ? colors.emerald : colors.sapphire,
-                                borderRadius: radii.full,
-                                width: `${Math.min(100, (quest.progress / quest.target) * 100)}%`,
-                              },
-                            ]}
-                          />
-                        </View>
-                        <Text style={[styles.progressText, { color: colors.t2, fontFamily: fonts.mono }]}>
-                          {quest.progress}/{quest.target}
-                        </Text>
-                      </View>
-                    </View>
-                    <View style={styles.questAction}>
-                      <Text style={[styles.questReward, { color: colors.emerald2, fontFamily: fonts.monoSemiBold }]}>
-                        🪙 {quest.rewardCoins}
-                      </Text>
-                      <FeedbackPressable
-                        onPress={() => handleClaimQuest(quest.id)}
-                        disabled={!isComplete || quest.claimed}
-                        style={[
-                          styles.questBtn,
-                          {
-                            backgroundColor: quest.claimed
-                              ? colors.bg2
-                              : isComplete
-                              ? colors.emerald
-                              : colors.bg2,
-                            borderRadius: radii.sm,
-                          },
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.questBtnText,
-                            {
-                              color: quest.claimed
-                                ? colors.t4
-                                : isComplete
-                                ? "#FFFFFF"
-                                : colors.t4,
-                              fontFamily: fonts.bodyBold,
-                            },
-                          ]}
-                        >
-                          {quest.claimed ? "Claimed" : isComplete ? "Claim" : "Locked"}
-                        </Text>
-                      </FeedbackPressable>
-                    </View>
-                  </View>
-                );
-              })
-            )}
-          </View>
-        </Card>
+        {isTablet ? tabletFeed : phoneFeed}
       </ScrollView>
     </ScreenShell>
     <StreakDetailModal
@@ -457,6 +589,8 @@ export function HomeScreen() {
       gemBalance={character.gems}
       onBuyShield={handleBuyStreakShield}
     />
+    <ContextualTutorial screenId="home" />
+    <MetaProgressHelpSheet visible={metaHelpOpen} onClose={() => setMetaHelpOpen(false)} />
   </>
   );
 }
@@ -464,6 +598,15 @@ export function HomeScreen() {
 const styles = StyleSheet.create({
   scrollContainer: {
     padding: 16,
+    gap: 16,
+  },
+  tabletRow: {
+    flexDirection: 'row',
+    gap: 16,
+    alignItems: 'flex-start',
+  },
+  tabletCol: {
+    flex: 1,
     gap: 16,
   },
   empty: {

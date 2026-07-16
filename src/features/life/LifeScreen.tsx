@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState, useMemo } from "react";
+import { useRef, useEffect, useCallback, useState, useMemo, memo } from "react";
 import {
   View,
   Text,
@@ -17,7 +17,7 @@ import { useNavigation } from "@react-navigation/native";
 import { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { LinearGradient } from "expo-linear-gradient";
-import { RootStackParamList, MainTabParamList } from "@/types";
+import { RootStackParamList, MainTabParamList, ScenarioId } from "@/types";
 import { useCharacter } from "@features/character/hooks/useCharacter";
 import { useGameStore } from "@store/gameStore";
 import { AvatarByCharacter } from "@components/Avatars";
@@ -26,7 +26,8 @@ import DecisionSheet from "@components/DecisionSheet";
 import { FocusPhaseSheet } from "@components/FocusPhaseSheet";
 import { YearReviewCard } from "@components/YearReviewCard";
 import { YearReviewBanner } from "@components/YearReviewBanner";
-import { ScreenShell, GlassCard, ConfettiOverlay, StatDeltaChip, ScenarioBanner } from "@components/index";
+import { ScreenShell, GlassCard, ConfettiOverlay, StatDeltaChip, ScenarioBanner, ModalPrimaryButton } from "@components/index";
+import { ContextualTutorial } from "@shared/components/ContextualTutorial";
 import { CharacterNameText } from "@shared/components/CharacterNameText";
 import { LifeStageBannerIcon } from "@components/LifeStageBannerIcon";
 import { SCENARIOS } from "@data/scenarios";
@@ -42,6 +43,8 @@ import { playSound } from "@services/audio";
 import { isInJail } from "@engine/crimeEngine";
 import Svg, { Path } from "react-native-svg";
 import { useTheme } from "@theme";
+import { useReducedMotion } from "@hooks/useReducedMotion";
+import { useScreenA11yFocus } from "@hooks/useScreenA11yFocus";
 
 // ─── Mini vitals strip (tap for full stats modal) ─────────────────────────────
 
@@ -200,7 +203,8 @@ function AgeUpButton({
   loading: boolean;
   disabled?: boolean;
 }) {
-  const { colors, fonts, radii } = useTheme();
+  const { colors, fonts, radii, scaledFonts } = useTheme();
+  const reducedMotion = useReducedMotion();
   const shimmer = useRef(new Animated.Value(-1)).current;
   const scale = useRef(new Animated.Value(1)).current;
   const pulseScale = useRef(new Animated.Value(1)).current;
@@ -210,6 +214,7 @@ function AgeUpButton({
   const flipAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    if (reducedMotion) return;
     // Shimmer sweep
     Animated.loop(
       Animated.sequence([
@@ -256,10 +261,10 @@ function AgeUpButton({
         ]),
       ]),
     ).start();
-  }, [shimmer, pulseScale, pulseOp]);
+  }, [shimmer, pulseScale, pulseOp, reducedMotion]);
 
   useEffect(() => {
-    if (loading) {
+    if (loading && !reducedMotion) {
       const runFlip = () => {
         flipAnim.setValue(0);
         Animated.timing(flipAnim, {
@@ -278,7 +283,7 @@ function AgeUpButton({
     } else {
       flipAnim.setValue(0);
     }
-  }, [loading, flipAnim]);
+  }, [loading, flipAnim, reducedMotion]);
 
   const shimX = shimmer.interpolate({
     inputRange: [-1, 1],
@@ -318,22 +323,24 @@ function AgeUpButton({
               ? "Confirm focus first"
               : "Age up one year"
           }
-          onPressIn={() =>
+          onPressIn={() => {
+            if (reducedMotion) return;
             Animated.spring(scale, {
               toValue: 0.94,
               useNativeDriver: true,
               damping: 15,
               stiffness: 200,
-            }).start()
-          }
-          onPressOut={() =>
+            }).start();
+          }}
+          onPressOut={() => {
+            if (reducedMotion) return;
             Animated.spring(scale, {
               toValue: 1,
               useNativeDriver: true,
               damping: 15,
               stiffness: 200,
-            }).start()
-          }
+            }).start();
+          }}
           android_ripple={{ color: "rgba(255,255,255,0.30)" }}
           style={{ borderRadius: radii.lg || 14, overflow: "hidden" }}
         >
@@ -382,7 +389,7 @@ function AgeUpButton({
               <Text
                 style={[
                   ageBtn.label,
-                  { color: "#FFFFFF", fontFamily: fonts.bodyBold },
+                  { color: "#FFFFFF", fontFamily: fonts.bodyBold, fontSize: scaledFonts.lg },
                 ]}
               >
                 {loading ? "LIVING..." : "AGE UP"}
@@ -538,14 +545,55 @@ function buildFeedItems(events: LifeEventRecord[]): FeedItem[] {
   return items;
 }
 
+type FeedListItemProps = {
+  item: FeedItem;
+  characterAge: number;
+  isProcessing: boolean;
+  scenarioId?: ScenarioId;
+  horizontalPadding: number;
+};
+
+const FeedListItem = memo(function FeedListItem({
+  item,
+  characterAge,
+  isProcessing,
+  scenarioId,
+  horizontalPadding,
+}: FeedListItemProps) {
+  if (item.kind === "header") {
+    return (
+      <AgeSectionHeader
+        age={item.age}
+        isStageTransition={item.isStageTransition}
+      />
+    );
+  }
+  const isNewestAge = item.event.age === characterAge;
+  return (
+    <View style={{ paddingHorizontal: horizontalPadding }}>
+      <EventCard
+        event={item.event}
+        isNew={isNewestAge && !isProcessing}
+        staggerIndex={item.staggerIndex}
+        activeScenarioId={scenarioId}
+      />
+    </View>
+  );
+});
+
 // ─── Epic Event Dramatic Reveal (auto-dismiss, smaller than legendary) ────────
 
 function EpicRevealOverlay({ event, onDismiss }: { event: LifeEventRecord; onDismiss: () => void }) {
-  const { colors, fonts, radii } = useTheme();
-  const slideY = useRef(new Animated.Value(60)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
+  const { colors, fonts, radii, scaledFonts } = useTheme();
+  const reducedMotion = useReducedMotion();
+  const slideY = useRef(new Animated.Value(reducedMotion ? 0 : 60)).current;
+  const opacity = useRef(new Animated.Value(reducedMotion ? 1 : 0)).current;
 
   useEffect(() => {
+    if (reducedMotion) {
+      const timer = setTimeout(onDismiss, 2500);
+      return () => clearTimeout(timer);
+    }
     Animated.parallel([
       Animated.spring(slideY, { toValue: 0, useNativeDriver: true, friction: 7 }),
       Animated.timing(opacity, { toValue: 1, duration: 250, useNativeDriver: true }),
@@ -554,7 +602,7 @@ function EpicRevealOverlay({ event, onDismiss }: { event: LifeEventRecord; onDis
       Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }).start(onDismiss);
     }, 2500);
     return () => clearTimeout(timer);
-  }, []);
+  }, [reducedMotion, onDismiss, slideY, opacity]);
 
   return (
     <Animated.View
@@ -565,10 +613,10 @@ function EpicRevealOverlay({ event, onDismiss }: { event: LifeEventRecord; onDis
       ]}
     >
       <View style={[epicRevealStyles.card, { backgroundColor: `${event.color ?? colors.orchid}EE`, borderRadius: radii.lg }]}>
-        <Text style={[epicRevealStyles.label, { color: '#FFFFFF', fontFamily: fonts.bodyBold }]}>
+        <Text style={[epicRevealStyles.label, { color: '#FFFFFF', fontFamily: fonts.bodyBold, fontSize: scaledFonts.sm }]}>
           ✨ EPIC MOMENT
         </Text>
-        <Text style={[epicRevealStyles.title, { color: '#FFFFFF', fontFamily: fonts.displayBlack }]} numberOfLines={2}>
+        <Text style={[epicRevealStyles.title, { color: '#FFFFFF', fontFamily: fonts.displayBlack, fontSize: scaledFonts.lg }]} numberOfLines={2}>
           {event.title}
         </Text>
       </View>
@@ -603,7 +651,8 @@ const epicRevealStyles = StyleSheet.create({
 // ─── Main Screen Component ────────────────────────────────────────────────────
 
 export function LifeScreen() {
-  const { colors, fonts, spacing, radii } = useTheme();
+  const { colors, fonts, spacing, radii, scaledFonts } = useTheme();
+  const reducedMotion = useReducedMotion();
 
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -637,12 +686,21 @@ export function LifeScreen() {
   // Animated values for legendary modal entrance
   const legendaryScale = useRef(new Animated.Value(0.85)).current;
   const legendaryOpacity = useRef(new Animated.Value(0)).current;
+  const headingRef = useRef<View>(null);
+  useScreenA11yFocus(headingRef);
 
   useEffect(() => {
     if (pendingAspirationPicker) {
       navigation.navigate("AspirationPicker");
     }
   }, [pendingAspirationPicker, navigation]);
+
+  const pendingCollegeMajorPicker = useGameStore((s) => s.pendingCollegeMajorPicker);
+  useEffect(() => {
+    if (pendingCollegeMajorPicker) {
+      navigation.navigate("CollegeMajorPicker");
+    }
+  }, [pendingCollegeMajorPicker, navigation]);
 
   useEffect(() => {
     if (!lastAgeUpNotice) return;
@@ -694,9 +752,8 @@ export function LifeScreen() {
     const wasAlive = useGameStore.getState().character?.isAlive;
     void hapticAgeUp();
     setIsAgeUpCeremony(true);
-    InteractionManager.runAfterInteractions(async () => {
+    InteractionManager.runAfterInteractions(() => {
       void ageUp();
-      setIsAgeUpCeremony(false);
       const after = useGameStore.getState().character;
       void logEvent("age_up", { age: after?.age ?? 0 });
       if (!after?.isAlive && wasAlive)
@@ -704,27 +761,73 @@ export function LifeScreen() {
     });
   }, [ageUp]);
 
+  useEffect(() => {
+    if (isAgeUpCeremony && !isProcessing) {
+      setIsAgeUpCeremony(false);
+    }
+  }, [isAgeUpCeremony, isProcessing]);
+
   const feedItems = useMemo(
     () => buildFeedItems(character?.eventHistory ?? []),
     [character?.eventHistory],
   );
 
-  if (!character) return null;
-  const countryCode = character.countryCode ?? "IN";
-  const scenarioId = character.scenarioId ?? "classic";
-  const scenarioCurrencyName =
-    scenarioId !== "classic" ? getScenarioDef(scenarioId).currencyName : null;
-  const bankStr = formatCurrency(character.bankBalance, countryCode);
-  const finance = getFinanceSummary(character);
-  const debtStr =
-    finance.totalDebt > 0
-      ? formatCurrency(finance.totalDebt, countryCode)
-      : null;
-  const netWorthStr = formatCurrency(finance.netWorth, countryCode);
-  const educationLabel = getEducationLabel(
-    character.educationStage,
-    character.educationLevel,
+  const countryCode = character?.countryCode ?? "IN";
+  const scenarioId = character?.scenarioId ?? "classic";
+  const financeSummary = useMemo(
+    () => (character ? getFinanceSummary(character) : null),
+    [character],
   );
+  const bankStr = useMemo(
+    () => (character ? formatCurrency(character.bankBalance, countryCode) : ""),
+    [character?.bankBalance, countryCode],
+  );
+  const debtStr = useMemo(() => {
+    if (!financeSummary || financeSummary.totalDebt <= 0) return null;
+    return formatCurrency(financeSummary.totalDebt, countryCode);
+  }, [financeSummary, countryCode]);
+  const netWorthStr = useMemo(
+    () =>
+      financeSummary
+        ? formatCurrency(financeSummary.netWorth, countryCode)
+        : "",
+    [financeSummary, countryCode],
+  );
+  const educationLabel = useMemo(
+    () =>
+      character
+        ? getEducationLabel(
+            character.educationStage,
+            character.educationLevel,
+            character.enrolledDegreeId,
+          )
+        : "",
+    [
+      character?.educationStage,
+      character?.educationLevel,
+      character?.enrolledDegreeId,
+    ],
+  );
+  const scenarioCurrencyName = useMemo(
+    () =>
+      scenarioId !== "classic" ? getScenarioDef(scenarioId).currencyName : null,
+    [scenarioId],
+  );
+
+  const renderFeedItem = useCallback(
+    ({ item }: { item: FeedItem }) => (
+      <FeedListItem
+        item={item}
+        characterAge={character?.age ?? 0}
+        isProcessing={isProcessing}
+        scenarioId={character?.scenarioId}
+        horizontalPadding={spacing.lg}
+      />
+    ),
+    [character?.age, character?.scenarioId, isProcessing, spacing.lg],
+  );
+
+  if (!character) return null;
   const lifeStage =
     character.age < 13
       ? "Childhood"
@@ -776,6 +879,8 @@ export function LifeScreen() {
           <Pressable
             onPress={() => tabNavigation.navigate("Profile")}
             style={styles.avatarWrap}
+            accessibilityRole="button"
+            accessibilityLabel="Open profile"
           >
             <View style={[styles.avatarRing, { borderColor: colors.gold }]}>
               <AvatarByCharacter character={character} size={48} />
@@ -790,7 +895,7 @@ export function LifeScreen() {
               ]}
             />
           </Pressable>
-          <View style={styles.headerMeta}>
+          <View style={styles.headerMeta} ref={headingRef} accessible accessibilityRole="header">
             <CharacterNameText
               name={character.name}
               style={[
@@ -1028,26 +1133,15 @@ export function LifeScreen() {
           ListHeaderComponent={lifeDashboard}
           ListEmptyComponent={<EmptyLifeLog />}
           getItemType={(item) => item.kind}
+          drawDistance={400}
+          extraData={`${character.age}-${isProcessing}`}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: spacing.md }}
-          renderItem={({ item }) => {
-            if (item.kind === 'header') {
-              return <AgeSectionHeader age={item.age} isStageTransition={item.isStageTransition} character={character} />;
-            }
-            const isNewestAge = item.event.age === character.age;
-            return (
-              <View style={{ paddingHorizontal: spacing.lg }}>
-                <EventCard
-                  event={item.event}
-                  isNew={isNewestAge && !isProcessing}
-                  staggerIndex={item.staggerIndex}
-                  activeScenarioId={character.scenarioId}
-                />
-              </View>
-            );
-          }}
+          renderItem={renderFeedItem}
         />
       </ScreenShell>
+
+      <ContextualTutorial screenId="life" />
 
       <Modal
         visible={yearReviewOpen && !!character.lastYearReview}
@@ -1129,40 +1223,43 @@ export function LifeScreen() {
         animationType="none"
         onRequestClose={() => setLegendaryEventToShow(null)}
         onShow={() => {
-          legendaryScale.setValue(0.85);
-          legendaryOpacity.setValue(0);
-          Animated.parallel([
-            Animated.spring(legendaryScale, { toValue: 1, useNativeDriver: true, friction: 6 }),
-            Animated.timing(legendaryOpacity, { toValue: 1, duration: 280, useNativeDriver: true }),
-          ]).start();
+          if (reducedMotion) {
+            legendaryScale.setValue(1);
+            legendaryOpacity.setValue(1);
+          } else {
+            legendaryScale.setValue(0.85);
+            legendaryOpacity.setValue(0);
+            Animated.parallel([
+              Animated.spring(legendaryScale, { toValue: 1, useNativeDriver: true, friction: 6 }),
+              Animated.timing(legendaryOpacity, { toValue: 1, duration: 280, useNativeDriver: true }),
+            ]).start();
+          }
           void playSound('achievement_unlock');
         }}
       >
-        <View style={[styles.legendaryOverlay, { backgroundColor: "rgba(13, 17, 23, 0.96)" }]}>
+        <View style={[styles.legendaryOverlay, { backgroundColor: colors.overlayScrim }]}>
           <Animated.View style={{ transform: [{ scale: legendaryScale }], opacity: legendaryOpacity }}>
-          <GlassCard style={[styles.legendaryCard, { borderColor: colors.gold, borderWidth: 1.5 }]}>
+          <GlassCard style={[styles.legendaryCard, { backgroundColor: colors.bgCard, borderColor: colors.gold, borderWidth: 1.5 }]}>
             <View style={[styles.legendaryBadge, { backgroundColor: `${colors.gold}18` }]}>
-              <Text style={[styles.legendaryBadgeText, { color: colors.gold, fontFamily: fonts.bodyBold }]}>
+              <Text style={[styles.legendaryBadgeText, { color: colors.gold, fontFamily: fonts.bodyBold, fontSize: scaledFonts.sm }]}>
                 ⭐ LEGENDARY MOMENT ⭐
               </Text>
             </View>
 
-            <Text style={[styles.legendaryTitle, { color: colors.t1, fontFamily: fonts.displayBlack }]}>
+            <Text style={[styles.legendaryTitle, { color: colors.t1, fontFamily: fonts.displayBlack, fontSize: scaledFonts.xxl }]}>
               {legendaryEventToShow?.title}
             </Text>
 
-            <Text style={[styles.legendaryDesc, { color: colors.t2, fontFamily: fonts.displayItal }]}>
+            <Text style={[styles.legendaryDesc, { color: colors.t2, fontFamily: fonts.displayItal, fontSize: scaledFonts.base }]}>
               "{legendaryEventToShow?.description}"
             </Text>
 
-            <Pressable
+            <ModalPrimaryButton
+              label="Embrace Destiny"
               onPress={() => setLegendaryEventToShow(null)}
-              style={[styles.legendaryBtn, { backgroundColor: colors.gold, borderRadius: radii.md }]}
-            >
-              <Text style={[styles.legendaryBtnText, { color: colors.bg, fontFamily: fonts.bodyBold }]}>
-                Embrace Destiny
-              </Text>
-            </Pressable>
+              fullWidth
+              accessibilityLabel="Embrace Destiny"
+            />
           </GlassCard>
           </Animated.View>
         </View>
@@ -1306,7 +1403,6 @@ const styles = StyleSheet.create({
     padding: 32,
     alignItems: "center",
     gap: 20,
-    backgroundColor: "rgba(255, 255, 255, 0.05)",
   },
   legendaryBadge: {
     paddingHorizontal: 16,
@@ -1327,16 +1423,5 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 24,
     fontStyle: "italic",
-  },
-  legendaryBtn: {
-    width: "100%",
-    paddingVertical: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 10,
-  },
-  legendaryBtnText: {
-    fontSize: 15,
-    letterSpacing: 1.5,
   },
 });

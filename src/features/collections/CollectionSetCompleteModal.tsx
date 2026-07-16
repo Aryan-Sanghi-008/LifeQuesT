@@ -24,7 +24,7 @@ export function CollectionSetCompleteModal({ collectionSet, onDismiss }: Props) 
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onDismiss}>
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, { backgroundColor: colors.overlayScrim }]}>
         <View style={[styles.card, { backgroundColor: colors.bgCard, borderColor: `${accent}40`, borderRadius: radii.lg }]}>
 
           {/* Set icon */}
@@ -87,7 +87,6 @@ export function CollectionSetCompleteModal({ collectionSet, onDismiss }: Props) 
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.75)',
     justifyContent: 'center',
     padding: 24,
   },
@@ -112,6 +111,6 @@ const styles = StyleSheet.create({
   rewardRow: { flexDirection: 'row', gap: 16 },
   rewardValue: { fontSize: 16 },
   titleBadge: { paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1 },
-  primaryBtn: { paddingVertical: 14, alignItems: 'center', width: '100%' },
-  secondaryBtn: { paddingVertical: 12, alignItems: 'center', borderWidth: 1, width: '100%' },
+  primaryBtn: { paddingVertical: 11, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center', width: '100%', minHeight: 40 },
+  secondaryBtn: { paddingVertical: 11, paddingHorizontal: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1, width: '100%', minHeight: 40 },
 });

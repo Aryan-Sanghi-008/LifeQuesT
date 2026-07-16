@@ -13,8 +13,10 @@ import { Activity, ActivityCategory, RootStackParamList } from '../../types';
 import { isFeatureEnabled, getActivityFeatureGate } from '../../engine/scenarioEngine';
 import { ScreenHeader } from '@components/ScreenHeader';
 import { SectionLabel } from '@components/index';
+import { ContextualTutorial } from '@shared/components/ContextualTutorial';
 import { getHobbyProgress } from '../../engine/hobbyEngine';
 import Svg, { Path, Circle } from 'react-native-svg';
+import { scaleActivityCost } from '../../engine/countryScaleEngine';
 import { formatCurrency } from '@utils/currency';
 
 // ─── Category SVG icons ───────────────────────────────────────────────────────
@@ -50,8 +52,9 @@ function EffectChips({ activity, countryCode }: { activity: Activity; countryCod
   const styles = useThemedStyles(createEcStyles);
   const chips: Array<{ label: string; positive: boolean }> = [];
   if (activity.bankEffect) {
-    const fmtAmt = formatCurrency(Math.abs(activity.bankEffect), countryCode);
-    chips.push({ label: activity.bankEffect > 0 ? `+${fmtAmt}` : `-${fmtAmt}`, positive: activity.bankEffect > 0 });
+    const scaled = scaleActivityCost(activity.bankEffect, countryCode);
+    const fmtAmt = formatCurrency(Math.abs(scaled), countryCode);
+    chips.push({ label: scaled > 0 ? `+${fmtAmt}` : `-${fmtAmt}`, positive: scaled > 0 });
   }
   const eff = activity.statEffect;
   if (eff.fitness)      chips.push({ label: `${eff.fitness! > 0 ? '+' : ''}${eff.fitness} Fit`, positive: (eff.fitness ?? 0) > 0 });
@@ -108,7 +111,7 @@ function ActivityCard({
         <View style={[styles.costBadge, { borderColor: `${meta.color}40`, backgroundColor: `${meta.color}10` }]}>
           <Text style={[styles.costText, { color: meta.color }]}>
             {activity.bankEffect && activity.bankEffect < 0
-              ? formatCurrency(Math.abs(activity.bankEffect), countryCode)
+              ? formatCurrency(Math.abs(scaleActivityCost(activity.bankEffect, countryCode)), countryCode)
               : `${activity.cost}c`}
           </Text>
         </View>
@@ -155,11 +158,14 @@ export function ActivitiesScreen() {
   });
 
   const handleActivity = (activity: Activity) => {
-    const canAffordBank = !activity.bankEffect || activity.bankEffect >= 0 || character.bankBalance >= Math.abs(activity.bankEffect);
+    const scaledCost = activity.bankEffect
+      ? scaleActivityCost(activity.bankEffect, countryCode)
+      : 0;
+    const canAffordBank = !scaledCost || scaledCost >= 0 || character.bankBalance >= Math.abs(scaledCost);
     const canAffordCoins = !activity.cost || character.coins >= activity.cost;
 
     if (!canAffordBank) {
-      Alert.alert('Not Enough Money', `You need ${formatCurrency(Math.abs(activity.bankEffect ?? 0), countryCode)} for this.`);
+      Alert.alert('Not Enough Money', `You need ${formatCurrency(Math.abs(scaledCost), countryCode)} for this.`);
       return;
     }
     if (!canAffordCoins) {
@@ -284,6 +290,7 @@ export function ActivitiesScreen() {
         )}
         </View>
       </SafeAreaView>
+      <ContextualTutorial screenId="activities" />
     </View>
   );
 }

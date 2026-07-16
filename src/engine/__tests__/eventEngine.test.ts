@@ -60,17 +60,22 @@ describe('isEligible', () => {
 
 describe('applySuccessChance', () => {
   it('returns true when chance is undefined', () => {
-    expect(applySuccessChance(undefined, false, 0)).toBe(true);
+    expect(applySuccessChance(undefined, 0, 0)).toBe(true);
+  });
+
+  it('adds luck bonus percent to chance', () => {
+    const results = Array.from({ length: 50 }, () => applySuccessChance(40, 20, 0));
+    expect(results.some(Boolean)).toBe(true);
   });
 });
 
 describe('consumeLuckBoost', () => {
-  it('consumes one boost for non-lucky characters when chance was used', () => {
-    expect(consumeLuckBoost(false, 2, true)).toBe(1);
+  it('consumes one boost for non-premium luck tiers when chance was used', () => {
+    expect(consumeLuckBoost(6, 2, true)).toBe(1);
   });
 
-  it('does not consume for lucky characters', () => {
-    expect(consumeLuckBoost(true, 2, true)).toBe(2);
+  it('does not consume for max luck bonus characters', () => {
+    expect(consumeLuckBoost(20, 2, true)).toBe(2);
   });
 });
 

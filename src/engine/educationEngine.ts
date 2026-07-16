@@ -1,11 +1,19 @@
 import { EducationLevel, Character } from '../types';
 import { clamp } from './economyEngine';
+import { scaleEducationCost } from './countryScaleEngine';
 import { isFeatureEnabled } from './scenarioEngine';
 
 function clampRange(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v));
 }
-import { DEGREES, Degree, EducationStage } from '../data/educationDegrees';
+import {
+  DEGREES,
+  Degree,
+  EducationStage,
+  EducationBranch,
+  getDegreeById,
+  getDegreesForCountry,
+} from '../data/educationDegrees';
 
 export interface StudyQuestion {
   id: string;
@@ -27,6 +35,46 @@ export interface EnrollResult {
   message: string;
   degreeId?: string;
   annualCost?: number;
+  durationYears?: number;
+  /** Stage to apply immediately on enroll (before graduation). */
+  newStage?: EducationStage;
+  /** Level to apply immediately on enroll (never below current graduate). */
+  newEducationLevel?: EducationLevel;
+}
+
+/** Display ids for Career Education Path UI (postgrad is display-only). */
+export type EducationTrackId =
+  | 'none'
+  | 'elementary'
+  | 'secondary'
+  | 'university'
+  | 'postgrad'
+  | 'graduate';
+
+const LEVEL_RANK: EducationLevel[] = [
+  'none',
+  'elementary',
+  'secondary',
+  'university',
+  'graduate',
+];
+
+function maxEducationLevel(a: EducationLevel, b: EducationLevel): EducationLevel {
+  return LEVEL_RANK.indexOf(a) >= LEVEL_RANK.indexOf(b) ? a : b;
+}
+
+/** Stage + level to set the moment a program enrollment succeeds. */
+export function educationStateOnEnroll(
+  degree: Degree,
+  currentLevel: EducationLevel,
+): { educationStage: EducationStage; educationLevel: EducationLevel } {
+  const educationStage = degree.stage as EducationStage;
+  const enrolledLevel: EducationLevel =
+    degree.stage === 'masters' || degree.stage === 'phd' ? 'graduate' : 'university';
+  return {
+    educationStage,
+    educationLevel: maxEducationLevel(currentLevel, enrolledLevel),
+  };
 }
 
 export interface AdvanceEducationResult {
@@ -72,8 +120,14 @@ export function gradeStudySession(
   };
 }
 
-export function canStudy(age: number, educationLevel: EducationLevel): boolean {
-  return age >= 13 && age <= 30 && educationLevel !== 'graduate';
+/** Study quizzes stay available through masters; PhD holders (or age out) stop. */
+export function canStudy(
+  age: number,
+  _educationLevel: EducationLevel,
+  educationStage?: string,
+): boolean {
+  if (age < 13 || age > 30) return false;
+  return educationStage !== 'phd';
 }
 
 // ─── Education Stage → Legacy EducationLevel mapping ─────────────────────────
@@ -172,47 +226,103 @@ const EDUCATION_LABELS: Record<string, string> = {
   graduate: 'Graduate',
 };
 
-export function getEducationLabel(stage?: string, level?: EducationLevel): string {
+export function getEducationLabel(
+  stage?: string,
+  level?: EducationLevel,
+  enrolledDegreeId?: string,
+): string {
+  if (enrolledDegreeId) {
+    const enrolled = getDegreeById(enrolledDegreeId);
+    if (enrolled) {
+      return EDUCATION_LABELS[enrolled.stage] ?? enrolled.shortLabel;
+    }
+  }
+  // Bachelor/diploma holders sit on Graduate until they enroll postgraduate study.
+  if (
+    level === 'graduate' &&
+    (stage === 'undergraduate' || stage === 'diploma')
+  ) {
+    return EDUCATION_LABELS.graduate;
+  }
   if (stage && stage !== 'none' && EDUCATION_LABELS[stage]) {
     return EDUCATION_LABELS[stage];
   }
   return EDUCATION_LABELS[level ?? 'none'] ?? 'No Education';
 }
 
-/** Legacy level that best reflects stage vs stored level for UI tracks. */
+/** Legacy level that best reflects stage vs stored level for soft filters. */
 export function resolveEducationLevelForDisplay(
   stage?: string,
   level?: EducationLevel,
 ): EducationLevel {
   if (!stage || stage === 'none') return level ?? 'none';
   const fromStage = stagesToLegacyEducation(stage as EducationStage);
-  const levelRank = ['none', 'elementary', 'secondary', 'university', 'graduate'] as const;
-  const stageIdx = levelRank.indexOf(fromStage);
-  const levelIdx = levelRank.indexOf(level ?? 'none');
+  const stageIdx = LEVEL_RANK.indexOf(fromStage);
+  const levelIdx = LEVEL_RANK.indexOf(level ?? 'none');
   return stageIdx >= levelIdx ? fromStage : (level ?? 'none');
+}
+
+/**
+ * Education Path highlighter id.
+ * Enrollment wins; undergrad/diploma complete (idle) → graduate; masters/phd enrolled → postgrad.
+ */
+export function resolveEducationTrackForDisplay(
+  stage?: string,
+  level?: EducationLevel,
+  enrolledDegreeId?: string,
+): EducationTrackId {
+  if (enrolledDegreeId) {
+    const enrolled = getDegreeById(enrolledDegreeId);
+    if (enrolled) {
+      if (enrolled.stage === 'masters' || enrolled.stage === 'phd') return 'postgrad';
+      if (enrolled.stage === 'undergraduate' || enrolled.stage === 'diploma') {
+        return 'university';
+      }
+    }
+  }
+
+  const s = (stage ?? 'none') as EducationStage;
+  if (s === 'undergraduate' || s === 'diploma' || s === 'masters' || s === 'phd') {
+    return 'graduate';
+  }
+  if (level === 'graduate') return 'graduate';
+  if (level === 'university') return 'university';
+
+  if (s === 'preschool' || s === 'primary') return 'elementary';
+  if (s === 'middle_school' || s === 'high_school') return 'secondary';
+  if (s === 'none') return level ?? 'none';
+
+  const legacy = resolveEducationLevelForDisplay(stage, level);
+  if (legacy === 'elementary' || legacy === 'secondary' || legacy === 'university' || legacy === 'graduate' || legacy === 'none') {
+    return legacy;
+  }
+  return 'none';
 }
 
 /**
  * Get degrees available to enroll in for a given character.
  * Filters by current education stage and character's existing degrees.
+ * Sorted with country-preferred programs first.
  */
 export function getEnrollableDegrees(
-  character: Pick<Character, 'age' | 'educationLevel' | 'educationStage' | 'degreeIds' | 'gpa' | 'scenarioId'>,
+  character: Pick<
+    Character,
+    'age' | 'educationLevel' | 'educationStage' | 'degreeIds' | 'gpa' | 'scenarioId' | 'countryCode'
+  >,
 ): Degree[] {
   if (!isFeatureEnabled(character, 'university')) return [];
   const stage = (character.educationStage as EducationStage | undefined) ?? 'none';
   const owned = new Set(character.degreeIds ?? []);
+  const catalog = getDegreesForCountry(character.countryCode);
 
-  return DEGREES.filter(d => {
+  return catalog.filter((d) => {
     if (owned.has(d.id)) return false;
     if (d.requiredPrior && !owned.has(d.requiredPrior)) return false;
     if (!meetsDegreeGPA(character, d)) return false;
-    // Age gates
     const minAge: Record<string, number> = {
       diploma: 17, undergraduate: 18, masters: 21, phd: 23,
     };
     if (character.age < (minAge[d.stage] ?? 18)) return false;
-    // Education stage gates
     const stageGate: Record<string, EducationStage[]> = {
       diploma:       ['high_school', 'diploma', 'undergraduate', 'masters', 'phd'],
       undergraduate: ['high_school', 'diploma', 'undergraduate', 'masters', 'phd'],
@@ -222,6 +332,64 @@ export function getEnrollableDegrees(
     const allowed = stageGate[d.stage] ?? [];
     return allowed.includes(stage);
   });
+}
+
+/** True when age-up just reached high school and player must choose major or skip. */
+export function shouldPromptCollegeMajor(character: Pick<
+  Character,
+  'age' | 'educationStage' | 'enrolledDegreeId' | 'degreeIds' | 'educationMajorSkipped'
+>): boolean {
+  if (character.age < 18) return false;
+  if (character.educationMajorSkipped) return false;
+  if (character.enrolledDegreeId) return false;
+  const stage = (character.educationStage as EducationStage | undefined) ?? 'none';
+  if (stage !== 'high_school') return false;
+  const owned = character.degreeIds ?? [];
+  const hasPostSecondary = owned.some((id) => {
+    const d = getDegreeById(id);
+    return d && (d.stage === 'diploma' || d.stage === 'undergraduate' || d.stage === 'masters' || d.stage === 'phd');
+  });
+  return !hasPostSecondary;
+}
+
+/** First eligible next graduate program in the same branch after undergrad/masters. */
+export function findNextGraduateProgram(
+  character: Pick<
+    Character,
+    'age' | 'educationLevel' | 'educationStage' | 'degreeIds' | 'gpa' | 'scenarioId' | 'countryCode' | 'educationBranch'
+  >,
+  completedStage: 'undergraduate' | 'masters',
+  branch: EducationBranch | string | undefined,
+): Degree | null {
+  if (!branch || branch === 'none') return null;
+  const targetStage = completedStage === 'undergraduate' ? 'masters' : 'phd';
+  const enrollable = getEnrollableDegrees({
+    ...character,
+    educationStage: completedStage,
+  });
+  return (
+    enrollable.find((d) => d.stage === targetStage && d.branch === branch) ??
+    null
+  );
+}
+
+export function applyScholarshipToTuition(
+  tuition: number,
+  scholarshipDiscount?: number,
+): { tuition: number; discountApplied: number } {
+  const discount = Math.max(0, Math.min(0.75, scholarshipDiscount ?? 0));
+  if (discount <= 0 || tuition <= 0) return { tuition, discountApplied: 0 };
+  const discounted = Math.round(tuition * (1 - discount));
+  return { tuition: discounted, discountApplied: tuition - discounted };
+}
+
+/** GPA bump + scholarship fraction from a passed study quiz (does not grant degrees). */
+export function studyQuizRewards(passed: boolean): {
+  gpaBump: number;
+  scholarshipDiscount: number;
+} {
+  if (!passed) return { gpaBump: 0.02, scholarshipDiscount: 0 };
+  return { gpaBump: 0.15, scholarshipDiscount: 0.25 };
 }
 
 /**
@@ -244,11 +412,78 @@ export function enrollInProgram(
     return { ok: false, message: `You don't meet the requirements for ${degree.label}.` };
   }
 
+  const state = educationStateOnEnroll(degree, character.educationLevel);
   return {
     ok: true,
     message: `You enrolled in ${degree.label}.`,
     degreeId: degree.id,
     annualCost: degree.baseAnnualCost,
+    durationYears: degree.durationYears,
+    newStage: state.educationStage,
+    newEducationLevel: state.educationLevel,
+  };
+}
+
+export interface DegreeEnrollmentTickResult {
+  tuitionPaid: number;
+  yearsRemaining?: number;
+  graduated: boolean;
+  graduation?: AdvanceEducationResult;
+  newStage?: EducationStage;
+  newEducationLevel?: EducationLevel;
+  degreeId?: string;
+  intelligenceGain?: number;
+  educationBranch?: Character['educationBranch'];
+}
+
+/** Process one year of enrolled degree: pay tuition, decrement years, graduate if done. */
+export function tickDegreeEnrollment(
+  character: Pick<
+    Character,
+    | 'enrolledDegreeId'
+    | 'enrolledDegreeYearsRemaining'
+    | 'degreeIds'
+    | 'countryCode'
+    | 'bankBalance'
+    | 'debt'
+    | 'educationStage'
+    | 'educationLevel'
+    | 'educationBranch'
+    | 'stats'
+    | 'age'
+    | 'scholarshipDiscount'
+  >,
+): DegreeEnrollmentTickResult {
+  const degreeId = character.enrolledDegreeId;
+  if (!degreeId) {
+    return { tuitionPaid: 0, graduated: false };
+  }
+
+  const degree = DEGREES.find((d) => d.id === degreeId);
+  if (!degree) {
+    return { tuitionPaid: 0, graduated: false, yearsRemaining: 0 };
+  }
+
+  const rawTuition = scaleEducationCost(degree.baseAnnualCost, character.countryCode ?? 'US');
+  const { tuition } = applyScholarshipToTuition(rawTuition, character.scholarshipDiscount);
+  let yearsRemaining = character.enrolledDegreeYearsRemaining ?? degree.durationYears;
+  yearsRemaining = Math.max(0, yearsRemaining - 1);
+
+  if (yearsRemaining > 0) {
+    return { tuitionPaid: tuition, yearsRemaining, graduated: false };
+  }
+
+  const adv = advanceEducation(character, degreeId);
+  return {
+    tuitionPaid: tuition,
+    yearsRemaining: 0,
+    graduated: adv.ok,
+    graduation: adv,
+    newStage: adv.newStage,
+    newEducationLevel: adv.newEducationLevel,
+    degreeId,
+    intelligenceGain: adv.intelligenceGain,
+    educationBranch: degree.branch,
   };
 }
 
@@ -271,7 +506,15 @@ export function advanceEducation(
   };
 
   const newStage = stageProgression[degree.stage] ?? (character.educationStage as EducationStage | undefined) ?? 'none';
-  const newEducationLevel = stagesToLegacyEducation(newStage);
+  // Bachelor/diploma completion → graduate level for UI/jobs; stage stays undergrad/diploma for masters gates.
+  // Masters/PhD completion → graduate level with masters/phd stage.
+  const newEducationLevel: EducationLevel =
+    degree.stage === 'undergraduate' ||
+    degree.stage === 'diploma' ||
+    degree.stage === 'masters' ||
+    degree.stage === 'phd'
+      ? 'graduate'
+      : stagesToLegacyEducation(newStage);
 
   return {
     ok: true,
@@ -279,7 +522,7 @@ export function advanceEducation(
     degreeEarned: degree,
     intelligenceGain: degree.intelligenceBonus,
     newStage,
-    newEducationLevel,
+    newEducationLevel: maxEducationLevel(character.educationLevel, newEducationLevel),
   };
 }
 

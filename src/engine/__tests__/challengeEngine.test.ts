@@ -1,12 +1,15 @@
 import { evaluateChallenge } from '../challengeEngine';
 import { createTestCharacter } from '../../test/fixtures/character';
+import { getChallengeWealthTarget } from '../../data/countryEconomy';
 
 describe('challengeEngine', () => {
   it('evaluates rags_to_riches correctly', () => {
+    const target = getChallengeWealthTarget('US');
     const poorChar = createTestCharacter({
       activeChallengeId: 'rags_to_riches',
       familyBackground: 'poor',
-      bankBalance: 1200000,
+      countryCode: 'US',
+      bankBalance: target + 50_000,
       age: 45,
     });
     const res = evaluateChallenge(poorChar);

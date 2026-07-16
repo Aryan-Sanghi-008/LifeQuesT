@@ -2,9 +2,12 @@ import { View, Text, Pressable } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { useTheme } from "@theme";
 import { FadeInView } from "@components/index";
-import { ZODIACS, TRAITS } from "@data/gameData";
+import { ZODIACS } from "@data/gameData";
+import { TRAITS_WITH_DESCRIPTIONS } from "@data/traitCatalog";
+import type { TraitWithDescription } from "@data/traitCatalog";
 import { PRESTIGE_TRAITS } from "@engine/prestigeEngine";
 import { DYNASTY_TRAIT_POOL } from "@data/dynastyShop";
+import { isPremiumTrait } from "@engine/traitEngine";
 import { getCreateStyles } from "./styles";
 
 type StepFamilyProps = {
@@ -15,6 +18,7 @@ type StepFamilyProps = {
   isPremium: boolean;
   unlockedPrestigeTraitIds: string[];
   hasDynastyTraitExpansion?: boolean;
+  onPremiumUpsell?: () => void;
 };
 
 export function StepFamily({
@@ -25,9 +29,59 @@ export function StepFamily({
   isPremium,
   unlockedPrestigeTraitIds,
   hasDynastyTraitExpansion = false,
+  onPremiumUpsell,
 }: StepFamilyProps) {
   const { colors, fonts, radii, spacing, shadows } = useTheme();
   const styles = getCreateStyles(radii, spacing, shadows);
+
+  const freeTraits = TRAITS_WITH_DESCRIPTIONS.filter(
+    (t) => !t.premiumOnly && (!hasDynastyTraitExpansion || !(DYNASTY_TRAIT_POOL as readonly string[]).includes(t.id)),
+  );
+  const premiumTraits = TRAITS_WITH_DESCRIPTIONS.filter((t) => t.premiumOnly);
+
+  const handleTraitPress = (traitId: string) => {
+    if (isPremiumTrait(traitId) && !isPremium) {
+      onPremiumUpsell?.();
+      return;
+    }
+    toggleTrait(traitId);
+  };
+
+  const renderTraitCard = (t: TraitWithDescription, accent: string, premiumLocked: boolean) => {
+    const active = traits.includes(t.id);
+    return (
+      <Pressable
+        key={t.id}
+        onPress={() => handleTraitPress(t.id)}
+        style={[
+          styles.traitCard,
+          { backgroundColor: colors.bgCard, borderColor: colors.border },
+          { borderColor: accent },
+          active && { borderColor: `${accent}80`, backgroundColor: `${accent}08` },
+          premiumLocked && styles.traitCardLocked,
+        ]}
+      >
+        {premiumLocked && (
+          <Text style={{ color: colors.gold, fontFamily: fonts.monoSemiBold, fontSize: 10, marginBottom: 4 }}>
+            LIFEQUEST PLUS · Tap to unlock
+          </Text>
+        )}
+        {active && (
+          <View style={[styles.traitCheck, { backgroundColor: accent }]}>
+            <Svg width={10} height={10} viewBox="0 0 24 24" fill="none">
+              <Path stroke="#FFFFFF" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" d="M20 6L9 17l-5-5" />
+            </Svg>
+          </View>
+        )}
+        <Text style={[styles.traitLabel, { color: colors.t1, fontFamily: fonts.bodyBold }, active && { color: accent }]}>
+          {t.label}
+        </Text>
+        <Text style={[styles.traitDesc, { color: colors.t3, fontFamily: fonts.body }]}>
+          {t.description}
+        </Text>
+      </Pressable>
+    );
+  };
 
   return (
     <FadeInView style={styles.stepContainer}>
@@ -35,7 +89,7 @@ export function StepFamily({
         Your cosmic traits
       </Text>
       <Text style={[styles.stepSub, { color: colors.t3, fontFamily: fonts.body }]}>
-        Configure your zodiac alignment and choose up to two starting traits.
+        Choose up to two traits. Each affects stats at birth and gameplay every year.
       </Text>
 
       <Text style={[styles.inputLabel, { color: colors.t4, fontFamily: fonts.bodyBold }]}>
@@ -50,25 +104,11 @@ export function StepFamily({
               onPress={() => setZodiac(z.id)}
               style={[
                 styles.zodiacChip,
-                {
-                  backgroundColor: colors.bgCard,
-                  borderColor: colors.border,
-                },
-                active && {
-                  borderColor: colors.orchid,
-                  backgroundColor: `${colors.orchid}10`,
-                },
+                { backgroundColor: colors.bgCard, borderColor: colors.border },
+                active && { borderColor: colors.orchid, backgroundColor: `${colors.orchid}10` },
               ]}
             >
-              <Text
-                style={[
-                  styles.zodiacLabel,
-                  {
-                    color: active ? colors.orchid : colors.t2,
-                    fontFamily: active ? fonts.bodyBold : fonts.body,
-                  },
-                ]}
-              >
+              <Text style={[styles.zodiacLabel, { color: active ? colors.orchid : colors.t2, fontFamily: active ? fonts.bodyBold : fonts.body }]}>
                 {z.label}
               </Text>
             </Pressable>
@@ -76,65 +116,21 @@ export function StepFamily({
         })}
       </View>
 
-      <Text style={[styles.inputLabel, { color: colors.t4, fontFamily: fonts.bodyBold, marginTop: spacing.md }]}>
-        PERSONALITY TRAITS (MAX 2)
+      <Text style={[styles.inputLabel, { color: colors.gold, fontFamily: fonts.bodyBold, marginTop: spacing.md }]}>
+        LIFEQUEST PLUS TRAITS
       </Text>
       <Text style={[styles.traitHint, { color: colors.t4, fontFamily: fonts.body }]}>
-        Tap to select. Selected traits will influence your start metrics.
+        Massive passives — unlocked with LifeQuest Plus.
       </Text>
-
       <View style={styles.traitGrid}>
-        {TRAITS.map((t) => {
-          const active = traits.includes(t.id);
-          return (
-            <Pressable
-              key={t.id}
-              onPress={() => toggleTrait(t.id)}
-              style={[
-                styles.traitCard,
-                {
-                  backgroundColor: colors.bgCard,
-                  borderColor: colors.border,
-                },
-                active && {
-                  borderColor: `${colors.orchid}50`,
-                  backgroundColor: `${colors.orchid}08`,
-                },
-              ]}
-            >
-              {active && (
-                <View
-                  style={[
-                    styles.traitCheck,
-                    { backgroundColor: colors.orchid },
-                  ]}
-                >
-                  <Svg width={10} height={10} viewBox="0 0 24 24" fill="none">
-                    <Path
-                      stroke="#FFFFFF"
-                      strokeWidth={3.5}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M20 6L9 17l-5-5"
-                    />
-                  </Svg>
-                </View>
-              )}
-              <Text
-                style={[
-                  styles.traitLabel,
-                  { color: colors.t1, fontFamily: fonts.bodyBold },
-                  active && { color: colors.orchid },
-                ]}
-              >
-                {t.label}
-              </Text>
-              <Text style={[styles.traitDesc, { color: colors.t3, fontFamily: fonts.body }]}>
-                {t.description}
-              </Text>
-            </Pressable>
-          );
-        })}
+        {premiumTraits.map((t) => renderTraitCard(t, colors.gold, !isPremium))}
+      </View>
+
+      <Text style={[styles.inputLabel, { color: colors.t4, fontFamily: fonts.bodyBold, marginTop: spacing.md }]}>
+        STARTER TRAITS (MAX 2 TOTAL)
+      </Text>
+      <View style={styles.traitGrid}>
+        {freeTraits.map((t) => renderTraitCard(t, colors.orchid, false))}
 
         {PRESTIGE_TRAITS.map((pt) => {
           const active = traits.includes(pt.id);
@@ -147,43 +143,12 @@ export function StepFamily({
               onPress={() => toggleTrait(pt.id)}
               style={[
                 styles.traitCard,
-                {
-                  backgroundColor: colors.bgCard,
-                  borderColor: colors.border,
-                },
-                { borderColor: colors.gold },
-                active && {
-                  borderColor: `${colors.gold}80`,
-                  backgroundColor: `${colors.gold}08`,
-                },
+                { backgroundColor: colors.bgCard, borderColor: colors.gold },
+                active && { borderColor: `${colors.gold}80`, backgroundColor: `${colors.gold}08` },
                 locked && styles.traitCardLocked,
               ]}
             >
-              {active && (
-                <View
-                  style={[
-                    styles.traitCheck,
-                    { backgroundColor: colors.gold },
-                  ]}
-                >
-                  <Svg width={10} height={10} viewBox="0 0 24 24" fill="none">
-                    <Path
-                      stroke="#FFFFFF"
-                      strokeWidth={3.5}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M20 6L9 17l-5-5"
-                    />
-                  </Svg>
-                </View>
-              )}
-              <Text
-                style={[
-                  styles.traitLabel,
-                  { color: colors.gold, fontFamily: fonts.body },
-                  active && { fontFamily: fonts.bodyBold },
-                ]}
-              >
+              <Text style={[styles.traitLabel, { color: colors.gold, fontFamily: fonts.bodyBold }]}>
                 {pt.label}
               </Text>
               <Text style={[styles.traitDesc, { color: colors.t3, fontFamily: fonts.body }]}>
@@ -192,31 +157,11 @@ export function StepFamily({
             </Pressable>
           );
         })}
+
         {hasDynastyTraitExpansion &&
-          TRAITS.filter((t) => (DYNASTY_TRAIT_POOL as readonly string[]).includes(t.id)).map((t) => {
-            const active = traits.includes(t.id);
-            return (
-              <Pressable
-                key={`dynasty_${t.id}`}
-                onPress={() => toggleTrait(t.id)}
-                style={[
-                  styles.traitCard,
-                  { backgroundColor: colors.bgCard, borderColor: colors.gold },
-                  active && {
-                    borderColor: `${colors.gold}80`,
-                    backgroundColor: `${colors.gold}08`,
-                  },
-                ]}
-              >
-                <Text style={[styles.traitLabel, { color: colors.gold, fontFamily: fonts.bodyBold }]}>
-                  {t.label}
-                </Text>
-                <Text style={[styles.traitDesc, { color: colors.t3, fontFamily: fonts.body }]}>
-                  {t.description}
-                </Text>
-              </Pressable>
-            );
-          })}
+          TRAITS_WITH_DESCRIPTIONS.filter((t) => (DYNASTY_TRAIT_POOL as readonly string[]).includes(t.id)).map((t) =>
+            renderTraitCard(t, colors.gold, Boolean(t.premiumOnly) && !isPremium),
+          )}
       </View>
     </FadeInView>
   );

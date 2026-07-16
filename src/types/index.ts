@@ -208,6 +208,7 @@ export interface PropertyDef {
   appreciationPct: number;
   minAge: number;
   happinessBonus?: number;
+  rentalYieldPct?: number;
 }
 
 export interface BusinessEmployee {
@@ -281,6 +282,9 @@ export interface Business {
   employees: BusinessEmployee[];
   payrollMonthly: number;
   foundedAge: number;
+  franchiseId?: string;
+  industry?: string;
+  risk?: number;
 }
 
 // ─── Career ───────────────────────────────────────────────────────────────────
@@ -295,16 +299,67 @@ export interface Career {
 
 // ─── Assets ───────────────────────────────────────────────────────────────────
 
+export type AssetType =
+  | 'property'
+  | 'vehicle'
+  | 'investment'
+  | 'collectible'
+  | 'angel_stake';
+
+export type PropertyOccupancy = 'primary' | 'rental';
+
+export interface AssetPricePoint {
+  age: number;
+  value: number;
+}
+
 export interface Asset {
   id: string;
-  type: 'property' | 'vehicle' | 'investment';
+  type: AssetType;
   name: string;
   value: number;
   debt?: number;
   purchasedAge: number;
   propertyDefId?: string;
+  catalogId?: string;
   mortgageRate?: number;
   mortgageTermYears?: number;
+  /** Original cash invested (investments). */
+  costBasis?: number;
+  priceHistory?: AssetPricePoint[];
+  occupancy?: PropertyOccupancy;
+  renovationLevel?: number;
+  rentalYieldPct?: number;
+  instrumentKind?: string;
+}
+
+export type InsuranceLine = 'health' | 'auto' | 'home' | 'life';
+
+export interface InsurancePolicy {
+  id: string;
+  line: InsuranceLine;
+  annualPremium: number;
+  coveragePct: number;
+  purchasedAge: number;
+}
+
+export interface CreditFactors {
+  paymentHistory: number;
+  utilization: number;
+  historyLength: number;
+  creditMix: number;
+  recentInquiries: number;
+}
+
+export interface AngelOpportunity {
+  id: string;
+  name: string;
+  sector: string;
+  askAmount: number;
+  equityPct: number;
+  risk: number;
+  expectedReturn: number;
+  generatedAge: number;
 }
 
 // ─── Activities ───────────────────────────────────────────────────────────────
@@ -403,6 +458,8 @@ export interface Character {
   bankBalance: number;
   /** Unsecured cash debt when expenses exceed bank balance */
   debt: number;
+  /** Append-only cashflow log (trimmed); powers Finances year summary + lines. */
+  financeLedger?: FinanceLedgerEntry[];
   netWorthPeak: number;
   relationships: number;
   children: number;
@@ -435,6 +492,13 @@ export interface Character {
   certificationIds: string[];
   totalCareerYears: number;
   enrolledDegreeId?: string;
+  enrolledDegreeYearsRemaining?: number;
+  enrolledSinceAge?: number;
+  /** Fraction 0–1 discount applied to next tuition tick from study scholarships */
+  scholarshipDiscount?: number;
+  /** Player skipped college at 18; may still enroll later from Study */
+  educationMajorSkipped?: boolean;
+  tutorialScreensSeen?: string[];
   eventCooldowns?: Record<string, number>; // eventId → last triggered age
   dna: CharacterDNA;
   personality: BigFivePersonality;
@@ -452,6 +516,15 @@ export interface Character {
   completedMemoryChains?: string[];
   gpa?: number;
   creditScore?: number;
+  /** Last computed FICO-lite factor breakdown */
+  creditFactors?: CreditFactors;
+  /** Ages since first loan / mortgage for history length */
+  creditHistoryStartAge?: number;
+  /** Short-term inquiry penalty counter (decays on age-up) */
+  creditInquiries?: number;
+  insurancePolicies?: InsurancePolicy[];
+  /** Cached angel deal sheet for Market tab */
+  angelOpportunities?: AngelOpportunity[];
   heatLevel?: number;
   hobbyProgress?: Record<string, HobbyProgress>;
   socialPosts?: SocialPost[];
@@ -589,6 +662,7 @@ export interface LifeEvent {
   timerSeconds?: number;
   defaultChoiceId?: string;
   requiresScenario?: ScenarioId[];
+  requiresFollowers?: number;
 }
 
 export interface LifeEventRecord {
@@ -602,6 +676,35 @@ export interface LifeEventRecord {
   color: string;
   rarity?: EventRarity;
   timestamp: number;
+}
+
+export type FinanceLedgerCategory =
+  | 'salary'
+  | 'living'
+  | 'tuition'
+  | 'housing'
+  | 'event'
+  | 'activity'
+  | 'business'
+  | 'investment'
+  | 'purchase'
+  | 'social'
+  | 'repayment'
+  | 'other';
+
+/** One cashflow line for the Finances ledger. */
+export interface FinanceLedgerEntry {
+  id: string;
+  age: number;
+  timestamp: number;
+  category: FinanceLedgerCategory;
+  label: string;
+  /** Signed cash flow: positive = income, negative = expense. */
+  amount: number;
+  bankAfter: number;
+  debtAfter: number;
+  /** How much personal debt changed from this line (positive = debt grew). */
+  debtDelta: number;
 }
 
 // ─── IAP & Ads ───────────────────────────────────────────────────────────────
@@ -663,12 +766,13 @@ export type RootStackParamList = {
   CharacterCreate: { carriedStats?: Partial<CharacterStats>; scenarioId?: ScenarioId } | undefined;
   MainTabs: undefined;
   Death: undefined;
-  Shop: undefined;
+  Shop: { tab?: import('@features/economy/shop/ShopTabBar').ShopTab; source?: 'trait_upsell' } | undefined;
   Stats: undefined;
   Activities: undefined;
   Study: undefined;
   Leaderboard: undefined;
   AspirationPicker: undefined;
+  CollegeMajorPicker: undefined;
   Court: undefined;
   SocialMedia: undefined;
   PetCare: { personId: string };

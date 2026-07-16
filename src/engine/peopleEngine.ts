@@ -1,5 +1,8 @@
 import { Person } from '../types';
 import { generateClassmate, generateCoworker } from '@utils/npcGenerator';
+import { scaleInteractionCost } from './countryScaleEngine';
+import { applyRelationshipPersonalityBonus } from './personalityModifiers';
+import type { BigFivePersonality } from '../types';
 
 const MOOD_OPTIONS = ['Happy', 'Neutral', 'Stressed', 'Excited', 'Reserved', 'Angry'] as const;
 const GOAL_POOL = ['Career success', 'Family stability', 'Wealth', 'Fame', 'Peace', 'Revenge', 'Adventure'];
@@ -115,7 +118,7 @@ export interface RolledInteraction {
   success: boolean;
 }
 
-const INTERACTIONS: Record<string, InteractionResult> = {
+const INTERACTIONS_USD: Record<string, InteractionResult> = {
   compliment:    { delta: 10,  message: 'They seemed genuinely touched.',              bankDelta: 0,    successChance: 0.88 },
   conversation:  { delta: 8,   message: 'You caught up over coffee.',                  bankDelta: -500, successChance: 0.82 },
   gift:          { delta: 15,  message: 'They loved your gift.',                       bankDelta: -2000, successChance: 0.75 },
@@ -126,12 +129,28 @@ const INTERACTIONS: Record<string, InteractionResult> = {
   apologize:     { delta: 12,  message: 'They appreciated your honesty.',              bankDelta: 0,    successChance: 0.85, failDelta: -5, failMessage: 'They were not ready to forgive yet.' },
 };
 
-export function getInteraction(interactionId: string): InteractionResult | null {
-  return INTERACTIONS[interactionId] ?? null;
+export function getInteraction(interactionId: string, countryCode = 'US'): InteractionResult | null {
+  const base = INTERACTIONS_USD[interactionId];
+  if (!base) return null;
+  return {
+    ...base,
+    bankDelta: base.bankDelta
+      ? scaleInteractionCost(base.bankDelta, countryCode)
+      : 0,
+  };
 }
 
-export function rollInteraction(interaction: InteractionResult): RolledInteraction {
-  const success = Math.random() < interaction.successChance;
+export function rollInteraction(
+  interaction: InteractionResult,
+  playerPersonality?: BigFivePersonality,
+  traitIds: string[] = [],
+): RolledInteraction {
+  const adjustedChance = applyRelationshipPersonalityBonus(
+    interaction.successChance,
+    playerPersonality,
+    traitIds,
+  );
+  const success = Math.random() < adjustedChance;
   if (success) {
     return {
       delta: interaction.delta,

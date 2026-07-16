@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { View, Text, Pressable, ScrollView, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -7,6 +8,7 @@ import { StatBar } from '@components/index';
 import { useGameStore } from '@store/gameStore';
 import { HOBBY_MAP } from '@data/hobbies';
 import { getHobbyProgress, canPracticeHobby, getEligibleCompetitions } from '@engine/hobbyEngine';
+import { CAREER_PATHS } from '@data/careerPaths';
 import type { RootStackParamList } from '@/types';
 
 export function HobbyDetailScreen() {
@@ -18,6 +20,15 @@ export function HobbyDetailScreen() {
   const practiceHobby = useGameStore(s => s.practiceHobby);
 
   const def = HOBBY_MAP[route.params.hobbyId];
+
+  // Hooks must run before early return
+  const relatedCareers = useMemo(() => {
+    if (!def) return [];
+    return CAREER_PATHS.filter(cp =>
+      cp.requirements?.requiredHobbyCategory === def.category &&
+      cp.requirements?.minHobbyLevel !== undefined,
+    );
+  }, [def]);
 
   if (!character || !def) {
     return (
@@ -57,8 +68,34 @@ export function HobbyDetailScreen() {
           <View style={styles.compCard}>
             <Text style={styles.compLabel}>UNLOCKED COMPETITIONS</Text>
             {competitions.map(c => (
-              <Text key={c} style={styles.compItem}>{c.replace(/_/g, ' ')}</Text>
+              <Text key={c.id} style={styles.compItem}>{c.label} (Lv {c.minLevel}+)</Text>
             ))}
+          </View>
+        )}
+
+        {relatedCareers.length > 0 && (
+          <View style={styles.careerCard}>
+            <Text style={styles.careerLabel}>CAREER PATHS</Text>
+            <Text style={styles.careerHint}>Reach the required level to unlock these careers</Text>
+            {relatedCareers.map(cp => {
+              const required = cp.requirements!.minHobbyLevel!;
+              const unlocked = progress.level >= required;
+              return (
+                <View key={cp.id} style={[styles.careerRow, unlocked && styles.careerRowUnlocked]}>
+                  <View style={styles.careerInfo}>
+                    <Text style={[styles.careerName, { color: unlocked ? colors.teal : colors.t1 }]}>
+                      {cp.label}
+                    </Text>
+                    <Text style={styles.careerReq}>
+                      Level {required} required · {unlocked ? 'Unlocked!' : `${required - progress.level} more levels`}
+                    </Text>
+                  </View>
+                  <Text style={[styles.careerLock, { color: unlocked ? colors.teal : colors.t4 }]}>
+                    {unlocked ? '✓' : '🔒'}
+                  </Text>
+                </View>
+              );
+            })}
           </View>
         )}
 
@@ -107,6 +144,30 @@ const createStyles = ({ colors, fonts, spacing, radii }: ReturnType<typeof useTh
   },
   compLabel: { fontFamily: fonts.bodySemiBold, fontSize: 10, color: colors.emerald, letterSpacing: 1 },
   compItem: { fontFamily: fonts.body, fontSize: 13, color: colors.t2 },
+  careerCard: {
+    backgroundColor: `${colors.sapphire}10`,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: `${colors.sapphire}30`,
+    gap: spacing.sm,
+  },
+  careerLabel: { fontFamily: fonts.bodySemiBold, fontSize: 10, color: colors.sapphire, letterSpacing: 1 },
+  careerHint: { fontFamily: fonts.body, fontSize: 12, color: colors.t4, marginBottom: 4 },
+  careerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.sm,
+    borderRadius: radii.sm,
+    backgroundColor: colors.bgCard,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  careerRowUnlocked: { borderColor: colors.teal },
+  careerInfo: { flex: 1, gap: 2 },
+  careerName: { fontFamily: fonts.bodySemiBold, fontSize: 14 },
+  careerReq: { fontFamily: fonts.body, fontSize: 11, color: colors.t4 },
+  careerLock: { fontSize: 18, marginLeft: spacing.sm },
   btn: {
     marginTop: spacing.lg,
     padding: spacing.md,

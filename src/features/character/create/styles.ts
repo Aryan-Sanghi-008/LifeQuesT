@@ -212,4 +212,37 @@ export const getCreateStyles = (
     },
     previewChipText: { fontSize: 10 },
     previewTraitSummary: { fontSize: 11, lineHeight: 16 },
+    economyPreviewCard: {
+      flexDirection: "column",
+      gap: spacing.sm,
+      padding: spacing.md,
+      borderRadius: radii.md,
+      borderWidth: 1,
+      ...shadows.subtle,
+    },
+    economyPreviewRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      gap: spacing.sm,
+    },
+    economyDetailsLink: {
+      alignSelf: "flex-start",
+      paddingVertical: spacing.xs,
+    },
+    originsSection: { gap: spacing.sm },
+    originsSectionHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      paddingVertical: spacing.xs,
+    },
+    originsSectionBody: { gap: spacing.sm },
+    regionTabBar: { flexDirection: "row", gap: spacing.xs },
+    regionTab: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      borderRadius: radii.full,
+      borderWidth: 1.5,
+    },
   });

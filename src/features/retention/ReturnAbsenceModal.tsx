@@ -1,5 +1,6 @@
-import { Modal, View, Text, Pressable, StyleSheet } from 'react-native';
+import { Modal, View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '@theme';
+import { ModalPrimaryButton } from '@components/ModalPrimaryButton';
 
 interface Props {
   visible: boolean;
@@ -26,7 +27,7 @@ export function ReturnAbsenceModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClaim}>
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, { backgroundColor: colors.overlayScrim }]}>
         <View style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.border, borderRadius: radii.lg }]}>
           <Text style={[styles.title, { color: colors.t1, fontFamily: fonts.displayBold }]}>
             Welcome Back
@@ -69,12 +70,12 @@ export function ReturnAbsenceModal({
             </Text>
           </View>
 
-          <Pressable
+          <ModalPrimaryButton
+            label="Claim & Continue"
             onPress={onClaim}
-            style={[styles.btn, { backgroundColor: colors.emerald, borderRadius: radii.md }]}
-          >
-            <Text style={{ color: '#FFF', fontFamily: fonts.bodyBold }}>Claim & Continue</Text>
-          </Pressable>
+            color={colors.emerald}
+            fullWidth
+          />
         </View>
       </View>
     </Modal>
@@ -84,7 +85,6 @@ export function ReturnAbsenceModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.75)',
     justifyContent: 'center',
     padding: 24,
   },
@@ -106,5 +106,4 @@ const styles = StyleSheet.create({
   rewardBox: { padding: 12, borderWidth: 1, alignItems: 'center', gap: 4 },
   rewardLabel: { fontSize: 11 },
   rewardValue: { fontSize: 15 },
-  btn: { paddingVertical: 14, alignItems: 'center', marginTop: 4 },
 });

@@ -1,9 +1,10 @@
 import { View, Text, ScrollView, Pressable, Alert, StyleSheet } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../../types";
+import { RootStackParamList, Character, Person } from "../../types";
+import type { GameStore } from "../../store/gameStore";
 import { useTheme } from "@theme";
-import { useGameStore } from "../../store/gameStore";
+import { useCareerScreen } from "@features/career/hooks/useCareerScreen";
 import { NpcAvatar } from "@components/Avatars";
 import { Card, StatBar, SectionLabel, Badge } from "@components/index";
 import { ScreenShell } from "@components/ScreenShell";
@@ -14,9 +15,14 @@ import {
   checkCareerEligibility,
   getCountrySalary,
   getSkillTreeProgress,
+  getPromotionTarget,
 } from "../../engine/careerEngine";
 import { getAllCareerPaths } from "../../data/careerPaths";
-import { resolveEducationLevelForDisplay } from "../../engine/educationEngine";
+import {
+  resolveEducationTrackForDisplay,
+} from "../../engine/educationEngine";
+import { getDegreeById } from "../../data/educationDegrees";
+import { useGameStore } from "@store/gameStore";
 import { listPursuableCertifications, getCertificationLabel } from "../../engine/certificationEngine";
 import { formatCurrency } from "@utils/currency";
 import Svg, { Path, Rect } from "react-native-svg";
@@ -72,6 +78,22 @@ function getEduIcons(colors: any) {
         <Path stroke={colors.orchid} strokeWidth={2} d="M9 22V12h6v10" />
       </Svg>
     ),
+    postgrad: (
+      <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+        <Path
+          stroke={colors.sapphire}
+          strokeWidth={2}
+          strokeLinecap="round"
+          d="M22 10v6M2 10l10-5 10 5-10 5z"
+        />
+        <Path
+          stroke={colors.sapphire}
+          strokeWidth={2}
+          strokeLinecap="round"
+          d="M6 12v5c3 3 9 3 12 0v-5"
+        />
+      </Svg>
+    ),
     graduate: (
       <Svg width={16} height={16} viewBox="0 0 24 24" fill={colors.gold}>
         <Path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
@@ -86,6 +108,7 @@ function getEduColors(colors: any): Record<string, string> {
     elementary: colors.sapphire,
     secondary: colors.catCareer,
     university: colors.orchid,
+    postgrad: colors.sapphire,
     graduate: colors.gold,
   };
 }
@@ -94,11 +117,15 @@ function getEduColors(colors: any): Record<string, string> {
 
 function EducationTrack({
   current,
+  character,
+  onChooseMajor,
 }: {
   current: string;
   countryCode: string;
+  character: Character;
+  onChooseMajor: () => void;
 }) {
-  const { colors, fonts, spacing } = useTheme();
+  const { colors, fonts, spacing, radii } = useTheme();
   const EDU_ICONS = getEduIcons(colors);
   const EDU_COLORS = getEduColors(colors);
 
@@ -107,9 +134,26 @@ function EducationTrack({
     { id: "elementary", label: "Elementary School" },
     { id: "secondary", label: "Secondary School" },
     { id: "university", label: "University" },
+    { id: "postgrad", label: "Masters / Postgrad" },
     { id: "graduate", label: "Graduate" },
   ];
   const currentIdx = EDU_LEVELS.findIndex((l) => l.id === current);
+  const stage = character.educationStage ?? "none";
+  const showCollegeCta =
+    character.age >= 18 &&
+    stage === "high_school" &&
+    !character.enrolledDegreeId;
+  const enrolledDegree = character.enrolledDegreeId
+    ? getDegreeById(character.enrolledDegreeId)
+    : undefined;
+  const hasPostgradDegree = (character.degreeIds ?? []).some((id) => {
+    const d = getDegreeById(id);
+    return d != null && (d.stage === "masters" || d.stage === "phd");
+  });
+  const postgradCompleted =
+    hasPostgradDegree ||
+    stage === "masters" ||
+    stage === "phd";
 
   return (
     <Card style={{ gap: spacing.sm }}>
@@ -124,7 +168,13 @@ function EducationTrack({
         EDUCATION PATH
       </Text>
       {EDU_LEVELS.map((level, i) => {
-        const done = i < currentIdx;
+        // After bachelor only: Graduate is current, Masters/Postgrad stays unchecked (11A).
+        const skipPostgradCheck =
+          current === "graduate" &&
+          level.id === "postgrad" &&
+          !character.enrolledDegreeId &&
+          !postgradCompleted;
+        const done = i < currentIdx && !skipPostgradCheck;
         const active = i === currentIdx;
         const color = done
           ? colors.emerald
@@ -190,23 +240,63 @@ function EducationTrack({
           </View>
         );
       })}
+      {character.enrolledDegreeId ? (
+        <Text style={{ fontFamily: fonts.body, fontSize: 12, color: colors.sapphire, marginTop: spacing.sm }}>
+          Enrolled
+          {enrolledDegree ? ` · ${enrolledDegree.shortLabel}` : ""}
+          {" · "}
+          {character.enrolledDegreeYearsRemaining ?? "?"} years remaining
+          {character.educationBranch ? ` · ${character.educationBranch}` : ""}
+        </Text>
+      ) : null}
+      {showCollegeCta ? (
+        <Pressable
+          onPress={onChooseMajor}
+          accessibilityLabel="Choose college major"
+          style={{
+            marginTop: spacing.sm,
+            backgroundColor: `${colors.gold}15`,
+            borderWidth: 1,
+            borderColor: `${colors.gold}50`,
+            borderRadius: radii.md,
+            padding: spacing.md,
+          }}
+        >
+          <Text style={{ fontFamily: fonts.bodyBold, color: colors.gold, fontSize: 14 }}>
+            {character.educationMajorSkipped
+              ? "Enroll in college"
+              : "Choose major / Skip college"}
+          </Text>
+          <Text style={{ fontFamily: fonts.body, color: colors.t3, fontSize: 12, marginTop: 4 }}>
+            Enroll to move your Education Path to University. After your degree, you’ll be Graduate — Masters is optional on Study.
+          </Text>
+        </Pressable>
+      ) : null}
     </Card>
   );
 }
 
 // ─── Job Panel ────────────────────────────────────────────────────────────────
 
-function JobPanel() {
+function JobPanel({
+  character,
+  workHarder,
+  askForRaise,
+  quitJob,
+  applyForPromotion,
+}: {
+  character: Character;
+  workHarder: GameStore["workHarder"];
+  askForRaise: GameStore["askForRaise"];
+  quitJob: GameStore["quitJob"];
+  applyForPromotion: GameStore["applyForPromotion"];
+}) {
   const { colors, fonts, spacing } = useTheme();
   const styles = getStyles(spacing);
-
-  const character = useGameStore((s) => s.character);
-  const workHarder = useGameStore((s) => s.workHarder);
-  const askForRaise = useGameStore((s) => s.askForRaise);
-  const quitJob = useGameStore((s) => s.quitJob);
-  const applyForPromotion = useGameStore((s) => s.applyForPromotion);
-
-  if (!character) return null;
+  const promoTarget = character.career ? getPromotionTarget(character.career) : null;
+  const promoHint = promoTarget
+    ? `Eligible for ${promoTarget.label}`
+    : "Needs more years on the job + higher performance";
   const { career, job } = character;
   const cc = character.countryCode ?? "IN";
   const noJob = !career && (job === "Unemployed" || job === "Student");
@@ -333,6 +423,7 @@ function JobPanel() {
               Alert.alert(r.success ? "Promoted" : "Denied", r.message);
             },
             color: colors.sapphire,
+            hint: promoHint,
           },
           {
             label: "Quit",
@@ -359,6 +450,11 @@ function JobPanel() {
             <Text style={[styles.btnText, { color: btn.color }]}>
               {btn.label}
             </Text>
+            {"hint" in btn && btn.hint ? (
+              <Text style={{ fontFamily: fonts.body, fontSize: 9, color: colors.t4, marginTop: 2 }}>
+                {btn.hint}
+              </Text>
+            ) : null}
           </Pressable>
         ))}
       </View>
@@ -368,11 +464,8 @@ function JobPanel() {
 
 // ─── Class Roster ────────────────────────────────────────────────────────────
 
-function ClassRoster() {
+function ClassRoster({ classmates }: { classmates: Person[] }) {
   const { colors, fonts, spacing } = useTheme();
-
-  const getClassmatesFn = useGameStore((s) => s.getClassmates);
-  const classmates = getClassmatesFn();
 
   if (classmates.length === 0) {
     return (
@@ -442,13 +535,17 @@ function ClassRoster() {
 
 // ─── CertExamsPanel ───────────────────────────────────────────────────────────
 
-function CertExamsPanel() {
+function CertExamsPanel({
+  character,
+  takeCertificationExam,
+}: {
+  character: Character;
+  takeCertificationExam: GameStore["takeCertificationExam"];
+}) {
   const { colors, fonts, spacing } = useTheme();
   const styles = getStyles(spacing);
 
-  const character = useGameStore((s) => s.character);
-  const takeCertificationExam = useGameStore((s) => s.takeCertificationExam);
-  if (!character || character.age < 18) return null;
+  if (character.age < 18) return null;
 
   const pursuable = listPursuableCertifications(character);
   if (pursuable.length === 0) return null;
@@ -558,164 +655,190 @@ function CertExamsPanel() {
 
 // ─── Job Board ────────────────────────────────────────────────────────────────
 
-function JobBoard() {
+function JobBoard({
+  character,
+  applyForJob,
+}: {
+  character: Character;
+  applyForJob: GameStore["applyForJob"];
+}) {
   const { colors, fonts, spacing } = useTheme();
   const styles = getStyles(spacing);
 
-  const applyForJob = useGameStore((s) => s.applyForJob);
-  const character = useGameStore((s) => s.character);
-  if (!character || character.age < 16) return null;
+  if (character.age < 16) return null;
   const countryCode = character.countryCode ?? "IN";
 
-  const eligible = getEligibleCareers(character).slice(0, 8);
+  const allEligible = getEligibleCareers(character);
+  const preferredJobs = allEligible.filter((e) => e.preferred).slice(0, 6);
+  const otherJobs =
+    preferredJobs.length > 0
+      ? allEligible.filter((e) => !e.preferred).slice(0, 4)
+      : allEligible.slice(0, 8);
   const scenarioCareers = getScenarioCareerBoard(character);
   const scenarioId = character.scenarioId ?? 'classic';
 
-  return (
-    <Card style={{ gap: spacing.sm }}>
-      <Text
-        style={{
-          fontFamily: fonts.bodySemiBold,
-          fontSize: 10,
-          color: colors.t4,
-          letterSpacing: 2,
+  const renderJobRow = (
+    { career, eligibility }: (typeof allEligible)[number],
+    i: number,
+  ) => {
+    const localSalary = getCountrySalary(career.baseSalary, countryCode);
+    const probColor =
+      eligibility.hireProbability >= 70
+        ? colors.emerald
+        : eligibility.hireProbability >= 40
+          ? colors.gold
+          : colors.crimson;
+    return (
+      <Pressable
+        key={career.id}
+        onPress={() => {
+          const r = applyForJob(career.id);
+          Alert.alert(r.success ? "Hired!" : "Not This Time", r.message);
         }}
+        style={[
+          styles.jobRow,
+          i > 0 && { borderTopWidth: 1, borderTopColor: colors.border },
+        ]}
       >
-        AVAILABLE CAREERS
-      </Text>
-      {eligible.length === 0 ? (
-        <Text
-          style={{
-            fontFamily: fonts.body,
-            fontSize: 13,
-            color: colors.t4,
-          }}
+        <View
+          style={[styles.jobIcon, { backgroundColor: `${colors.catCareer}12` }]}
         >
-          No careers available yet. Finish school or meet requirements below.
-        </Text>
-      ) : (
-        eligible.map(({ career, eligibility }, i) => {
-          const localSalary = getCountrySalary(career.baseSalary, countryCode);
-          const probColor =
-            eligibility.hireProbability >= 70
-              ? colors.emerald
-              : eligibility.hireProbability >= 40
-              ? colors.gold
-              : colors.crimson;
-          return (
-            <Pressable
-              key={career.id}
-              onPress={() => {
-                const r = applyForJob(career.id);
-                Alert.alert(r.success ? "Hired!" : "Not This Time", r.message);
+          <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+            <Rect
+              stroke={colors.catCareer}
+              strokeWidth={2}
+              x="2"
+              y="7"
+              width="20"
+              height="14"
+              rx="2"
+            />
+            <Path
+              stroke={colors.catCareer}
+              strokeWidth={2}
+              strokeLinecap="round"
+              d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"
+            />
+          </Svg>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text
+            style={{
+              fontFamily: fonts.bodySemiBold,
+              fontSize: 14,
+              color: colors.t1,
+            }}
+          >
+            {career.label}
+          </Text>
+          <Text style={{ fontFamily: fonts.body, fontSize: 11, color: colors.t4 }}>
+            {career.company}
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              gap: 4,
+              marginTop: 2,
+            }}
+          >
+            <View
+              style={{
+                width: 40,
+                height: 3,
+                backgroundColor: colors.bg2,
+                borderRadius: 2,
+                overflow: "hidden",
               }}
-              style={[
-                styles.jobRow,
-                i > 0 && { borderTopWidth: 1, borderTopColor: colors.border },
-              ]}
             >
               <View
-                style={[
-                  styles.jobIcon,
-                  { backgroundColor: `${colors.catCareer}12` },
-                ]}
-              >
-                <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-                  <Rect
-                    stroke={colors.catCareer}
-                    strokeWidth={2}
-                    x="2"
-                    y="7"
-                    width="20"
-                    height="14"
-                    rx="2"
-                  />
-                  <Path
-                    stroke={colors.catCareer}
-                    strokeWidth={2}
-                    strokeLinecap="round"
-                    d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"
-                  />
-                </Svg>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    fontFamily: fonts.bodySemiBold,
-                    fontSize: 14,
-                    color: colors.t1,
-                  }}
-                >
-                  {career.label}
-                </Text>
-                <Text
-                  style={{
-                    fontFamily: fonts.body,
-                    fontSize: 11,
-                    color: colors.t4,
-                  }}
-                >
-                  {career.company}
-                </Text>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 4,
-                    marginTop: 2,
-                  }}
-                >
-                  <View
-                    style={{
-                      width: 40,
-                      height: 3,
-                      backgroundColor: colors.bg2,
-                      borderRadius: 2,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <View
-                      style={{
-                        width: `${eligibility.hireProbability}%` as `${number}%`,
-                        height: "100%",
-                        backgroundColor: probColor,
-                        borderRadius: 2,
-                      }}
-                    />
-                  </View>
-                  <Text
-                    style={{
-                      fontFamily: fonts.monoSemiBold,
-                      fontSize: 9,
-                      color: probColor,
-                    }}
-                  >
-                    {eligibility.hireProbability}%
-                  </Text>
-                </View>
-              </View>
-              <View
-                style={[
-                  styles.salaryBadge,
-                  {
-                    backgroundColor: `${colors.wealth}12`,
-                    borderColor: `${colors.wealth}25`,
-                  },
-                ]}
-              >
-                <Text
-                  style={{
-                    fontFamily: fonts.monoSemiBold,
-                    fontSize: 12,
-                    color: colors.wealth,
-                  }}
-                >
-                  {formatCurrency(localSalary, countryCode)}/yr
-                </Text>
-              </View>
-            </Pressable>
-          );
-        })
+                style={{
+                  width: `${eligibility.hireProbability}%` as `${number}%`,
+                  height: "100%",
+                  backgroundColor: probColor,
+                  borderRadius: 2,
+                }}
+              />
+            </View>
+            <Text
+              style={{
+                fontFamily: fonts.monoSemiBold,
+                fontSize: 9,
+                color: probColor,
+              }}
+            >
+              {eligibility.hireProbability}%
+            </Text>
+          </View>
+        </View>
+        <View
+          style={[
+            styles.salaryBadge,
+            {
+              backgroundColor: `${colors.wealth}12`,
+              borderColor: `${colors.wealth}25`,
+            },
+          ]}
+        >
+          <Text
+            style={{
+              fontFamily: fonts.monoSemiBold,
+              fontSize: 12,
+              color: colors.wealth,
+            }}
+          >
+            {formatCurrency(localSalary, countryCode)}/yr
+          </Text>
+        </View>
+      </Pressable>
+    );
+  };
+
+  const sectionHeader = (label: string, extraTop?: boolean) => (
+    <Text
+      style={{
+        fontFamily: fonts.bodySemiBold,
+        fontSize: 10,
+        color: colors.t4,
+        letterSpacing: 2,
+        marginTop: extraTop ? spacing.sm : 0,
+      }}
+    >
+      {label}
+    </Text>
+  );
+
+  return (
+    <Card style={{ gap: spacing.sm }}>
+      {preferredJobs.length > 0 ? (
+        <>
+          {sectionHeader("YOUR FIELD")}
+          {preferredJobs.map(renderJobRow)}
+          {otherJobs.length > 0 && (
+            <>
+              {sectionHeader("OTHER JOBS", true)}
+              {otherJobs.map(renderJobRow)}
+            </>
+          )}
+        </>
+      ) : otherJobs.length === 0 ? (
+        <>
+          {sectionHeader("AVAILABLE CAREERS")}
+          <Text
+            style={{
+              fontFamily: fonts.body,
+              fontSize: 13,
+              color: colors.t4,
+            }}
+          >
+            No careers available yet. Finish school or meet requirements below.
+          </Text>
+        </>
+      ) : (
+        <>
+          {sectionHeader("AVAILABLE CAREERS")}
+          {otherJobs.map(renderJobRow)}
+        </>
       )}
       {scenarioCareers.length > 0 && (
         <>
@@ -832,11 +955,16 @@ function JobBoard() {
         </>
       )}
       {(() => {
+        const shownIds = new Set([
+          ...preferredJobs.map((e) => e.career.id),
+          ...otherJobs.map((e) => e.career.id),
+        ]);
         const locked = getAllCareerPaths().filter(
           (c) =>
+            c.id !== "entrepreneur" &&
             c.isEntryLevel &&
             !c.requiresScenario?.length &&
-            !eligible.find((e) => e.career.id === c.id),
+            !shownIds.has(c.id),
         ).slice(0, 3);
         if (locked.length === 0) return null;
         return (
@@ -921,11 +1049,10 @@ function JobBoard() {
 
 // ─── Skill Tree Panel ────────────────────────────────────────────────────────
 
-function SkillTreePanel() {
+function SkillTreePanel({ character }: { character: Character }) {
   const { colors, fonts, spacing } = useTheme();
 
-  const character = useGameStore((s) => s.character);
-  if (!character?.career) return null;
+  if (!character.career) return null;
 
   const path = getAllCareerPaths().find(
     (c) => c.label === character.career!.title,
@@ -989,6 +1116,64 @@ function SkillTreePanel() {
   );
 }
 
+// ─── Promotion Offer Banner ───────────────────────────────────────────────────
+
+function PromotionOfferBanner({
+  title,
+  onAccept,
+  onLater,
+}: {
+  title: string;
+  onAccept: () => void;
+  onLater: () => void;
+}) {
+  const { colors, fonts, spacing, radii } = useTheme();
+  return (
+    <Card
+      style={{
+        gap: spacing.sm,
+        marginTop: spacing.md,
+        borderColor: `${colors.sapphire}40`,
+        backgroundColor: `${colors.sapphire}10`,
+      }}
+    >
+      <Text style={{ fontFamily: fonts.bodyBold, color: colors.sapphire, fontSize: 14 }}>
+        Promotion available
+      </Text>
+      <Text style={{ fontFamily: fonts.body, color: colors.t2, fontSize: 13 }}>
+        You are eligible for {title}. Accept now or later from your job actions.
+      </Text>
+      <View style={{ flexDirection: "row", gap: spacing.sm }}>
+        <Pressable
+          onPress={onAccept}
+          style={{
+            flex: 1,
+            backgroundColor: colors.sapphire,
+            borderRadius: radii.sm,
+            paddingVertical: 10,
+            alignItems: "center",
+          }}
+        >
+          <Text style={{ fontFamily: fonts.bodyBold, color: "#FFF" }}>Accept</Text>
+        </Pressable>
+        <Pressable
+          onPress={onLater}
+          style={{
+            flex: 1,
+            borderWidth: 1,
+            borderColor: colors.border,
+            borderRadius: radii.sm,
+            paddingVertical: 10,
+            alignItems: "center",
+          }}
+        >
+          <Text style={{ fontFamily: fonts.bodySemiBold, color: colors.t3 }}>Later</Text>
+        </Pressable>
+      </View>
+    </Card>
+  );
+}
+
 // ─── Main Screen Component ────────────────────────────────────────────────────
 
 export function CareerScreen() {
@@ -997,7 +1182,18 @@ export function CareerScreen() {
 
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const character = useGameStore((s) => s.character);
+  const {
+    character,
+    classmates,
+    workHarder,
+    askForRaise,
+    quitJob,
+    applyForPromotion,
+    takeCertificationExam,
+    applyForJob,
+  } = useCareerScreen();
+  const pendingPromotionOffer = useGameStore((s) => s.pendingPromotionOffer);
+  const dismissPromotionOffer = useGameStore((s) => s.dismissPromotionOffer);
   if (!character) return null;
 
   const inSchool = character.age >= 5 && character.age <= 17;
@@ -1022,12 +1218,25 @@ export function CareerScreen() {
       >
           <SectionLabel label="Education" style={{ marginBottom: spacing.md }} />
           <EducationTrack
-            current={resolveEducationLevelForDisplay(
+            current={resolveEducationTrackForDisplay(
               character.educationStage,
               character.educationLevel,
+              character.enrolledDegreeId,
             )}
             countryCode={cc}
+            character={character}
+            onChooseMajor={() => navigation.navigate("CollegeMajorPicker")}
           />
+          {pendingPromotionOffer && character.career ? (
+            <PromotionOfferBanner
+              title={getPromotionTarget(character.career)?.label ?? "next role"}
+              onAccept={() => {
+                const r = applyForPromotion({ guaranteed: true });
+                Alert.alert(r.success ? "Promoted!" : "Denied", r.message);
+              }}
+              onLater={() => dismissPromotionOffer()}
+            />
+          ) : null}
           {character.age >= 13 &&
             character.age <= 24 &&
             character.educationLevel !== "graduate" && (
@@ -1049,11 +1258,17 @@ export function CareerScreen() {
             style={{ marginTop: spacing.xl, marginBottom: spacing.md }}
           />
           {inSchool ? (
-            <ClassRoster />
+            <ClassRoster classmates={classmates} />
           ) : (
             <>
-              <JobPanel />
-              <SkillTreePanel />
+              <JobPanel
+                character={character}
+                workHarder={workHarder}
+                askForRaise={askForRaise}
+                quitJob={quitJob}
+                applyForPromotion={applyForPromotion}
+              />
+              <SkillTreePanel character={character} />
             </>
           )}
           {!inSchool && character.age >= 16 && (
@@ -1062,8 +1277,11 @@ export function CareerScreen() {
                 label="Job Board"
                 style={{ marginTop: spacing.xl, marginBottom: spacing.md }}
               />
-              <JobBoard />
-              <CertExamsPanel />
+              <JobBoard character={character} applyForJob={applyForJob} />
+              <CertExamsPanel
+                character={character}
+                takeCertificationExam={takeCertificationExam}
+              />
             </>
           )}
           <View style={{ height: spacing.xxxl }} />

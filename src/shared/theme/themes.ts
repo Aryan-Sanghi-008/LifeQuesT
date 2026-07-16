@@ -92,6 +92,9 @@ export const COLORS = {
   // ─── Shadows ────────────────────────────────────────────────────────────────
   shadowCard: "rgba(15,23,42,0.08)",
   shadowStrong: "rgba(15,23,42,0.14)",
+
+  // ─── Modal dim (theme-aware — do not hardcode dark rgba in screens) ─────────
+  overlayScrim: "rgba(15, 23, 42, 0.40)",
 } as const;
 
 export const DARK_COLORS = {
@@ -185,6 +188,9 @@ export const DARK_COLORS = {
   // ─── Shadows ────────────────────────────────────────────────────────────────
   shadowCard: "rgba(0,0,0,0.25)",
   shadowStrong: "rgba(0,0,0,0.40)",
+
+  // ─── Modal dim (theme-aware) ────────────────────────────────────────────────
+  overlayScrim: "rgba(0, 0, 0, 0.62)",
 } as const;
 
 export type AppThemeId = 'default' | 'dark_slate' | 'midnight' | 'sunrise';
@@ -233,6 +239,34 @@ export function applyThemeVariant<T extends Record<string, string>>(
   if (themeId === 'sunrise' && isDark) return base;
   if (themeId !== 'sunrise' && !isDark) return base;
   return { ...base, ...APP_THEME_VARIANTS[themeId] };
+}
+
+/** Boost contrast when system high-contrast text is enabled. */
+export function applyHighContrast<T extends Record<string, string>>(
+  colors: T,
+  isDark: boolean,
+): T {
+  if (isDark) {
+    return {
+      ...colors,
+      t1: '#FFFFFF',
+      t2: '#E6EDF3',
+      t3: '#B1BAC4',
+      border: '#484F58',
+      border2: '#30363D',
+      bgCard: colors.bgCard === colors.bg ? '#1C2128' : colors.bgCard,
+    };
+  }
+  return {
+    ...colors,
+    t1: '#000000',
+    t2: '#1F2937',
+    t3: '#374151',
+    border: '#9CA3AF',
+    border2: '#D1D5DB',
+    bg: '#FFFFFF',
+    bgCard: '#FFFFFF',
+  };
 }
 
 // ─── Fonts ───────────────────────────────────────────────────────────────────

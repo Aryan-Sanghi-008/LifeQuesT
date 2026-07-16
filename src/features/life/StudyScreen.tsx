@@ -99,7 +99,6 @@ export default function StudyScreen() {
   const character = useGameStore(s => s.character);
   const startStudySession = useGameStore(s => s.startStudySession);
   const completeStudySession = useGameStore(s => s.completeStudySession);
-  const grantDegree = useGameStore(s => s.grantDegree);
   const enrollInDegree = useGameStore(s => s.enrollInDegree);
 
   const [step, setStep] = useState<'degrees' | 'quiz'>('degrees');
@@ -159,22 +158,12 @@ export default function StudyScreen() {
     }
     const result = completeStudySession(nextAnswers);
 
-    // If a degree was selected, grant it on pass
-    if (result.passed && selectedDegreeId) {
-      const grantResult = grantDegree(selectedDegreeId);
-      if (grantResult.ok) {
-        Alert.alert(
-          'Degree Earned!',
-          `${grantResult.message}\nScore: ${result.score}/${result.totalQuestions}. Intelligence +${result.intelligenceGain}`,
-          [{ text: 'OK', onPress: () => navigation.goBack() }],
-        );
-        return;
-      }
-    }
+    // Quiz pass does not grant degrees — multi-year enrollment only
+    const quizRewards = useGameStore.getState().applyStudyQuizRewards(result.passed);
 
     Alert.alert(
       result.passed ? 'Passed!' : 'Keep Studying',
-      `Score: ${result.score}/${result.totalQuestions}. Intelligence +${result.intelligenceGain}`,
+      `Score: ${result.score}/${result.totalQuestions}. Intelligence +${result.intelligenceGain}.\n${quizRewards.message}`,
       [{ text: 'OK', onPress: () => navigation.goBack() }],
     );
   };

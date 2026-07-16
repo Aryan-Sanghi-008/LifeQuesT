@@ -29,6 +29,9 @@ export function HeirSelectionSheet({ character, onSelectHeir }: Props) {
         renderItem={({ item }) => (
           <Pressable
             onPress={() => onSelectHeir(item.id)}
+            accessibilityRole="button"
+            accessibilityLabel={`Select heir ${item.name}`}
+            accessibilityState={{ selected: false }}
             style={[styles.card, {
               backgroundColor: colors.bgCard,
               borderColor: colors.border,

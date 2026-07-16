@@ -7,6 +7,9 @@ import {
   resolveFocusAllocationForAgeUp,
 } from './focusEngine';
 import { applyLiveOpsWorldEventBoost, getHydratedLiveOpsConfig } from './liveOpsEngine';
+import { scaleEventBankEffect } from './countryScaleEngine';
+import { getPersonalityMods } from './personalityModifiers';
+import { applyTraitEventWeights } from './traitEngine';
 import type { EducationStage } from '../data/educationDegrees';
 
 export function hasJob(character: Character): boolean {
@@ -47,7 +50,38 @@ export function isEligible(
     const charScenario = character.scenarioId ?? 'classic';
     if (!event.requiresScenario.includes(charScenario)) return false;
   }
+  if (event.requiresFollowers !== undefined
+    && (character.socialFollowers ?? 0) < event.requiresFollowers) {
+    return false;
+  }
   return true;
+}
+
+export function applyPersonalityEventWeights(
+  events: LifeEvent[],
+  personality?: Character['personality'],
+): LifeEvent[] {
+  if (!personality) return events;
+  const mods = getPersonalityMods(personality).eventWeightDelta;
+  const categoryKey: Record<string, keyof typeof mods> = {
+    relationship: 'social',
+    social: 'social',
+    career: 'career',
+    health: 'health',
+    financial: 'financial',
+    random: 'random',
+    milestone: 'career',
+    travel: 'random',
+    family: 'social',
+    crime: 'random',
+    education: 'career',
+  };
+  return events.map((e) => {
+    const key = categoryKey[e.category] ?? 'random';
+    const delta = mods[key] ?? 0;
+    if (!delta) return e;
+    return { ...e, weight: Math.max(0.1, (e.weight ?? 1) * (1 + delta)) };
+  });
 }
 
 export { ensureEventsLoadedForAge, preloadAllEventPacks, preloadAdjacentEventPacks } from '../data/events/eventLoader';
@@ -62,8 +96,10 @@ export function getWeightedEligibleEvents(age: number, character: Character): Li
   const memoryFiltered = filterByMemoryEligibility(eligible, character);
   const allocation = resolveFocusAllocationForAgeUp(character);
   const focused = applyFocusEventWeights(memoryFiltered, allocation, character.aspirations);
+  const personalityWeighted = applyPersonalityEventWeights(focused, character.personality);
+  const traitWeighted = applyTraitEventWeights(personalityWeighted, character.traits ?? []);
   const worldEventIds = getHydratedLiveOpsConfig()?.worldEvents ?? [];
-  return applyLiveOpsWorldEventBoost(focused, worldEventIds);
+  return applyLiveOpsWorldEventBoost(traitWeighted, worldEventIds);
 }
 
 /** Boost epic/legendary event weights when mystery-box rare_event unlock is active. */
@@ -133,18 +169,20 @@ export function getGuaranteedMilestones(age: number, character: Character): Life
 
 export function applySuccessChance(
   chance: number | undefined,
-  isLucky: boolean,
+  luckBonusPercent: number,
   luckBoostsRemaining = 0,
 ): boolean {
   if (chance === undefined) return true;
-  let adjusted = isLucky ? Math.min(100, chance + 10) : chance;
+  let adjusted = luckBonusPercent > 0
+    ? Math.min(100, chance + luckBonusPercent)
+    : chance;
   if (luckBoostsRemaining > 0) adjusted = Math.min(100, adjusted + 15);
   return Math.random() * 100 < adjusted;
 }
 
-export function consumeLuckBoost(isLucky: boolean, luckBoostsRemaining: number, hadChance: boolean): number {
+export function consumeLuckBoost(luckBonusPercent: number, luckBoostsRemaining: number, hadChance: boolean): number {
   if (!hadChance || luckBoostsRemaining <= 0) return luckBoostsRemaining;
-  if (!isLucky) return luckBoostsRemaining - 1;
+  if (luckBonusPercent < 20) return luckBoostsRemaining - 1;
   return luckBoostsRemaining;
 }
 
@@ -162,11 +200,19 @@ const LEGENDARY_EVENT_IDS = new Set([
  * Assigns a display rarity tier when event data omits `rarity`.
  * Explicit `event.rarity` always wins.
  */
-export function resolveEventRarity(event: LifeEvent): EventRarity {
+export function resolveEventRarity(event: LifeEvent, countryCode?: string): EventRarity {
   if (event.rarity) return event.rarity;
 
   const weight = event.weight ?? 10;
-  const bankMagnitude = Math.abs(event.bankEffect ?? 0);
+  const rawBank = Math.abs(event.bankEffect ?? 0);
+  const bankMagnitude = countryCode && rawBank > 0
+    ? Math.abs(scaleEventBankEffect(
+      event.bankEffect ?? 0,
+      countryCode,
+      event.category === 'crime' ? 'fine' : 'cost',
+      event.category,
+    ))
+    : rawBank;
 
   if (LEGENDARY_EVENT_IDS.has(event.id)) return 'legendary';
   if (event.oneTime && weight <= 2) return 'legendary';

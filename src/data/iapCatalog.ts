@@ -85,7 +85,7 @@ export const IAP_CATALOG: IAPCatalogEntry[] = [
     productId: 'remove_ads',
     title: 'Remove Ads',
     description: 'One-time. Clean forever.',
-    fallbackPriceLabel: '$1.99',
+    fallbackPriceLabel: '$0.99',
     color: COLORS.sapphire,
     badge: 'ONE-TIME',
   },
@@ -132,23 +132,49 @@ export const MYSTERY_SPIN_CATALOG: IAPCatalogEntry[] = [
     productId: 'mystery_spins_3',
     title: '3 Mystery Spins',
     description: 'Get 3 extra Lucky Wheel spins this week',
-    fallbackPriceLabel: '$1.99',
+    fallbackPriceLabel: '$0.99',
     color: COLORS.orchid,
     badge: 'BONUS SPINS',
+  },
+];
+
+export const PREMIUM_CATALOG: IAPCatalogEntry[] = [
+  {
+    productId: 'premium_monthly',
+    title: 'LifeQuest Plus',
+    description: 'No ads, luck boost, season pass perks',
+    fallbackPriceLabel: '$0.49/mo',
+    color: COLORS.gold,
+    badge: 'POPULAR',
+  },
+  {
+    productId: 'premium_yearly',
+    title: 'LifeQuest Plus Yearly',
+    description: 'Best value — full year of Plus',
+    fallbackPriceLabel: '$2.99/yr',
+    color: COLORS.gold,
+    badge: 'BEST VALUE',
+  },
+  {
+    productId: 'season_pass',
+    title: 'Season Pass',
+    description: 'Unlock premium tier rewards this season',
+    fallbackPriceLabel: '$1.49',
+    color: COLORS.teal,
   },
 ];
 
 export const SCENARIO_PACK_CATALOG: IAPCatalogEntry[] = [
   { productId: 'scenario_royal',     title: 'Royal Dynasty',      description: 'Born into power. Rule wisely.',            fallbackPriceLabel: '$2.99', color: '#F59E0B' },
   { productId: 'scenario_crime',     title: 'Criminal Empire',    description: 'Power. Money. Consequences.',              fallbackPriceLabel: '$2.99', color: '#EF4444' },
-  { productId: 'scenario_cyber',     title: 'Cyber Future',       description: 'In 2087, humanity uploaded everything.',   fallbackPriceLabel: '$3.99', color: '#06B6D4' },
-  { productId: 'scenario_medieval',  title: 'Medieval Kingdom',   description: 'Peasant or lord — your choice.',           fallbackPriceLabel: '$2.99', color: '#92400E' },
-  { productId: 'scenario_zombie',    title: 'Zombie Apocalypse',  description: 'Survive. Build. Protect.',                 fallbackPriceLabel: '$2.99', color: '#4D7C0F' },
-  { productId: 'scenario_mars',      title: 'Mars Colony',        description: 'Red planet, new rules.',                   fallbackPriceLabel: '$3.99', color: '#DC2626' },
+  { productId: 'scenario_cyber',     title: 'Cyber Future',       description: 'In 2087, humanity uploaded everything.',   fallbackPriceLabel: '$2.99', color: '#06B6D4' },
+  { productId: 'scenario_medieval',  title: 'Medieval Kingdom',   description: 'Peasant or lord — your choice.',           fallbackPriceLabel: '$1.99', color: '#92400E' },
+  { productId: 'scenario_zombie',    title: 'Zombie Apocalypse',  description: 'Survive. Build. Protect.',                 fallbackPriceLabel: '$1.99', color: '#4D7C0F' },
+  { productId: 'scenario_mars',      title: 'Mars Colony',        description: 'Red planet, new rules.',                   fallbackPriceLabel: '$2.99', color: '#DC2626' },
   { productId: 'scenario_celebrity', title: 'Celebrity Child',    description: 'Born famous. Stay sane.',                  fallbackPriceLabel: '$1.99', color: '#EC4899' },
-  { productId: 'scenario_fantasy',   title: 'Fantasy Kingdom',    description: 'Magic is real. Use it wisely.',            fallbackPriceLabel: '$3.99', color: '#7C3AED' },
-  { productId: 'scenario_political', title: 'Political Dynasty',  description: 'Elections. Deals. Power.',                 fallbackPriceLabel: '$2.99', color: '#1D4ED8' },
-  { productId: 'scenario_pack_all',  title: 'All Scenarios Bundle', description: 'Unlock all 9 premium scenarios.',       fallbackPriceLabel: '$14.99', color: '#8B5CF6', badge: 'BEST VALUE' },
+  { productId: 'scenario_fantasy',   title: 'Fantasy Kingdom',    description: 'Magic is real. Use it wisely.',            fallbackPriceLabel: '$2.99', color: '#7C3AED' },
+  { productId: 'scenario_political', title: 'Political Dynasty',  description: 'Elections. Deals. Power.',                 fallbackPriceLabel: '$1.99', color: '#1D4ED8' },
+  { productId: 'scenario_pack_all',  title: 'All Scenarios Bundle', description: 'Unlock all 9 premium scenarios.',       fallbackPriceLabel: '$4.99', color: '#8B5CF6', badge: 'BEST VALUE' },
 ];
 
 export const AVATAR_PACK_CATALOG: IAPCatalogEntry[] = [

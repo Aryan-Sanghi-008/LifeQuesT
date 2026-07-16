@@ -1,9 +1,10 @@
 import { useState, useRef } from "react";
-import { View, Text, Pressable, Animated, Modal, ScrollView, Easing } from "react-native";
+import { View, Text, Pressable, Modal, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import Svg, { Path, G, Text as SvgText, Circle, Polygon } from "react-native-svg";
+import Svg, { Path } from "react-native-svg";
+import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "@theme";
 import { useGameStore } from "@store/gameStore";
 import { useToastStore } from "@store/toastStore";
@@ -11,183 +12,83 @@ import { MYSTERY_SEGMENTS, MysteryReward, rollMysterySegmentIndex } from "@store
 import { useReducedMotion } from "@hooks/useReducedMotion";
 import { showRewardedAd } from "@services/ads";
 import { SupportLifeQuestButton } from "@shared/components/SupportLifeQuestButton";
+import { GradientButton } from "@shared/components/GradientButton";
+import { FortuneWheel } from "./components/FortuneWheel";
+import { getSegmentVisual } from "./components/mysteryWheelTheme";
+import { useMysteryWheelSpin, type WheelSpinPhase } from './hooks/useMysteryWheelSpin';
+import { hapticAchievement } from "@services/haptics";
 import type { RootStackParamList } from "@/types";
-
-// ─── Wheel constants ───────────────────────────────────────────────────────────
-const WHEEL_SIZE = 280;
-const WHEEL_R = WHEEL_SIZE / 2;
-const CX = WHEEL_R;
-const CY = WHEEL_R;
-const INNER_R = WHEEL_R - 8; // slight inset from border ring
-
-const SEGMENT_COLORS = [
-  "#F59E0B", "#3B82F6", "#22C55E", "#EF4444",
-  "#A855F7", "#F97316", "#06B6D4", "#EC4899",
-];
-
-// ─── SVG Pie Wheel ─────────────────────────────────────────────────────────────
-function FortuneWheel({ rotateDeg }: { rotateDeg: Animated.AnimatedInterpolation<string> }) {
-  const { colors } = useTheme();
-  const N = MYSTERY_SEGMENTS.length;
-  const segDeg = 360 / N;
-
-  return (
-    <View style={{ width: WHEEL_SIZE, height: WHEEL_SIZE }}>
-      {/* Static outer ring */}
-      <View
-        style={{
-          position: "absolute",
-          width: WHEEL_SIZE,
-          height: WHEEL_SIZE,
-          borderRadius: WHEEL_R,
-          borderWidth: 4,
-          borderColor: colors.gold,
-          zIndex: 2,
-        }}
-      />
-
-      {/* Spinning SVG disc */}
-      <Animated.View
-        style={{
-          width: WHEEL_SIZE,
-          height: WHEEL_SIZE,
-          transform: [{ rotate: rotateDeg }],
-        }}
-      >
-        <Svg width={WHEEL_SIZE} height={WHEEL_SIZE}>
-          {/* Background circle */}
-          <Circle cx={CX} cy={CY} r={INNER_R} fill={colors.bgCard} stroke={colors.border} strokeWidth={1} />
-
-          {MYSTERY_SEGMENTS.map((seg, idx) => {
-            const startRad = ((idx * segDeg - 90) * Math.PI) / 180;
-            const endRad = (((idx + 1) * segDeg - 90) * Math.PI) / 180;
-            const x1 = CX + INNER_R * Math.cos(startRad);
-            const y1 = CY + INNER_R * Math.sin(startRad);
-            const x2 = CX + INNER_R * Math.cos(endRad);
-            const y2 = CY + INNER_R * Math.sin(endRad);
-            const largeArc = segDeg > 180 ? 1 : 0;
-
-            const midRad = (startRad + endRad) / 2;
-            const labelR = INNER_R * 0.62;
-            const lx = CX + labelR * Math.cos(midRad);
-            const ly = CY + labelR * Math.sin(midRad);
-            const textRotDeg = (midRad * 180) / Math.PI + 90;
-
-            const col = SEGMENT_COLORS[idx % SEGMENT_COLORS.length];
-            const path = `M ${CX} ${CY} L ${x1} ${y1} A ${INNER_R} ${INNER_R} 0 ${largeArc} 1 ${x2} ${y2} Z`;
-
-            // Divider line between segments
-            const divPath = `M ${CX} ${CY} L ${x1} ${y1}`;
-
-            // Truncate label to ~12 chars to fit wedge
-            const label = seg.label.length > 12 ? seg.label.slice(0, 11) + "…" : seg.label;
-
-            return (
-              <G key={idx}>
-                <Path d={path} fill={`${col}22`} />
-                <Path d={divPath} stroke={col} strokeWidth={0.8} opacity={0.4} />
-                <SvgText
-                  x={lx}
-                  y={ly + 3}
-                  textAnchor="middle"
-                  fill={col}
-                  fontSize={8.5}
-                  fontWeight="700"
-                  transform={`rotate(${textRotDeg}, ${lx}, ${ly})`}
-                >
-                  {label}
-                </SvgText>
-              </G>
-            );
-          })}
-
-          {/* Center jewel */}
-          <Circle cx={CX} cy={CY} r={16} fill={colors.bgCard} stroke={colors.gold} strokeWidth={2} />
-          <SvgText
-            x={CX}
-            y={CY + 5}
-            textAnchor="middle"
-            fontSize={14}
-          >
-            🎲
-          </SvgText>
-        </Svg>
-      </Animated.View>
-
-      {/* Fixed pointer triangle at top center */}
-      <View
-        style={{
-          position: "absolute",
-          top: -2,
-          left: WHEEL_R - 12,
-          zIndex: 3,
-        }}
-      >
-        <Svg width={24} height={20} viewBox="0 0 24 20">
-          <Polygon points="12,18 0,0 24,0" fill={colors.gold} />
-        </Svg>
-      </View>
-    </View>
-  );
-}
 
 // ─── Result Modal ──────────────────────────────────────────────────────────────
 function ResultModal({ reward, onClose }: { reward: MysteryReward; onClose: () => void }) {
   const { colors, fonts, spacing, radii } = useTheme();
-  const emoji = reward.type === "coins" ? "🪙" : reward.type === "gems" ? "💎" : "⚡";
+  const visual = getSegmentVisual(reward);
 
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onClose}>
       <View
         style={{
           flex: 1,
-          backgroundColor: "#00000099",
+          backgroundColor: colors.overlayScrim,
           justifyContent: "center",
           alignItems: "center",
           padding: spacing.xl,
         }}
       >
-        <View
+        <LinearGradient
+          colors={[`${visual.fill}30`, colors.bgCard]}
+          start={{ x: 0.5, y: 0 }}
+          end={{ x: 0.5, y: 1 }}
           style={{
-            backgroundColor: colors.bgCard,
             borderRadius: radii.xl,
-            padding: spacing.xl,
-            gap: spacing.md,
-            alignItems: "center",
+            padding: 2,
             width: "100%",
-            borderWidth: 1,
-            borderColor: colors.gold,
           }}
         >
-          <Text style={{ fontSize: 72 }}>{emoji}</Text>
-          <Text style={{ color: colors.gold, fontFamily: fonts.displayBold, fontSize: 11, letterSpacing: 2 }}>
-            YOU WON
-          </Text>
-          <Text
-            style={{ color: colors.t1, fontFamily: fonts.displayBold, fontSize: 22, textAlign: "center" }}
-          >
-            {reward.label}
-          </Text>
-          <Text
-            style={{ color: colors.t3, fontFamily: fonts.body, fontSize: 13, textAlign: "center" }}
-          >
-            Reward has been added to your account.
-          </Text>
-          <Pressable
-            onPress={onClose}
+          <View
             style={{
-              backgroundColor: colors.gold,
-              borderRadius: radii.md,
-              paddingVertical: 12,
-              paddingHorizontal: 40,
-              marginTop: spacing.sm,
+              backgroundColor: colors.bgCard,
+              borderRadius: radii.xl - 2,
+              padding: spacing.xl,
+              gap: spacing.md,
+              alignItems: "center",
             }}
           >
-            <Text style={{ color: "#FFFFFF", fontFamily: fonts.displayBold, fontSize: 15 }}>
-              Awesome!
+            <View
+              style={{
+                width: 88,
+                height: 88,
+                borderRadius: 44,
+                backgroundColor: `${visual.fill}22`,
+                alignItems: "center",
+                justifyContent: "center",
+                borderWidth: 2,
+                borderColor: `${visual.fill}55`,
+              }}
+            >
+              <Text style={{ fontSize: 44 }}>{visual.emoji}</Text>
+            </View>
+            <Text style={{ color: colors.gold, fontFamily: fonts.displayBold, fontSize: 11, letterSpacing: 2 }}>
+              YOU WON
             </Text>
-          </Pressable>
-        </View>
+            <Text
+              style={{ color: colors.t1, fontFamily: fonts.displayBold, fontSize: 22, textAlign: "center" }}
+            >
+              {reward.label}
+            </Text>
+            <Text
+              style={{ color: colors.t3, fontFamily: fonts.body, fontSize: 13, textAlign: "center" }}
+            >
+              Reward has been added to your account.
+            </Text>
+            <GradientButton
+              label="Awesome!"
+              onPress={onClose}
+              colors={[colors.gold, colors.gold3]}
+              style={{ marginTop: spacing.sm, width: "100%" }}
+            />
+          </View>
+        </LinearGradient>
       </View>
     </Modal>
   );
@@ -210,21 +111,15 @@ export function MysteryBoxScreen() {
   const showToast = useToastStore((s) => s.showToast);
 
   const [isSpinning, setIsSpinning] = useState(false);
+  const [spinPhase, setSpinPhase] = useState<WheelSpinPhase>("idle");
   const [wonReward, setWonReward] = useState<MysteryReward | null>(null);
   const [freeSpunThisSession, setFreeSpunThisSession] = useState(!canSpin());
+  const [pendingSpin, setPendingSpin] = useState<{ useTicket: boolean; pickedIndex: number } | null>(null);
+  const activeSpinRef = useRef<{ useTicket: boolean; pickedIndex: number } | null>(null);
 
-  const rotateAnim = useRef(new Animated.Value(0)).current;
-  const accumulatedDeg = useRef(0);
+  const { rotateDeg, spinToSegment } = useMysteryWheelSpin();
 
   const canFreeSpin = canSpin() && !freeSpunThisSession;
-  const N = MYSTERY_SEGMENTS.length;
-  const SEGMENT_DEG = 360 / N;
-
-  const rotateDeg = rotateAnim.interpolate({
-    inputRange: [0, 360],
-    outputRange: ["0deg", "360deg"],
-    extrapolate: "extend",
-  });
 
   const [adLoading, setAdLoading] = useState(false);
 
@@ -256,35 +151,40 @@ export function MysteryBoxScreen() {
     }
 
     const pickedIndex = rollMysterySegmentIndex();
-    setIsSpinning(true);
+    const spinPayload = { useTicket, pickedIndex };
+    activeSpinRef.current = spinPayload;
+    setPendingSpin(spinPayload);
 
-    const finish = () => {
-      const result = spin({ useTicket, segmentIndex: pickedIndex });
-      setIsSpinning(false);
-      if (result.ok && result.reward) {
-        setWonReward(result.reward);
-        if (!useTicket) setFreeSpunThisSession(true);
-      }
-    };
-
-    if (reducedMotion) {
-      finish();
-      return;
-    }
-
-    // Land the center of the picked segment at the top pointer
-    const segCenter = pickedIndex * SEGMENT_DEG + SEGMENT_DEG / 2;
-    const alignmentDeg = (360 - segCenter) % 360;
-    const targetDeg = accumulatedDeg.current + 5 * 360 + alignmentDeg;
-    accumulatedDeg.current = targetDeg;
-
-    Animated.timing(rotateAnim, {
-      toValue: targetDeg,
-      duration: 4000,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start(({ finished }) => {
-      if (finished) finish();
+    spinToSegment({
+      pickedIndex,
+      reducedMotion,
+      onSpinStart: () => {
+        setIsSpinning(true);
+        setSpinPhase("spinning");
+        setWonReward(null);
+      },
+      onLanded: () => {
+        setSpinPhase("landed");
+        hapticAchievement();
+      },
+      onComplete: () => {
+        const pending = activeSpinRef.current;
+        if (!pending) return;
+        const result = spin({
+          useTicket: pending.useTicket,
+          segmentIndex: pending.pickedIndex,
+        });
+        activeSpinRef.current = null;
+        setPendingSpin(null);
+        setIsSpinning(false);
+        setSpinPhase("idle");
+        if (result.ok && result.reward) {
+          setWonReward(result.reward);
+          if (!pending.useTicket) setFreeSpunThisSession(true);
+        } else if (result.message) {
+          showToast(result.message, "error");
+        }
+      },
     });
   };
 
@@ -348,35 +248,79 @@ export function MysteryBoxScreen() {
           </Text>
         </View>
 
-        {/* Wheel */}
-        <FortuneWheel rotateDeg={rotateDeg} />
+        {/* Wheel stage */}
+        <LinearGradient
+          colors={[`${colors.orchid}18`, `${colors.gold}10`, colors.bgCard]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={{
+            width: "100%",
+            borderRadius: radii.xl,
+            paddingVertical: spacing.xl,
+            paddingHorizontal: spacing.md,
+            alignItems: "center",
+            borderWidth: 1,
+            borderColor: `${colors.orchid}25`,
+            position: "relative",
+          }}
+        >
+          <FortuneWheel
+            rotateDeg={rotateDeg}
+            isSpinning={spinPhase === "spinning"}
+            spinPhase={spinPhase}
+            highlightReady={canFreeSpin && spinPhase === "idle"}
+          />
+          {spinPhase === "spinning" && (
+            <View
+              pointerEvents="none"
+              style={{
+                position: "absolute",
+                bottom: spacing.md,
+                alignSelf: "center",
+                backgroundColor: `${colors.bgCard}EE`,
+                paddingHorizontal: spacing.lg,
+                paddingVertical: spacing.sm,
+                borderRadius: radii.full,
+                borderWidth: 1,
+                borderColor: `${colors.gold}55`,
+              }}
+            >
+              <Text style={{ color: colors.gold, fontFamily: fonts.bodyBold, fontSize: 13, letterSpacing: 0.5 }}>
+                Rolling…
+              </Text>
+            </View>
+          )}
+          {spinPhase === "landed" && pendingSpin != null && (
+            <View
+              pointerEvents="none"
+              style={{
+                position: "absolute",
+                bottom: spacing.md,
+                alignSelf: "center",
+                backgroundColor: `${colors.emerald}18`,
+                paddingHorizontal: spacing.lg,
+                paddingVertical: spacing.sm,
+                borderRadius: radii.full,
+                borderWidth: 1,
+                borderColor: `${colors.emerald}55`,
+              }}
+            >
+              <Text style={{ color: colors.emerald, fontFamily: fonts.bodyBold, fontSize: 13 }}>
+                {getSegmentVisual(MYSTERY_SEGMENTS[pendingSpin.pickedIndex]).emoji}{" "}
+                {MYSTERY_SEGMENTS[pendingSpin.pickedIndex].label}
+              </Text>
+            </View>
+          )}
+        </LinearGradient>
 
         {/* Spin buttons */}
-        <Pressable
+        <GradientButton
+          label={isSpinning ? "Spinning…" : canFreeSpin ? "Free Spin!" : "Free Spin Used"}
           onPress={() => runSpin(false)}
           disabled={!canFreeSpin || isSpinning}
-          style={({ pressed }) => ({
-            backgroundColor: canFreeSpin && !isSpinning ? colors.gold : colors.bgCard,
-            borderRadius: radii.md,
-            paddingVertical: 14,
-            paddingHorizontal: 48,
-            opacity: pressed ? 0.85 : canFreeSpin ? 1 : 0.5,
-            borderWidth: 1,
-            borderColor: canFreeSpin ? colors.gold : colors.border,
-            width: "100%",
-            alignItems: "center",
-          })}
-        >
-          <Text
-            style={{
-              color: canFreeSpin && !isSpinning ? "#FFFFFF" : colors.t3,
-              fontFamily: fonts.displayBold,
-              fontSize: 16,
-            }}
-          >
-            {isSpinning ? "Spinning…" : canFreeSpin ? "Free Spin!" : "Free Spin Used"}
-          </Text>
-        </Pressable>
+          loading={isSpinning}
+          style={{ width: "100%" }}
+        />
 
         {canSpinWithTicket() && (
           <Pressable
@@ -501,7 +445,9 @@ export function MysteryBoxScreen() {
             POSSIBLE REWARDS
           </Text>
           <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-            {MYSTERY_SEGMENTS.map((seg, idx) => (
+            {MYSTERY_SEGMENTS.map((seg, idx) => {
+              const visual = getSegmentVisual(seg);
+              return (
               <View
                 key={idx}
                 style={{
@@ -513,12 +459,18 @@ export function MysteryBoxScreen() {
               >
                 <View
                   style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 5,
-                    backgroundColor: SEGMENT_COLORS[idx % SEGMENT_COLORS.length],
+                    width: 28,
+                    height: 28,
+                    borderRadius: 8,
+                    backgroundColor: `${visual.fill}22`,
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderWidth: 1,
+                    borderColor: `${visual.fill}44`,
                   }}
-                />
+                >
+                  <Text style={{ fontSize: 14 }}>{visual.emoji}</Text>
+                </View>
                 <Text
                   style={{
                     color: colors.t2,
@@ -526,12 +478,13 @@ export function MysteryBoxScreen() {
                     fontSize: 12,
                     flex: 1,
                   }}
-                  numberOfLines={1}
+                  numberOfLines={2}
                 >
                   {seg.label}
                 </Text>
               </View>
-            ))}
+            );
+            })}
           </View>
         </View>
       </ScrollView>

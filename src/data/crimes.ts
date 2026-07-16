@@ -31,6 +31,11 @@ export const CRIME_CATALOG: CrimeDef[] = [
   { id: 'crypto_scam', label: 'Crypto Scam', tier: 'cyber', heatGain: 30, baseSentenceYears: 3, karmaPenalty: -40, fineAmount: 25000 },
   { id: 'bribery', label: 'Bribery', tier: 'financial', heatGain: 35, baseSentenceYears: 3, karmaPenalty: -45 },
   { id: 'arrest', label: 'General Arrest', tier: 'violent', heatGain: 40, baseSentenceYears: 2, karmaPenalty: -40 },
+  { id: 'money_laundering', label: 'Money Laundering', tier: 'financial', heatGain: 38, baseSentenceYears: 4, karmaPenalty: -55, fineAmount: 75000 },
+  { id: 'gang_recruitment', label: 'Gang Recruitment', tier: 'organized', heatGain: 42, baseSentenceYears: 3, karmaPenalty: -48 },
+  { id: 'parole_violation', label: 'Parole Violation', tier: 'organized', heatGain: 35, baseSentenceYears: 2, karmaPenalty: -35, fineAmount: 5000 },
+  { id: 'witness_intimidation', label: 'Witness Intimidation', tier: 'violent', heatGain: 55, baseSentenceYears: 5, karmaPenalty: -60 },
+  { id: 'smuggling', label: 'Smuggling', tier: 'organized', heatGain: 45, baseSentenceYears: 4, karmaPenalty: -50, fineAmount: 20000 },
 ];
 
 export const CRIME_MAP = Object.fromEntries(

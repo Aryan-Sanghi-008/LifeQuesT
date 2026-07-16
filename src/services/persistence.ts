@@ -232,6 +232,7 @@ export function normalizeCharacter(char: Character): Character {
   if (!char.lifeStage) char.lifeStage = getLifeStage(char.age);
   if (!char.bankBalance) char.bankBalance = char.stats.wealth * 100;
   if (char.debt === undefined) char.debt = 0;
+  if (!char.financeLedger) char.financeLedger = [];
   if (!char.educationLevel) char.educationLevel = "none";
   if (!char.people) char.people = [];
   if (!char.countriesLived?.length && char.countryCode) {
@@ -306,6 +307,13 @@ export function normalizeCharacter(char: Character): Character {
   if (char.focusConfirmedForAge === undefined) char.focusConfirmedForAge = -1;
   if (!char.lifePhase) char.lifePhase = "planning";
   if (char.creditScore === undefined) char.creditScore = 650;
+  if (!char.insurancePolicies) char.insurancePolicies = [];
+  if (!char.angelOpportunities) char.angelOpportunities = [];
+  if (char.creditInquiries === undefined) char.creditInquiries = 0;
+  for (const a of char.assets ?? []) {
+    if (a.type === "property" && !a.occupancy) a.occupancy = "primary";
+    if (a.renovationLevel === undefined) a.renovationLevel = 0;
+  }
   if (char.heatLevel === undefined)
     char.heatLevel = char.criminalRecord?.heatLevel ?? 0;
   if (!char.hobbyProgress) char.hobbyProgress = {};

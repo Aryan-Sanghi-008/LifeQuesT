@@ -1,5 +1,5 @@
 import { ScrollView, Text, Pressable } from 'react-native';
-import { useTheme } from '@theme';
+import { useTheme, MIN_TAP_TARGET } from '@theme';
 
 export type ShopTab = 'bundles' | 'premium' | 'cosmetics' | 'scenarios';
 
@@ -31,7 +31,7 @@ export function ShopTabBar({ active, onSelect }: { active: ShopTab; onSelect: (t
             onPress={() => onSelect(tab.id)}
             style={{
               flexShrink: 0,
-              minHeight: 36,
+              minHeight: MIN_TAP_TARGET,
               justifyContent: 'center',
               paddingHorizontal: 16,
               borderRadius: radii.full,

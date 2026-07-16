@@ -57,3 +57,23 @@ export const HOBBY_MAP = Object.fromEntries(
 export function getHobbiesByCategory(category: HobbyCategory): HobbyDef[] {
   return HOBBY_CATALOG.filter(h => h.category === category);
 }
+
+export interface HobbyCompetitionDef {
+  id: string;
+  label: string;
+  minLevel: number;
+  winChanceBase: number;
+  cashRewardUsd: number;
+  xpReward: number;
+  statEffect?: HobbyDef['statEffect'];
+}
+
+export const HOBBY_COMPETITIONS: HobbyCompetitionDef[] = [
+  { id: 'local_showcase', label: 'Local Showcase', minLevel: 10, winChanceBase: 0.35, cashRewardUsd: 500, xpReward: 20, statEffect: { happiness: 3 } },
+  { id: 'regional_competition', label: 'Regional Competition', minLevel: 25, winChanceBase: 0.25, cashRewardUsd: 2500, xpReward: 40, statEffect: { happiness: 5, social: 2 } },
+  { id: 'national_championship', label: 'National Championship', minLevel: 50, winChanceBase: 0.15, cashRewardUsd: 15000, xpReward: 80, statEffect: { happiness: 10, ambition: 5 } },
+];
+
+export const HOBBY_COMPETITION_MAP = Object.fromEntries(
+  HOBBY_COMPETITIONS.map(c => [c.id, c]),
+) as Record<string, HobbyCompetitionDef>;

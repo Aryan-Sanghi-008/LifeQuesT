@@ -3,7 +3,8 @@ import { View, Text, Pressable, Animated, StyleSheet } from 'react-native';
 import { createBottomTabNavigator, BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MainTabParamList } from '../types';
-import { useTheme } from '@theme';
+import { useTheme, MIN_TAP_TARGET, TAB_LABEL_MAX_FONT_SCALE } from '@theme';
+import { useReducedMotion } from '@hooks/useReducedMotion';
 import { HomeScreen }    from '@features/life/HomeScreen';
 import { WorldScreen }   from '@features/life/WorldScreen';
 import { LifeScreen }    from '@features/life/LifeScreen';
@@ -75,7 +76,8 @@ function TabButton({
 }: {
   routeName: string; isFocused: boolean; onPress: () => void;
 }) {
-  const { colors, fonts, radii } = useTheme();
+  const { colors, fonts, radii, scaledFonts } = useTheme();
+  const reducedMotion = useReducedMotion();
   const scale = useRef(new Animated.Value(1)).current;
   const accentColor = colors[TAB_COLOR_KEYS[routeName] ?? 'sapphire'];
 
@@ -83,10 +85,12 @@ function TabButton({
     if (!isFocused) {
       triggerTapFeedback();
     }
-    Animated.sequence([
-      Animated.spring(scale, { toValue: 0.88, useNativeDriver: true, damping: 12, stiffness: 300 }),
-      Animated.spring(scale, { toValue: 1, useNativeDriver: true, damping: 14, stiffness: 260 }),
-    ]).start();
+    if (!reducedMotion) {
+      Animated.sequence([
+        Animated.spring(scale, { toValue: 0.88, useNativeDriver: true, damping: 12, stiffness: 300 }),
+        Animated.spring(scale, { toValue: 1, useNativeDriver: true, damping: 14, stiffness: 260 }),
+      ]).start();
+    }
     onPress();
   };
 
@@ -94,16 +98,21 @@ function TabButton({
     <Pressable
       onPress={handlePress}
       style={styles.tabItem}
+      accessibilityRole="tab"
+      accessibilityLabel={`${routeName} tab`}
+      accessibilityState={{ selected: isFocused }}
       android_ripple={{ color: `${accentColor}18`, borderless: true, radius: 28 }}
     >
-      <Animated.View style={[styles.tabInner, { transform: [{ scale }] }]}>
+      <Animated.View style={[styles.tabInner, { transform: [{ scale: reducedMotion ? 1 : scale }] }]}>
         {isFocused && (
           <View style={[styles.activePill, { backgroundColor: `${accentColor}14`, borderRadius: radii.sm }]} />
         )}
         {ICON_MAP[routeName]?.(isFocused, accentColor, colors.t4)}
-        <Text style={[
+        <Text
+          maxFontSizeMultiplier={TAB_LABEL_MAX_FONT_SCALE}
+          style={[
           styles.tabLabel,
-          { color: isFocused ? accentColor : colors.t4, fontFamily: isFocused ? fonts.bodyBold : fonts.body },
+          { color: isFocused ? accentColor : colors.t4, fontFamily: isFocused ? fonts.bodyBold : fonts.body, fontSize: scaledFonts.xs },
         ]}>
           {routeName}
         </Text>
@@ -154,6 +163,8 @@ function CustomTabBar({ state, navigation, onOpenQuickActions }: BottomTabBarPro
                 onPress();
               }}
               style={styles.fabBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Quick actions"
             >
               <View style={[styles.fabInner, { backgroundColor: colors.emerald, shadowColor: colors.emerald }]}>
                 <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
@@ -212,6 +223,8 @@ const styles = StyleSheet.create({
   tabItem: {
     flex: 1,
     alignItems: 'center',
+    minHeight: MIN_TAP_TARGET,
+    justifyContent: 'center',
   },
   tabInner: {
     alignItems: 'center',
@@ -219,6 +232,8 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 8,
     position: 'relative',
+    minHeight: MIN_TAP_TARGET,
+    justifyContent: 'center',
   },
   activePill: {
     position: 'absolute',

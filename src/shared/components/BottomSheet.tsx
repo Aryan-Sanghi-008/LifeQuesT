@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, ReactNode } from "react";
 import {
+  Modal,
   View,
   Text,
   Pressable,
@@ -88,6 +89,13 @@ export function BottomSheet({
   if (!mounted) return null;
 
   return (
+    <Modal
+      visible={mounted}
+      transparent
+      animationType="none"
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
       {/* Backdrop */}
       <Animated.View
@@ -119,6 +127,7 @@ export function BottomSheet({
           },
         ]}
         pointerEvents="auto"
+        accessibilityViewIsModal
       >
         {/* Unified Handle bar */}
         <BottomSheetHandle />
@@ -140,6 +149,7 @@ export function BottomSheet({
         {children}
       </Animated.View>
     </View>
+    </Modal>
   );
 }
 

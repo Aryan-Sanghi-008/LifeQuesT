@@ -2,9 +2,15 @@
 // Realistic career eligibility checking, hiring probability, and progression.
 
 import { Career, EducationLevel, Character } from '../types';
-import { CAREER_PATHS, CareerPath, getCareerById, careerPathToLegacy, getAllCareerPaths } from '../data/careerPaths';
-import { getCountryEconomy } from '../data/countryEconomy';
+import { CAREER_PATHS, CareerPath, CareerCategory, getCareerById, careerPathToLegacy, getAllCareerPaths } from '../data/careerPaths';
+import type { EducationBranch } from '../data/educationDegrees';
+import { getDegreeById } from '../data/educationDegrees';
+import { scaleCountryAmount } from './countryScaleEngine';
 import { getCertificationLabel } from './certificationEngine';
+import { getFollowerPromotionBonus } from './socialMediaEngine';
+import { getBestHobbyLevelInCategory } from './hobbyEngine';
+import { getPersonalityMods } from './personalityModifiers';
+import { getCareerScoreTraitBonus, getCareerPerformanceTraitBonus } from './traitEngine';
 
 // ─── Eligibility System ───────────────────────────────────────────────────────
 
@@ -31,7 +37,10 @@ function getEducationRank(level: string): number {
  * Returns detailed eligibility result with reason and hire probability.
  */
 export function checkCareerEligibility(
-  character: Pick<Character, 'age' | 'educationLevel' | 'educationStage' | 'degreeIds' | 'certificationIds' | 'stats' | 'traits' | 'countryCode' | 'criminalRecord' | 'assets' | 'career' | 'totalCareerYears' | 'gpa' | 'creditScore' | 'scenarioId'>,
+  character: Pick<Character, 'age' | 'educationLevel' | 'educationStage' | 'degreeIds' | 'certificationIds' | 'stats' | 'traits' | 'countryCode' | 'criminalRecord' | 'assets' | 'career' | 'totalCareerYears' | 'gpa' | 'creditScore' | 'scenarioId'> & {
+    hobbyProgress?: Character['hobbyProgress'];
+    personality?: Character['personality'];
+  },
   careerId: string,
 ): EligibilityResult {
   const career = getCareerById(careerId);
@@ -176,6 +185,18 @@ export function checkCareerEligibility(
     warnings.push(`Social skills are below ideal.`);
   }
 
+  if (req.minHobbyLevel) {
+    const category = req.requiredHobbyCategory ?? 'sports';
+    const bestLevel = getBestHobbyLevelInCategory(character.hobbyProgress, category);
+    if (bestLevel < req.minHobbyLevel) {
+      return {
+        eligible: false,
+        reason: `Need hobby level ${req.minHobbyLevel} in ${category} (current best: ${bestLevel}).`,
+        hireProbability: 0,
+      };
+    }
+  }
+
   // Degree requirements enforced above.
 
   // Compute hire probability based on character stats vs requirements
@@ -193,7 +214,10 @@ export function checkCareerEligibility(
  * Takes into account intelligence gap, education level, traits, and luck.
  */
 export function computeHireProbability(
-  character: Pick<Character, 'stats' | 'educationLevel' | 'traits' | 'gpa' | 'creditScore'>,
+  character: Pick<Character, 'stats' | 'educationLevel' | 'traits' | 'gpa' | 'creditScore'> & {
+    socialFollowers?: number;
+    personality?: Character['personality'];
+  },
   career: CareerPath,
 ): number {
   const req = career.requirements;
@@ -204,14 +228,18 @@ export function computeHireProbability(
   const eduBonus    = Math.min(20, Math.max(0, (charEduRank - reqEduRank) * 5));
   const socialBonus = Math.min(10, (character.stats.social / 100) * 10);
   const ambitionBonus = Math.min(5, (character.stats.ambition / 100) * 5);
-  const luckyBonus = (character.traits.includes('lucky') || character.traits.includes('prestige_lucky_star')) ? 8 : 0;
+  const luckyBonus = getCareerScoreTraitBonus(character.traits ?? []);
+  const fameBonus = Math.round(getFollowerPromotionBonus(character.socialFollowers ?? 0) * 100);
   const seniorityPenalty = (career.seniorityLevel - 1) * 5;
   const gpaBonus = character.gpa ? Math.min(10, (character.gpa / 4) * 10) : 0;
   const creditBonus = character.creditScore
     ? Math.min(8, Math.max(-10, (character.creditScore - 650) / 25))
     : 0;
+  const personalityBonus = character.personality
+    ? Math.round(getPersonalityMods(character.personality).careerFitDelta * 100)
+    : 0;
 
-  const raw = intScore + eduBonus + socialBonus + ambitionBonus + luckyBonus + gpaBonus + creditBonus - seniorityPenalty;
+  const raw = intScore + eduBonus + socialBonus + ambitionBonus + luckyBonus + fameBonus + gpaBonus + creditBonus + personalityBonus - seniorityPenalty;
   return Math.round(Math.max(5, Math.min(95, raw)));
 }
 
@@ -308,10 +336,11 @@ export function applyForJobRoll(
   return Math.random() * 100 < Math.min(95, Math.max(15, score - threshold + 50));
 }
 
-export function workHarder(career: Career): Career {
+export function workHarder(career: Career, traits: string[] = []): Career {
+  const traitPerf = getCareerPerformanceTraitBonus(traits);
   return {
     ...career,
-    performance: Math.min(100, career.performance + 8),
+    performance: Math.min(100, career.performance + 8 + traitPerf),
   };
 }
 
@@ -418,28 +447,97 @@ export function syncJobLabel(
 }
 
 /**
- * Scale career salary by country economy
+ * Scale career salary by country economy (currency + salary multiplier).
  */
 export function getCountrySalary(baseSalaryUSD: number, countryCode: string): number {
-  const eco = getCountryEconomy(countryCode);
-  return Math.round(baseSalaryUSD * eco.salaryMultiplier);
+  return scaleCountryAmount(baseSalaryUSD, countryCode, 'salary');
 }
 
 /**
  * Get careers eligible for a character based on full eligibility check.
  */
-export function getEligibleCareers(character: Parameters<typeof checkCareerEligibility>[0]): Array<{
+export function getEligibleCareers(character: Parameters<typeof checkCareerEligibility>[0] & {
+  educationBranch?: string;
+  enrolledDegreeId?: string;
+  degreeIds?: string[];
+}): Array<{
   career: CareerPath;
   eligibility: EligibilityResult;
+  preferred?: boolean;
 }> {
+  const preferredCategories = getPreferredCategoriesForCharacter(character);
+  const general = new Set(GENERAL_CAREER_CATEGORIES);
+
   return getAllCareerPaths()
     .filter((career) => !career.requiresScenario?.length)
-    .map(career => ({
-      career,
-      eligibility: checkCareerEligibility(character, career.id),
-    }))
+    .filter((career) => career.id !== 'entrepreneur')
+    .map((career) => {
+      const eligibility = checkCareerEligibility(character, career.id);
+      const preferred = preferredCategories.length > 0
+        ? preferredCategories.includes(career.category)
+        : false;
+      return { career, eligibility, preferred };
+    })
     .filter(({ eligibility }) => eligibility.eligible)
-    .sort((a, b) => b.eligibility.hireProbability - a.eligibility.hireProbability);
+    .sort((a, b) => {
+      if (preferredCategories.length > 0) {
+        const aPref = a.preferred ? 0 : general.has(a.career.category) ? 1 : 2;
+        const bPref = b.preferred ? 0 : general.has(b.career.category) ? 1 : 2;
+        if (aPref !== bPref) return aPref - bPref;
+      }
+      return b.eligibility.hireProbability - a.eligibility.hireProbability;
+    });
+}
+
+const BRANCH_TO_CATEGORIES: Record<string, CareerCategory[]> = {
+  engineering: ['technology', 'science'],
+  medical: ['medicine'],
+  science: ['science', 'technology', 'education'],
+  business: ['business', 'finance'],
+  commerce: ['finance', 'business'],
+  law: ['law', 'government'],
+  arts: ['arts', 'media'],
+  education: ['education'],
+  social_sciences: ['education', 'government', 'media'],
+  sports: ['sports'],
+  vocational: ['service', 'trades'],
+};
+
+const GENERAL_CAREER_CATEGORIES: CareerCategory[] = [
+  'service',
+  'trades',
+  'government',
+  'military',
+];
+
+export function resolveEducationBranch(
+  character: Pick<Character, 'educationBranch' | 'enrolledDegreeId' | 'degreeIds'>,
+): EducationBranch | 'none' {
+  if (character.educationBranch && character.educationBranch !== 'none') {
+    return character.educationBranch as EducationBranch;
+  }
+  if (character.enrolledDegreeId) {
+    const d = getDegreeById(character.enrolledDegreeId);
+    if (d) return d.branch;
+  }
+  const owned = [...(character.degreeIds ?? [])].reverse();
+  for (const id of owned) {
+    const d = getDegreeById(id);
+    if (d) return d.branch;
+  }
+  return 'none';
+}
+
+export function getPreferredCategoriesForCharacter(
+  character: Pick<Character, 'educationBranch' | 'enrolledDegreeId' | 'degreeIds'>,
+): CareerCategory[] {
+  const branch = resolveEducationBranch(character);
+  if (branch === 'none') return [];
+  return BRANCH_TO_CATEGORIES[branch] ?? [];
+}
+
+export function isGeneralFallbackCareer(career: CareerPath): boolean {
+  return GENERAL_CAREER_CATEGORIES.includes(career.category);
 }
 
 /** Scenario-exclusive careers for the job board (eligible + locked wrong-scenario). */

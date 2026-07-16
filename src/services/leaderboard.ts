@@ -41,6 +41,15 @@ function parseCachedEntries(): LeaderboardEntry[] {
   }
 }
 
+export async function findPlayerRank(
+  uid: string,
+  seasonId?: string,
+): Promise<number | null> {
+  const { entries } = await fetchLeaderboard(100, seasonId);
+  const idx = entries.findIndex((e) => e.uid === uid);
+  return idx >= 0 ? idx + 1 : null;
+}
+
 export async function fetchLeaderboard(limit = 50, seasonId?: string): Promise<LeaderboardFetchResult> {
   const fn = getFunctionsInstance();
   const resolvedSeasonId = seasonId ?? getCurrentSeason().id;

@@ -98,15 +98,30 @@ describe('checkDebtCrisis', () => {
 });
 
 describe('investInMarket', () => {
-  it('rejects when balance is insufficient', () => {
-    const result = investInMarket({ bankBalance: 5000, assets: [], age: 25 }, 10000);
+  it('rejects when amount exceeds cash (no debt leverage)', () => {
+    const result = investInMarket(
+      { bankBalance: 100, assets: [], age: 25, countryCode: 'US', debt: 0 },
+      50_000_000,
+    );
     expect(result.ok).toBe(false);
   });
 
   it('creates investment asset when funded', () => {
-    const result = investInMarket({ bankBalance: 50000, assets: [], age: 25 }, 10000);
+    const result = investInMarket(
+      { bankBalance: 50000, assets: [], age: 25, countryCode: 'US', debt: 0 },
+      10000,
+    );
     expect(result.ok).toBe(true);
     expect(result.bankBalance).toBe(40000);
     expect(result.asset?.type).toBe('investment');
+  });
+
+  it('allows small investments above the floor', () => {
+    const result = investInMarket(
+      { bankBalance: 500, assets: [], age: 25, countryCode: 'US', debt: 0 },
+      10,
+    );
+    expect(result.ok).toBe(true);
+    expect(result.bankBalance).toBe(490);
   });
 });

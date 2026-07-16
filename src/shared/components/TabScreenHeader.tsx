@@ -1,7 +1,8 @@
-import { ReactNode } from "react";
+import { ReactNode, useRef } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useTheme } from "@theme";
+import { useScreenA11yFocus } from "@hooks/useScreenA11yFocus";
 
 interface TabScreenHeaderProps {
   title: string;
@@ -18,7 +19,9 @@ export function TabScreenHeader({
   icon,
   trailing,
 }: TabScreenHeaderProps) {
-  const { colors, fonts, spacing } = useTheme();
+  const { colors, fonts, spacing, scaledFonts } = useTheme();
+  const headingRef = useRef<View>(null);
+  useScreenA11yFocus(headingRef);
 
   return (
     <LinearGradient
@@ -43,13 +46,13 @@ export function TabScreenHeader({
             {icon}
           </View>
         ) : null}
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.t1, fontFamily: fonts.displayBold }]}>
+        <View style={{ flex: 1 }} ref={headingRef} accessible accessibilityRole="header">
+          <Text style={[styles.title, { color: colors.t1, fontFamily: fonts.displayBold, fontSize: scaledFonts.xxl }]}>
             {title}
           </Text>
           {subtitle ? (
             typeof subtitle === 'string' ? (
-              <Text style={[styles.sub, { color: colors.t3, fontFamily: fonts.body }]}>
+              <Text style={[styles.sub, { color: colors.t3, fontFamily: fonts.body, fontSize: scaledFonts.md }]}>
                 {subtitle}
               </Text>
             ) : (

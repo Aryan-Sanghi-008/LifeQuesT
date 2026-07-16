@@ -2,6 +2,7 @@ import { View, Text, Pressable } from "react-native";
 import { useTheme } from "@theme";
 import { FadeInView } from "@components/index";
 import { BigFivePersonality } from "@/types";
+import { getPersonalityImpactSummary } from "@engine/personalityModifiers";
 
 const BIG_FIVE_TRAITS: Array<{
   key: keyof BigFivePersonality;
@@ -29,6 +30,7 @@ export function StepPersonality({
   setPersonality,
 }: StepPersonalityProps) {
   const { colors, fonts, spacing, radii } = useTheme();
+  const impactLines = getPersonalityImpactSummary(personality);
 
   return (
     <FadeInView style={{ gap: spacing.md }}>
@@ -36,8 +38,13 @@ export function StepPersonality({
         Your personality
       </Text>
       <Text style={{ color: colors.t3, fontFamily: fonts.body, fontSize: 14, lineHeight: 21, marginBottom: spacing.sm }}>
-        Drag the sliders to define how you approach life. This shapes how NPCs perceive you.
+        Sliders affect event odds, career fit, relationships, and mental health over time.
       </Text>
+      <View style={{ backgroundColor: colors.bgCard, borderRadius: radii.md, padding: spacing.md, gap: 4, borderWidth: 1, borderColor: colors.border }}>
+        {impactLines.map((line) => (
+          <Text key={line} style={{ color: colors.t2, fontFamily: fonts.body, fontSize: 12, lineHeight: 18 }}>{line}</Text>
+        ))}
+      </View>
       {BIG_FIVE_TRAITS.map((trait) => {
         const val = personality[trait.key] ?? 50;
         const steps = SLIDER_STEPS;

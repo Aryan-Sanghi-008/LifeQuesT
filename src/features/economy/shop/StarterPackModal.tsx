@@ -21,7 +21,7 @@ export function StarterPackModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onDismiss}>
-      <View style={styles.overlay}>
+      <View style={[styles.overlay, { backgroundColor: colors.overlayScrim }]}>
         <View style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.border, borderRadius: radii.lg }]}>
           <LinearGradient
             colors={['#7C3AED', '#4F46E5']}
@@ -71,7 +71,6 @@ export function StarterPackModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
     justifyContent: 'center',
     padding: 24,
   },
@@ -108,9 +107,10 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   buyBtn: {
-    paddingVertical: 14,
+    paddingVertical: 11,
+    paddingHorizontal: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 48,
+    minHeight: 40,
   },
 });

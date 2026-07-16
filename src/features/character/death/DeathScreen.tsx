@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet, Alert } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,7 +9,7 @@ import { GradientButton } from '@components/index';
 import { SupportLifeQuestButton } from '@shared/components/SupportLifeQuestButton';
 import { calculateDynastyScore } from '@engine/legacyEngine';
 import { computeNetWorth } from '@engine/economyEngine';
-import { computeLeaderboardScore, submitLeaderboardScore } from '@services/leaderboard';
+import { computeLeaderboardScore, submitLeaderboardScore, findPlayerRank } from '@services/leaderboard';
 import { evaluateChallenge } from '@engine/challengeEngine';
 import { maybeShowDeathInterstitial } from '@services/ads';
 import { TombstoneHero } from './TombstoneHero';
@@ -19,9 +19,12 @@ import { BestMomentsGallery } from './BestMomentsGallery';
 import { LegacySection } from './LegacySection';
 import { HeirSelectionSheet } from './HeirSelectionSheet';
 import { DeathShareCard } from './DeathShareCard';
+import { useScreenA11yFocus } from '@hooks/useScreenA11yFocus';
 
 export function DeathScreen() {
   const { colors, spacing, fonts } = useTheme();
+  const headingRef = useRef<View>(null);
+  useScreenA11yFocus(headingRef);
   const character = useGameStore(useShallow((s) => s.character));
   const globalPrestige = useGameStore((s) => s.globalPrestige);
   const reincarnate = useGameStore((s) => s.reincarnate);
@@ -125,7 +128,9 @@ export function DeathScreen() {
         avatarSeed: character.avatarSeed,
         netWorth: computeNetWorth(character),
       });
-      Alert.alert('Submitted', 'Leaderboard score submitted.');
+      const uid = useGameStore.getState().user?.uid;
+      const rank = uid ? await findPlayerRank(uid) : null;
+      Alert.alert('Submitted', rank ? `Leaderboard score submitted. Your rank: #${rank}` : 'Leaderboard score submitted.');
     } catch {
       Alert.alert('Submission Failed', 'Unable to submit leaderboard score right now.');
     }
@@ -137,12 +142,14 @@ export function DeathScreen() {
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
       <SafeAreaView style={styles.safe}>
         <ScrollView contentContainerStyle={[styles.scroll, { padding: spacing.xl }]} showsVerticalScrollIndicator={false}>
-          <TombstoneHero
-            name={character.name}
-            birthYear={character.birthYear}
-            deathAge={deathAge}
-            tombstoneStyleId={character.tombstoneStyleId}
-          />
+          <View ref={headingRef} accessible accessibilityRole="header">
+            <TombstoneHero
+              name={character.name}
+              birthYear={character.birthYear}
+              deathAge={deathAge}
+              tombstoneStyleId={character.tombstoneStyleId}
+            />
+          </View>
           <LifeSummaryCard character={character} deathAge={deathAge} />
           <DeathStatInfographic stats={infographicStats} />
           <BestMomentsGallery events={character.eventHistory} />

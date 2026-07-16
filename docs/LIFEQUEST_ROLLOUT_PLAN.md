@@ -958,6 +958,60 @@ The following are working well and should **not** be replaced:
 
 ---
 
+## PHASE 15 (PRODUCT) — Country economy & foundation
+
+**Status: Complete**
+
+- 42-country economy profiles ([`src/data/countryEconomy/`](../src/data/countryEconomy/))
+- `countryScaleEngine` + `scaleEventBankEffect` wired at decision/age-up choke points
+- Court/fines, certifications, NPC inheritance, business scaling
+- Education graduation loop + `applyCashDelta` debt paths
+- `ConfirmSpendModal` on court, decisions, property
+- Birthplace life expectancy preview on character create
+- Docs: [`docs/COUNTRY_ECONOMY.md`](COUNTRY_ECONOMY.md)
+
+## PHASE 16 (PRODUCT) — Meta systems depth
+
+**Status: Complete**
+
+- Hobby competitions in age-up + athlete career hobby gate
+- Personality → event weights, career hire probability, mental health decay
+- Premium trait locks (lucky/stoic/magnetic) in trait picker + buildCharacter
+- Social follower milestones → gated events (`requiresFollowers`)
+- Leaderboard rank after death submit + Home leaderboard card
+- Home meta hub: help sheet, live-ops season card, dynasty/challenge cards
+- Crime expansion + relationship cost labels (prior session)
+
+## PHASE 17 (PRODUCT) — Monetization polish
+
+**Status: Complete**
+
+- Client IAP repricing in [`src/data/iapCatalog.ts`](../src/data/iapCatalog.ts)
+- Cosmetics shop tab + owned re-equip via `onOwnedPress`
+- Scenario card stagger animations (FadeInView)
+- Mystery box Home preview (prior session)
+
+## PHASE 18 (PRODUCT) — Completion pass
+
+**Status: Complete**
+
+- BitLife-lite assets: [`src/data/investments.ts`](../src/data/investments.ts), [`src/data/vehicles.ts`](../src/data/vehicles.ts), catalog engine, property happiness/disasters in age-up
+- Contextual tutorial on Home/Life/Activities/People/Assets ([`ContextualTutorial.tsx`](../src/shared/components/ContextualTutorial.tsx))
+- Full economy wiring audit (events, court, certifications, assets)
+- IAP audit doc: [`docs/IAP_ENTITLEMENTS_AUDIT.md`](IAP_ENTITLEMENTS_AUDIT.md) (server cosmetic sync deferred to Phase 19)
+- **Validation:** 78 suites, 410 tests green
+
+### Phase 18 verification checklist
+
+- [ ] US vs IN vs NG: lawsuit event, court fine, certification fee scale correctly
+- [ ] Buy hatchback + stock portfolio; age up — vehicle depreciates, investment ticks
+- [ ] Hobby level 10+ — competition event in feed within ~10 age-ups
+- [ ] Premium trait locked for non-premium create
+- [ ] Tutorial shows once per screen then persists
+- [ ] Submit death score — rank displays when in top 100
+
+---
+
 ## READY TO PROCEED
 
 This plan covers every file, every screen, and every system in the project. Phase 1 audit is complete. Please confirm which Phase to begin implementing first and I'll produce production-ready code.

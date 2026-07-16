@@ -8,20 +8,21 @@ const TIER_CONFIG: Record<PropertyTier, {
   appreciationPct: number;
   happinessBonus: number;
   minAge: number;
+  rentalYieldPct: number;
 }> = {
-  shelter: { valueRange: [50000, 120000], downPaymentPct: 0.1, mortgageRate: 0.08, maintenancePct: 0.02, appreciationPct: 0.01, happinessBonus: -5, minAge: 18 },
-  basic: { valueRange: [800000, 2500000], downPaymentPct: 0.15, mortgageRate: 0.065, maintenancePct: 0.015, appreciationPct: 0.03, happinessBonus: 2, minAge: 18 },
-  mid: { valueRange: [3000000, 8000000], downPaymentPct: 0.2, mortgageRate: 0.055, maintenancePct: 0.012, appreciationPct: 0.04, happinessBonus: 5, minAge: 22 },
-  upper: { valueRange: [10000000, 35000000], downPaymentPct: 0.25, mortgageRate: 0.05, maintenancePct: 0.01, appreciationPct: 0.05, happinessBonus: 8, minAge: 28 },
-  luxury: { valueRange: [50000000, 200000000], downPaymentPct: 0.3, mortgageRate: 0.045, maintenancePct: 0.008, appreciationPct: 0.06, happinessBonus: 12, minAge: 35 },
+  shelter: { valueRange: [50000, 120000], downPaymentPct: 0.5, mortgageRate: 0.08, maintenancePct: 0.02, appreciationPct: 0.01, happinessBonus: -5, minAge: 18, rentalYieldPct: 0.06 },
+  basic: { valueRange: [800000, 2500000], downPaymentPct: 0.5, mortgageRate: 0.065, maintenancePct: 0.015, appreciationPct: 0.03, happinessBonus: 2, minAge: 18, rentalYieldPct: 0.05 },
+  mid: { valueRange: [3000000, 8000000], downPaymentPct: 0.5, mortgageRate: 0.055, maintenancePct: 0.012, appreciationPct: 0.04, happinessBonus: 5, minAge: 22, rentalYieldPct: 0.045 },
+  upper: { valueRange: [10000000, 35000000], downPaymentPct: 0.5, mortgageRate: 0.05, maintenancePct: 0.01, appreciationPct: 0.05, happinessBonus: 8, minAge: 28, rentalYieldPct: 0.04 },
+  luxury: { valueRange: [50000000, 200000000], downPaymentPct: 0.5, mortgageRate: 0.045, maintenancePct: 0.008, appreciationPct: 0.06, happinessBonus: 12, minAge: 35, rentalYieldPct: 0.035 },
 };
 
 const TIER_NAMES: Record<PropertyTier, readonly string[]> = {
-  shelter: ['Room Rental', 'Shared Flat', 'Studio Pod', 'Basement Unit', 'Hostel Room', 'Couch Surf Pad', 'Shelter Bed', 'Tiny Room', 'Dorm Bed', 'Boarding Room'],
-  basic: ['Studio Apartment', '1BHK Flat', 'Compact Condo', 'Garden Apartment', 'Walk-Up Unit', 'Railway Quarter', 'Suburban Flat', 'City Studio', 'Corner Apartment', 'Loft Starter'],
-  mid: ['2BHK House', 'Townhouse', 'Suburban Home', 'Duplex', 'Corner House', 'Family Flat', 'Garden Home', 'Lakeview Condo', 'Hill Cottage', 'Urban Townhouse'],
-  upper: ['Penthouse', 'Mansion Wing', 'Estate Villa', 'Waterfront Home', 'Country Manor', 'Skyline Penthouse', 'Heritage Bungalow', 'Golf Course Home', 'Designer Villa', 'Executive Estate'],
-  luxury: ['Private Island', 'Castle Estate', 'Mega Mansion', 'Sky Palace', 'Royal Villa', 'Cliffside Retreat', 'Private Compound', 'Historic Castle', 'Ocean Estate', 'Diamond Tower Penthouse'],
+  shelter: ['Room Rental', 'Shared Flat', 'Studio Pod', 'Basement Unit', 'Hostel Room', 'Couch Surf Pad', 'Shelter Bed', 'Tiny Room', 'Dorm Bed', 'Boarding Room', 'Attic Room', 'Garage Loft', 'Worker Dorm', 'Transit Flat', 'Micro Pod'],
+  basic: ['Studio Apartment', '1BHK Flat', 'Compact Condo', 'Garden Apartment', 'Walk-Up Unit', 'Railway Quarter', 'Suburban Flat', 'City Studio', 'Corner Apartment', 'Loft Starter', 'River Quarters', 'Market Flat', 'Campus Condo', 'Harbor Studio', 'Park View 1BHK'],
+  mid: ['2BHK House', 'Townhouse', 'Suburban Home', 'Duplex', 'Corner House', 'Family Flat', 'Garden Home', 'Lakeview Condo', 'Hill Cottage', 'Urban Townhouse', 'School District Home', 'Transit Townhome', 'Courtyard Duplex', 'Sunrise Villaette', 'Maple Street House'],
+  upper: ['Penthouse', 'Mansion Wing', 'Estate Villa', 'Waterfront Home', 'Country Manor', 'Skyline Penthouse', 'Heritage Bungalow', 'Golf Course Home', 'Designer Villa', 'Executive Estate', 'Harbor Manor', 'Hillcrest Estate', 'Artist Compound', 'Lake Estate', 'City Spire Suite'],
+  luxury: ['Private Island', 'Castle Estate', 'Mega Mansion', 'Sky Palace', 'Royal Villa', 'Cliffside Retreat', 'Private Compound', 'Historic Castle', 'Ocean Estate', 'Diamond Tower Penthouse', 'Alpine Chalet Estate', 'Desert Oasis Palace', 'Lagoon Island', 'Skybridge Manor', 'Crown Residence'],
 };
 
 function buildProperty(tier: PropertyTier, index: number): PropertyDef {
@@ -43,6 +44,7 @@ function buildProperty(tier: PropertyTier, index: number): PropertyDef {
     appreciationPct: cfg.appreciationPct,
     minAge: cfg.minAge,
     happinessBonus: cfg.happinessBonus,
+    rentalYieldPct: cfg.rentalYieldPct,
   };
 }
 

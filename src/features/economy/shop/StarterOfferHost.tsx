@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useGameStore } from '@store/gameStore';
 import { useToastStore } from '@store/toastStore';
 import {
@@ -14,12 +15,16 @@ import {
   shouldShowStarterOffer,
 } from '@services/persistence';
 import { StarterPackModal } from './StarterPackModal';
+import { getShopStoreState } from './hooks/useShopActions';
 
 /** Shows starter pack offer on second session after first death (24h window). */
 export function StarterOfferHost() {
-  const store = useGameStore();
-  const character = useGameStore((s) => s.character);
-  const isHydrated = useGameStore((s) => s.isHydrated);
+  const { character, isHydrated } = useGameStore(
+    useShallow((s) => ({
+      character: s.character,
+      isHydrated: s.isHydrated,
+    })),
+  );
   const showToast = useToastStore((s) => s.showToast);
   const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -44,6 +49,7 @@ export function StarterOfferHost() {
     try {
       const catalog = getIAPProducts();
       if (catalog.length === 0) {
+        const store = getShopStoreState();
         applyPurchaseToStore('starter_pack', store);
         void store._persist();
         showToast('Starter Pack activated!', 'success');

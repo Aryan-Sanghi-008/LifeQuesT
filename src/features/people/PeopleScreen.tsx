@@ -16,9 +16,11 @@ import { useTheme } from "@theme";
 import { useGameStore } from "../../store/gameStore";
 import { NpcAvatar } from "@components/Avatars";
 import { Card, SectionLabel, ScreenShell, TabScreenHeader } from "@components/index";
+import { ContextualTutorial } from "@shared/components/ContextualTutorial";
 import { Person, RelationType, RootStackParamList } from "../../types";
 import { getRelationshipStageLabel } from "@utils/relationshipLabels";
 import { getInteraction, enrichPersonProfile } from "@engine/peopleEngine";
+import { formatCurrency } from "@utils/currency";
 import { NPCProfileSheet } from "@components/NPCProfileSheet";
 import { isRelationshipDrifting } from "@engine/relationshipEngine";
 import Svg, { Path, Circle, Rect } from "react-native-svg";
@@ -342,11 +344,15 @@ const INTERACTIONS = [
 function InteractionSheet({
   person,
   characterAge,
+  countryCode,
+  bankBalance,
   onInteract,
   onClose,
 }: {
   person: Person;
   characterAge: number;
+  countryCode: string;
+  bankBalance: number;
   onInteract: (id: string) => void;
   onClose: () => void;
 }) {
@@ -415,8 +421,14 @@ function InteractionSheet({
           {/* Actions grid */}
           <View style={[is.grid, { gap: spacing.sm }]}>
             {INTERACTIONS.map((i) => {
-              const meta = getInteraction(i.id);
+              const meta = getInteraction(i.id, countryCode);
               const chancePct = meta ? Math.round(meta.successChance * 100) : 100;
+              const costLabel = meta?.bankDelta
+                ? meta.bankDelta < 0
+                  ? formatCurrency(Math.abs(meta.bankDelta), countryCode)
+                  : `+${formatCurrency(meta.bankDelta, countryCode)}`
+                : null;
+              const canAfford = !meta?.bankDelta || meta.bankDelta >= 0 || bankBalance >= Math.abs(meta.bankDelta);
               return (
                 <Pressable
                   key={i.id}
@@ -440,6 +452,11 @@ function InteractionSheet({
                   <Text style={[is.btnDesc, { color: colors.t4, fontFamily: fonts.body }]}>
                     {i.desc}
                   </Text>
+                  {costLabel ? (
+                    <Text style={[is.chanceHint, { color: canAfford ? colors.teal : colors.crimson, fontFamily: fonts.monoSemiBold }]}>
+                      {meta!.bankDelta! < 0 ? `−${costLabel}` : costLabel}
+                    </Text>
+                  ) : null}
                   {!onCooldown && chancePct < 100 && (
                     <Text style={[is.chanceHint, { color: colors.gold3 ?? "#D97706", fontFamily: fonts.monoSemiBold }]}>
                       {chancePct}% success
@@ -492,6 +509,7 @@ function getGroup(rt: RelationType): string {
 
 export function PeopleScreen() {
   const { colors, fonts, spacing } = useTheme();
+  const showToast = useToastStore((s) => s.showToast);
   const styles = StyleSheet.create({
     empty: { flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xxl ?? 32 },
     emptyIconWrap: {
@@ -575,8 +593,6 @@ export function PeopleScreen() {
     return acc;
   }, {});
 
-  const showToast = useToastStore((s) => s.showToast);
-
   const handleInteract = (interactionId: string) => {
     if (!selected) return;
     const result = interactWithPerson(selected.id, interactionId);
@@ -622,11 +638,14 @@ export function PeopleScreen() {
           <InteractionSheet
             person={livePerson}
             characterAge={character.age}
+            countryCode={character.countryCode}
+            bankBalance={character.bankBalance}
             onInteract={handleInteract}
             onClose={() => setSelected(null)}
           />
         );
       })()}
+      <ContextualTutorial screenId="people" />
     </ScreenShell>
   );
 }

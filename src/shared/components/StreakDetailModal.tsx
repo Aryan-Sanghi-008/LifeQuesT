@@ -27,7 +27,7 @@ export function StreakDetailModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
+      <Pressable style={[styles.backdrop, { backgroundColor: colors.overlayScrim }]} onPress={onClose}>
         <Pressable
           style={[styles.sheet, { backgroundColor: colors.bgCard, borderColor: colors.border, borderRadius: radii.lg }]}
           onPress={(e) => e.stopPropagation()}
@@ -112,7 +112,7 @@ export function StreakDetailModal({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
+  backdrop: { flex: 1, justifyContent: 'flex-end' },
   sheet: { padding: 20, borderWidth: 1, gap: 12, maxHeight: '75%' },
   handle: { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 4 },
   title: { fontSize: 22, textAlign: 'center' },
@@ -120,5 +120,5 @@ const styles = StyleSheet.create({
   sectionLabel: { fontSize: 10, letterSpacing: 2, marginTop: 4 },
   milestoneRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderWidth: 1, marginBottom: 6 },
   hint: { lineHeight: 16, textAlign: 'center' },
-  closeBtn: { alignItems: 'center', paddingVertical: 12, marginTop: 4 },
+  closeBtn: { alignItems: 'center', paddingVertical: 11, paddingHorizontal: 18, marginTop: 4, minHeight: 40, justifyContent: 'center' },
 });

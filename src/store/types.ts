@@ -38,6 +38,7 @@ export interface CreateCharacterPayload {
   activeChallengeId?: string;
   scenarioId?: ScenarioId;
   personality?: BigFivePersonality;
+  isPremium?: boolean;
 }
 
 type FamilyBackground = "poor" | "middle" | "wealthy" | "royalty";
@@ -70,6 +71,15 @@ export interface GameStore {
   pendingReincarnation: boolean;
   pendingAspirationPicker: boolean;
   pendingCourt: boolean;
+  pendingCollegeMajorPicker: boolean;
+  pendingPromotionOffer: boolean;
+  tutorialStep: number;
+  tutorialComplete: boolean;
+  accountIsPremium: boolean;
+  markTutorialScreenSeen: (screenId: string) => void;
+  resetTutorial: () => void;
+  setTutorialStep: (step: number) => void;
+  completeTutorial: () => void;
   globalPrestige: GlobalPrestigeState;
   syncConflict: SyncConflict | null;
   resolveConflictChoice: (choice: "local" | "cloud") => void;
@@ -125,11 +135,26 @@ export interface GameStore {
   completeStudySession: (answers: number[]) => StudySessionResult;
   grantDegree: (degreeId: string) => { ok: boolean; message: string };
   enrollInDegree: (degreeId: string) => { ok: boolean; message: string };
+  chooseCollegeMajor: (degreeIdOrSkip: string | 'skip') => { ok: boolean; message: string };
+  applyStudyQuizRewards: (passed: boolean) => { ok: boolean; message: string };
   takeCertificationExam: (certId: string) => { ok: boolean; message: string };
   foundBusiness: (name: string) => { ok: boolean; message: string };
+  foundFranchise: (franchiseId: string) => { ok: boolean; message: string };
   sellBusiness: (businessId: string) => { ok: boolean; message: string };
   getClassmates: () => Person[];
-  investInStocks: (amount: number) => { ok: boolean; message: string };
+  investInStocks: (
+    amount: number,
+    options?: { useMargin?: boolean; catalogId?: string },
+  ) => { ok: boolean; message: string };
+  purchaseCollectible: (collectibleId: string) => { ok: boolean; message: string };
+  purchaseInsurance: (productId: string) => { ok: boolean; message: string };
+  investAngel: (opportunityId: string) => { ok: boolean; message: string };
+  refreshAngelDeals: () => void;
+  renovateProperty: (assetId: string) => { ok: boolean; message: string };
+  setPropertyMode: (
+    assetId: string,
+    mode: "primary" | "rental",
+  ) => { ok: boolean; message: string };
   setAvatarStyle: (style: Character["avatarStyle"]) => void;
   unlockAvatarStyle: (style: NonNullable<Character["avatarStyle"]>) => void;
   unlockAvatarStyles: (styles: NonNullable<Character["avatarStyle"]>[]) => void;
@@ -147,12 +172,16 @@ export interface GameStore {
     secondary: AspirationId,
   ) => { ok: boolean; message?: string };
   clearPendingAspirationPicker: () => void;
-  purchaseProperty: (propertyDefId: string) => { ok: boolean; message: string };
+  purchaseProperty: (
+    propertyDefId: string,
+    occupancy?: "primary" | "rental",
+  ) => { ok: boolean; message: string };
   resolveCourt: (
     lawyerQuality: number,
     lawyerCost?: number,
   ) => { ok: boolean; message: string };
   clearPendingCourt: () => void;
+  repayDebt: (amount: number) => { ok: boolean; message: string };
   setWill: (will: WillDetails) => { ok: boolean; message?: string };
   playAsHeir: (heirId: string) => { ok: boolean; message?: string };
   createSocialPost: (content: string) => { ok: boolean; message: string };
@@ -189,7 +218,8 @@ export interface GameStore {
   workHarder: () => void;
   askForRaise: () => { success: boolean; message: string };
   quitJob: () => void;
-  applyForPromotion: () => { success: boolean; message: string };
+  applyForPromotion: (options?: { guaranteed?: boolean }) => { success: boolean; message: string };
+  dismissPromotionOffer: () => void;
   reincarnate: () => Partial<CharacterStats> | null;
   addLuckBoost: (n: number) => void;
   useReincarnationScroll: () => void;

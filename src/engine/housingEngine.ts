@@ -1,6 +1,7 @@
 import type { Asset, Character, PropertyDef } from '../types';
 import { PROPERTY_MAP } from '../data/properties';
 import { clamp } from './economyEngine';
+import { scalePropertyValue } from './countryScaleEngine';
 
 export function calculateMortgagePayment(
   principal: number,
@@ -18,11 +19,15 @@ export function calculateMortgagePayment(
 export function createPropertyAsset(
   def: PropertyDef,
   age: number,
+  countryCode = 'US',
   downPaymentPctOverride?: number,
+  occupancy: import('../types').PropertyOccupancy = 'primary',
 ): { asset: Asset; downPayment: number } {
-  const downPct = downPaymentPctOverride ?? def.downPaymentPct;
-  const downPayment = Math.round(def.value * downPct);
-  const mortgage = def.value - downPayment;
+  const scaledValue = scalePropertyValue(def.value, countryCode);
+  // Enforce ≥50% down (anti-leverage)
+  const downPct = Math.max(0.5, downPaymentPctOverride ?? def.downPaymentPct);
+  const downPayment = Math.round(scaledValue * downPct);
+  const mortgage = scaledValue - downPayment;
 
   return {
     downPayment,
@@ -30,12 +35,15 @@ export function createPropertyAsset(
       id: `asset_${def.id}_${Date.now()}`,
       type: 'property',
       name: def.name,
-      value: def.value,
-      debt: mortgage,
+      value: scaledValue,
+      debt: mortgage > 0 ? mortgage : undefined,
       purchasedAge: age,
       propertyDefId: def.id,
       mortgageRate: def.mortgageRate,
       mortgageTermYears: def.termYears,
+      occupancy,
+      renovationLevel: 0,
+      rentalYieldPct: def.rentalYieldPct ?? 0.04,
     },
   };
 }
@@ -89,9 +97,46 @@ export function applyPropertyHappinessBonus(character: Character): number {
     .filter(a => a.type === 'property' && a.propertyDefId)
     .reduce((sum, a) => {
       const def = PROPERTY_MAP[a.propertyDefId!];
-      return sum + (def?.happinessBonus ?? 0);
+      const base = def?.happinessBonus ?? 0;
+      // Rentals contribute less happiness
+      const mult = a.occupancy === 'rental' ? 0.25 : 1;
+      const reno = (a.renovationLevel ?? 0) * 1;
+      return sum + Math.round(base * mult) + reno;
     }, 0);
   return clamp(character.stats.happiness + bonus);
+}
+
+export function getAnnualRentalIncome(assets: Asset[]): number {
+  return assets
+    .filter((a) => a.type === 'property' && a.occupancy === 'rental')
+    .reduce((sum, a) => {
+      const yieldPct = a.rentalYieldPct ?? 0.04;
+      const renoBoost = 1 + (a.renovationLevel ?? 0) * 0.05;
+      return sum + Math.round(a.value * yieldPct * renoBoost);
+    }, 0);
+}
+
+/** Cash renovate: +8% value, +1 renovation level. */
+export function renovatePropertyCost(asset: Asset): number {
+  return Math.round(asset.value * 0.08);
+}
+
+export function applyRenovation(asset: Asset): Asset {
+  const level = (asset.renovationLevel ?? 0) + 1;
+  return {
+    ...asset,
+    renovationLevel: level,
+    value: Math.round(asset.value * 1.08),
+    rentalYieldPct: (asset.rentalYieldPct ?? 0.04) + 0.005,
+  };
+}
+
+export function setPropertyOccupancy(
+  asset: Asset,
+  occupancy: import('../types').PropertyOccupancy,
+): Asset {
+  if (asset.type !== 'property') return asset;
+  return { ...asset, occupancy };
 }
 
 export function rollPropertyDisaster(asset: Asset): Asset | null {

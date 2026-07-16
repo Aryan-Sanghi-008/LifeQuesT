@@ -21,6 +21,7 @@ module.exports = {
     '^@theme/(.*)$': '<rootDir>/src/shared/theme/$1',
     '^@theme$': '<rootDir>/src/shared/theme/index.ts',
     '^@data/(.*)$': '<rootDir>/src/data/$1',
+    '^@test/(.*)$': '<rootDir>/src/test/$1',
   },
   collectCoverageFrom: [
     'src/engine/**/*.ts',

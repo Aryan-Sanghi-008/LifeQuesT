@@ -7,6 +7,7 @@ import type {
   LifeEvent,
 } from '../types';
 import { clamp } from './economyEngine';
+import { getFocusStatTraitMultiplier } from './traitEngine';
 import { FOCUS_DOMAIN_MAP } from '../data/focusDomains';
 import { ASPIRATION_MAP } from '../data/aspirations';
 
@@ -126,8 +127,11 @@ export function applyFocusEventWeights(
 export function applyFocusStatModifiers(
   stats: CharacterStats,
   allocation: FocusAllocation,
+  traitIds: string[] = [],
 ): CharacterStats {
   const next = { ...stats };
+  const traitMult = getFocusStatTraitMultiplier(traitIds);
+  const boost = (n: number) => Math.round(n * traitMult);
 
   const careerPts = allocation.career ?? 0;
   const eduPts = allocation.education ?? 0;
@@ -137,16 +141,16 @@ export function applyFocusStatModifiers(
   const hobbyPts = allocation.hobby ?? 0;
   const familyPts = allocation.family ?? 0;
 
-  if (careerPts >= 1) next.ambition = clamp(next.ambition + (careerPts === 2 ? 5 : 2));
-  if (eduPts >= 1) next.intelligence = clamp(next.intelligence + (eduPts === 2 ? 4 : 2));
+  if (careerPts >= 1) next.ambition = clamp(next.ambition + boost(careerPts === 2 ? 5 : 2));
+  if (eduPts >= 1) next.intelligence = clamp(next.intelligence + boost(eduPts === 2 ? 4 : 2));
   if (healthPts >= 1) {
-    next.fitness = clamp(next.fitness + (healthPts === 2 ? 6 : 3));
-    next.health = clamp(next.health + (healthPts === 2 ? 4 : 2));
+    next.fitness = clamp(next.fitness + boost(healthPts === 2 ? 6 : 3));
+    next.health = clamp(next.health + boost(healthPts === 2 ? 4 : 2));
   }
-  if (socialPts >= 1) next.social = clamp(next.social + (socialPts === 2 ? 8 : 4));
-  if (financePts >= 1) next.wealth = clamp(next.wealth + (financePts === 2 ? 4 : 2));
-  if (hobbyPts >= 1) next.happiness = clamp(next.happiness + (hobbyPts === 2 ? 6 : 3));
-  if (familyPts >= 1) next.happiness = clamp(next.happiness + (familyPts === 2 ? 5 : 2));
+  if (socialPts >= 1) next.social = clamp(next.social + boost(socialPts === 2 ? 8 : 4));
+  if (financePts >= 1) next.wealth = clamp(next.wealth + boost(financePts === 2 ? 4 : 2));
+  if (hobbyPts >= 1) next.happiness = clamp(next.happiness + boost(hobbyPts === 2 ? 6 : 3));
+  if (familyPts >= 1) next.happiness = clamp(next.happiness + boost(familyPts === 2 ? 5 : 2));
 
   return next;
 }

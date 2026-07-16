@@ -1,7 +1,8 @@
-import { useRef, useEffect, useMemo } from "react";
+import { useRef, useEffect, useMemo, memo } from "react";
 import { View, Text, Animated, StyleSheet } from "react-native";
 import { LifeEventRecord, EventCategory, ScenarioId } from "@/types";
 import { useTheme } from "@theme";
+import { useReducedMotion } from "@hooks/useReducedMotion";
 import { useEquippedEventSkin } from "@shared/hooks/useEquippedEventSkin";
 import Svg, { Path, Circle, Rect } from "react-native-svg";
 import { RarityBadge } from "./RarityBadge";
@@ -190,8 +191,9 @@ interface EventCardProps {
   activeScenarioId?: ScenarioId;
 }
 
-export default function EventCard({ event, isNew = false, staggerIndex = 0, activeScenarioId }: EventCardProps) {
-  const { colors, fonts } = useTheme();
+function EventCardInner({ event, isNew = false, staggerIndex = 0, activeScenarioId }: EventCardProps) {
+  const { colors, fonts, scaledFonts } = useTheme();
+  const reducedMotion = useReducedMotion();
   const eventSkin = useEquippedEventSkin();
 
   const isCinematic = isNew && (event.rarity === 'epic' || event.rarity === 'legendary');
@@ -203,7 +205,7 @@ export default function EventCard({ event, isNew = false, staggerIndex = 0, acti
   const scale = useRef(new Animated.Value(initialScale)).current;
 
   useEffect(() => {
-    if (isNew) {
+    if (isNew && !reducedMotion) {
       const delay = staggerIndex * 350;
       const duration = isCinematic ? 400 : 300;
       Animated.parallel([
@@ -228,8 +230,12 @@ export default function EventCard({ event, isNew = false, staggerIndex = 0, acti
           delay,
         }),
       ]).start();
+    } else if (isNew && reducedMotion) {
+      opacity.setValue(1);
+      translateY.setValue(0);
+      scale.setValue(1);
     }
-  }, [isNew, opacity, translateY, scale, staggerIndex, isCinematic]);
+  }, [isNew, opacity, translateY, scale, staggerIndex, isCinematic, reducedMotion]);
 
   const CATEGORY_CONFIG: Record<
     EventCategory,
@@ -321,6 +327,8 @@ export default function EventCard({ event, isNew = false, staggerIndex = 0, acti
               {
                 color: eventSkin.titleColor ?? colors.t1,
                 fontFamily: fonts.bodyBold,
+                fontSize: scaledFonts.base,
+                lineHeight: scaledFonts.base + 6,
               },
             ]}
             numberOfLines={1}
@@ -340,6 +348,8 @@ export default function EventCard({ event, isNew = false, staggerIndex = 0, acti
             {
               color: eventSkin.bodyColor ?? colors.t2,
               fontFamily: fonts.body,
+              fontSize: scaledFonts.md,
+              lineHeight: scaledFonts.md + 5,
             },
           ]}
           numberOfLines={2}
@@ -407,6 +417,10 @@ export default function EventCard({ event, isNew = false, staggerIndex = 0, acti
     </RarityEventCard>
   );
 }
+
+const EventCard = memo(EventCardInner);
+
+export default EventCard;
 
 const styles = StyleSheet.create({
   accentBar: {

@@ -22,6 +22,7 @@ export const SOCIAL_VIRALITY_EVENTS: LifeEvent[] = [
     category: 'milestone',
     color: COLORS.gold,
     oneTime: true,
+    requiresFollowers: 1000,
   },
   {
     id: 'follower_10k',
@@ -45,6 +46,7 @@ export const SOCIAL_VIRALITY_EVENTS: LifeEvent[] = [
     category: 'financial',
     color: COLORS.gold,
     oneTime: true,
+    requiresFollowers: 10000,
   },
   {
     id: 'cancelled_online',
@@ -55,6 +57,7 @@ export const SOCIAL_VIRALITY_EVENTS: LifeEvent[] = [
     category: 'random',
     color: COLORS.crimson,
     oneTime: true,
+    requiresFollowers: 100000,
   },
   {
     id: 'influencer_burnout',

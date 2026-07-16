@@ -1,7 +1,12 @@
 import { useEffect } from 'react';
 import { useGameStore } from '@store/gameStore';
 import { useSettingsStore } from '@store/settingsStore';
-import { resolveRootRoute, needsAspirationRoute, needsCourtRoute } from '@navigation/gamePhase';
+import {
+  resolveRootRoute,
+  needsAspirationRoute,
+  needsCollegeMajorRoute,
+  needsCourtRoute,
+} from '@navigation/gamePhase';
 import { getCurrentRouteName, resetToRoute } from '@navigation/navigationRef';
 import { hasSelectedSlotThisSession } from '@navigation/sessionState';
 
@@ -26,6 +31,7 @@ export function useGameNavigationSync(): void {
   const isAlive = useGameStore(s => s.character?.isAlive);
   const pendingReincarnation = useGameStore(s => s.pendingReincarnation);
   const pendingAspirationPicker = useGameStore(s => s.pendingAspirationPicker);
+  const pendingCollegeMajorPicker = useGameStore(s => s.pendingCollegeMajorPicker);
   const pendingCourt = useGameStore(s => s.pendingCourt);
   const isHydrated = useGameStore(s => s.isHydrated);
   const onboardingComplete = useSettingsStore(s => s.onboardingComplete);
@@ -44,6 +50,13 @@ export function useGameNavigationSync(): void {
     if (needsAspirationRoute({ user, character, pendingReincarnation, pendingAspirationPicker })) {
       if (getCurrentRouteName() !== 'AspirationPicker') {
         resetToRoute('AspirationPicker');
+      }
+      return;
+    }
+
+    if (needsCollegeMajorRoute({ user, character, pendingReincarnation, pendingCollegeMajorPicker })) {
+      if (getCurrentRouteName() !== 'CollegeMajorPicker') {
+        resetToRoute('CollegeMajorPicker');
       }
       return;
     }
@@ -78,5 +91,17 @@ export function useGameNavigationSync(): void {
     if (currentRoute === target) return;
 
     resetToRoute(target);
-  }, [user, character, characterId, isAlive, pendingReincarnation, pendingAspirationPicker, pendingCourt, isHydrated, onboardingComplete, ageGateVerified]);
+  }, [
+    user,
+    character,
+    characterId,
+    isAlive,
+    pendingReincarnation,
+    pendingAspirationPicker,
+    pendingCollegeMajorPicker,
+    pendingCourt,
+    isHydrated,
+    onboardingComplete,
+    ageGateVerified,
+  ]);
 }

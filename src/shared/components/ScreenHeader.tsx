@@ -1,6 +1,8 @@
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { useRef } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '@theme';
+import { useScreenA11yFocus } from '@hooks/useScreenA11yFocus';
 import Svg, { Path } from 'react-native-svg';
 
 interface ScreenHeaderProps {
@@ -13,10 +15,12 @@ export function ScreenHeader({ title, subtitle, showClose = true }: ScreenHeader
   const navigation = useNavigation();
   const { colors, fonts, radii, spacing } = useTheme();
   const styles = getStyles(colors, fonts, radii, spacing);
+  const headingRef = useRef<View>(null);
+  useScreenA11yFocus(headingRef);
 
   return (
     <View style={styles.row}>
-      <View style={styles.textCol}>
+      <View style={styles.textCol} ref={headingRef} accessible accessibilityRole="header">
         <Text style={styles.title}>{title}</Text>
         {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
       </View>

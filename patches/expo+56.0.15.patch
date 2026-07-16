@@ -1,0 +1,31 @@
+diff --git a/node_modules/expo/src/async-require/hmr.ts b/node_modules/expo/src/async-require/hmr.ts
+index bd226af..4e6a83f 100644
+--- a/node_modules/expo/src/async-require/hmr.ts
++++ b/node_modules/expo/src/async-require/hmr.ts
+@@ -314,10 +314,24 @@ function setHMRUnavailableReason(reason: string) {
+   }
+ }
+ 
++let hmrReloadScheduled = false;
++
+ function registerBundleEntryPoints(client: MetroHMRClient | null) {
+   if (hmrUnavailableReason != null) {
+-    // "Bundle Splitting – Metro disconnected"
+-    window.location.reload();
++    if (hmrReloadScheduled) {
++      return;
++    }
++    hmrReloadScheduled = true;
++    console.warn(
++      '[Metro] HMR disconnected — scheduling a single reconnect reload. ' +
++        'Save a file or press "r" in the Expo terminal if the app stays stale.',
++    );
++    setTimeout(() => {
++      hmrReloadScheduled = false;
++      if (hmrUnavailableReason != null && typeof window !== 'undefined') {
++        window.location.reload();
++      }
++    }, 900);
+     return;
+   }
+ 

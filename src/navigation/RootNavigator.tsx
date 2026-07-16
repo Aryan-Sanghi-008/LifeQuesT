@@ -15,6 +15,7 @@ import {
   LazyStudyScreen as Study,
   LazyLeaderboardScreen as Leaderboard,
   LazyAspirationPickerScreen as AspirationPicker,
+  LazyCollegeMajorPickerScreen as CollegeMajorPicker,
   LazyCourtScreen as Court,
   LazyMortgageScreen as Mortgage,
   LazySocialMediaScreen as SocialMedia,
@@ -98,6 +99,7 @@ export default function RootNavigator() {
         <Stack.Screen name="Study" component={Study} options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="Leaderboard" component={Leaderboard} options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="AspirationPicker" component={AspirationPicker} options={{ animation: 'slide_from_bottom', presentation: 'modal', gestureEnabled: false }} />
+        <Stack.Screen name="CollegeMajorPicker" component={CollegeMajorPicker} options={{ animation: 'slide_from_bottom', presentation: 'modal', gestureEnabled: false }} />
         <Stack.Screen name="Court" component={Court} options={{ animation: 'slide_from_bottom', presentation: 'modal', gestureEnabled: false }} />
         <Stack.Screen name="Mortgage" component={Mortgage} options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
         <Stack.Screen name="SocialMedia" component={SocialMedia} options={{ animation: 'slide_from_right' }} />

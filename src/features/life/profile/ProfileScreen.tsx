@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { View, Text, ScrollView, StyleSheet, Alert } from "react-native";
 import { useShallow } from "zustand/react/shallow";
 import { useTheme, useThemedStyles, SPACING } from "@theme";
+import { useBreakpoints } from "@hooks/useBreakpoints";
 import { useGameStore } from "@store/gameStore";
 import { ScreenShell, TabScreenHeader } from "@components/index";
 import { CharacterNameText } from "@shared/components/CharacterNameText";
@@ -19,6 +20,15 @@ const createScreenStyles = ({
 }: ReturnType<typeof useTheme>) =>
   StyleSheet.create({
     scroll: { flexGrow: 1 },
+    tabletRow: {
+      flexDirection: 'row',
+      gap: spacing.lg,
+      alignItems: 'flex-start',
+      paddingHorizontal: spacing.lg,
+    },
+    tabletCol: {
+      flex: 1,
+    },
     footer: {
       fontFamily: fonts.body,
       fontSize: 11,
@@ -30,6 +40,7 @@ const createScreenStyles = ({
 
 export function ProfileScreen() {
   const { colors, fonts } = useTheme();
+  const { isTablet, contentMaxWidth } = useBreakpoints();
   const styles = useThemedStyles(createScreenStyles);
   const [activeTab, setActiveTab] = useState<ProfileTab>("overview");
 
@@ -91,26 +102,67 @@ export function ProfileScreen() {
       />
       <ProfileTabBar active={activeTab} onSelect={setActiveTab} />
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        contentContainerStyle={[
+          styles.scroll,
+          contentMaxWidth ? { maxWidth: contentMaxWidth, alignSelf: 'center', width: '100%' } : null,
+        ]}
         showsVerticalScrollIndicator={false}
       >
-        <ProfileOverview
-          character={character}
-          showOverviewSections={activeTab === "overview"}
-          onSetAvatarStyle={setAvatarStyle}
-          onReset={handleReset}
-          user={user}
-          slotsSynced={slotsSynced}
-          onSaveGame={saveGame}
-        />
+        {isTablet ? (
+          <View style={styles.tabletRow}>
+            <View style={styles.tabletCol}>
+              <ProfileOverview
+                character={character}
+                showOverviewSections={false}
+                variant="hero"
+                onSetAvatarStyle={setAvatarStyle}
+                onReset={handleReset}
+                user={user}
+                slotsSynced={slotsSynced}
+                onSaveGame={saveGame}
+              />
+            </View>
+            <View style={styles.tabletCol}>
+              {activeTab === "overview" && (
+                <ProfileOverview
+                  character={character}
+                  showOverviewSections
+                  variant="sections"
+                  onSetAvatarStyle={setAvatarStyle}
+                  onReset={handleReset}
+                  user={user}
+                  slotsSynced={slotsSynced}
+                  onSaveGame={saveGame}
+                />
+              )}
+              {activeTab === "stats" && <StatsTab character={character} />}
+              {activeTab === "achievements" && (
+                <AchievementsTab achievements={achievementIds} />
+              )}
+              {activeTab === "legacy" && <LegacyTab />}
+            </View>
+          </View>
+        ) : (
+          <>
+            <ProfileOverview
+              character={character}
+              showOverviewSections={activeTab === "overview"}
+              onSetAvatarStyle={setAvatarStyle}
+              onReset={handleReset}
+              user={user}
+              slotsSynced={slotsSynced}
+              onSaveGame={saveGame}
+            />
 
-        {activeTab === "stats" && <StatsTab character={character} />}
+            {activeTab === "stats" && <StatsTab character={character} />}
 
-        {activeTab === "achievements" && (
-          <AchievementsTab achievements={achievementIds} />
+            {activeTab === "achievements" && (
+              <AchievementsTab achievements={achievementIds} />
+            )}
+
+            {activeTab === "legacy" && <LegacyTab />}
+          </>
         )}
-
-        {activeTab === "legacy" && <LegacyTab />}
 
         <Text style={[styles.footer, { color: colors.t4 }]}>
           LifeQuest · Built with purpose

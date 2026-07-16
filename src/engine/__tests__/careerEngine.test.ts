@@ -1,6 +1,7 @@
 import {
   jobToCareer, workHarder, askForRaise, applyForPromotion, incrementCareerYear,
   checkCareerEligibility, syncJobLabel, applyJobTitleUpdate, getCountrySalary,
+  getEligibleCareers, getPromotionTarget,
 } from '@engine/careerEngine';
 import { getCareerById } from '@data/careerPaths';
 
@@ -103,6 +104,8 @@ describe('applyJobTitleUpdate', () => {
     const { career } = applyJobTitleUpdate('Senior Developer', 'IN', null);
     expect(career?.salary).toBe(inSalary);
     expect(career?.salary).not.toBe(usSalary);
+    // India must apply currencyScale, not salaryMultiplier alone
+    expect(inSalary).toBeGreaterThan(path.baseSalary * 10);
   });
 });
 
@@ -252,5 +255,67 @@ describe('syncJobLabel', () => {
 
   it('preserves Retired status', () => {
     expect(syncJobLabel(70, null, 'Retired')).toBe('Retired');
+  });
+});
+
+describe('getEligibleCareers', () => {
+  const jobChar = {
+    age: 24,
+    educationLevel: 'university' as const,
+    educationStage: 'undergraduate',
+    degreeIds: ['bsc_cs'],
+    certificationIds: [] as string[],
+    career: null,
+    totalCareerYears: 0,
+    educationBranch: 'engineering',
+    stats: {
+      health: 70, happiness: 70, intelligence: 85, wealth: 50,
+      fitness: 60, looks: 60, social: 50, ambition: 50, mentalHealth: 70,
+    },
+    traits: [] as string[],
+    countryCode: 'US',
+    criminalRecord: { crimes: [] as string[], jailYearsRemaining: 0, onProbation: false },
+    assets: [] as [],
+  };
+
+  it('excludes entrepreneur from the job board list', () => {
+    const jobs = getEligibleCareers(jobChar);
+    expect(jobs.some((j) => j.career.id === 'entrepreneur')).toBe(false);
+  });
+
+  it('sorts engineering branch preferred (technology) ahead of other eligible jobs', () => {
+    const jobs = getEligibleCareers(jobChar);
+    expect(jobs.length).toBeGreaterThan(0);
+    const firstPreferred = jobs.find((j) => j.preferred);
+    expect(firstPreferred).toBeDefined();
+    expect(['technology', 'science']).toContain(firstPreferred!.career.category);
+    expect(jobs.some((j) => j.career.category === 'service' || !j.preferred)).toBe(true);
+  });
+});
+
+describe('getPromotionTarget', () => {
+  it('returns next role when years and performance thresholds are met', () => {
+    const junior = getCareerById('junior_dev');
+    expect(junior).toBeDefined();
+    const nextId = junior!.progressionPaths[0];
+    const target = getPromotionTarget({
+      title: junior!.label,
+      company: junior!.company,
+      salary: junior!.baseSalary,
+      yearsEmployed: nextId.minYearsInRole,
+      performance: nextId.minPerformance,
+    });
+    expect(target?.id).toBe(nextId.id);
+  });
+
+  it('returns null when thresholds are not met', () => {
+    const junior = getCareerById('junior_dev')!;
+    expect(getPromotionTarget({
+      title: junior.label,
+      company: junior.company,
+      salary: junior.baseSalary,
+      yearsEmployed: 0,
+      performance: 10,
+    })).toBeNull();
   });
 });

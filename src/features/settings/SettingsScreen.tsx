@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
@@ -27,6 +27,7 @@ import { playSound } from "@services/audio";
 import { previewHapticTap } from "@services/haptics";
 import { Card, Divider, SectionLabel, FeedbackPressable } from "@components/index";
 import { useGameStore } from "@store/gameStore";
+import { useScreenA11yFocus } from "@hooks/useScreenA11yFocus";
 import type { RootStackParamList } from "@/types";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -63,6 +64,8 @@ function SettingRow({
         onValueChange={onChange}
         trackColor={{ true: colors.emerald, false: colors.bg2 }}
         thumbColor="#FFFFFF"
+        accessibilityLabel={label}
+        accessibilityHint={desc}
       />
     </View>
   );
@@ -105,7 +108,7 @@ function NavRow({ icon, label, onPress, iconBg, destructive }: {
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 
 export function SettingsScreen() {
-  const { colors, fonts, spacing } = useTheme();
+  const { colors, fonts, spacing, scaledFonts, systemReduceMotion } = useTheme();
   const styles = useThemedStyles(createStyles);
   const navigation = useNavigation<Nav>();
   const { user } = useAuth();
@@ -114,10 +117,17 @@ export function SettingsScreen() {
   const hapticsEnabled = useSettingsStore((s) => s.hapticsEnabled);
   const reducedMotion = useSettingsStore((s) => s.reducedMotion);
   const colorScheme = useSettingsStore((s) => s.colorScheme);
+  const colorBlindMode = useSettingsStore((s) => s.colorBlindMode);
   const setSoundEnabled = useSettingsStore((s) => s.setSoundEnabled);
   const setHapticsEnabled = useSettingsStore((s) => s.setHapticsEnabled);
   const setReducedMotion = useSettingsStore((s) => s.setReducedMotion);
   const setColorScheme = useSettingsStore((s) => s.setColorScheme);
+  const setColorBlindMode = useSettingsStore((s) => s.setColorBlindMode);
+
+  const resetTutorial = useGameStore((s) => s.resetTutorial);
+
+  const headingRef = useRef<View>(null);
+  useScreenA11yFocus(headingRef);
 
   const isPremium = useGameStore((s) => s.character?.isPremium ?? false);
   const hasSeasonPass = useGameStore((s) => s.character?.hasSeasonPass ?? false);
@@ -127,9 +137,9 @@ export function SettingsScreen() {
   const [notifPermStatus, setNotifPermStatus] = useState<'granted' | 'denied' | 'undetermined' | null>(null);
 
   // Load permission status once on mount for display purposes
-  useState(() => {
+  useEffect(() => {
     void getNotificationPermissionStatus().then(setNotifPermStatus);
-  });
+  }, []);
 
   const handleSignOut = () => {
     Alert.alert("Sign Out", "Are you sure you want to sign out?", [
@@ -151,12 +161,20 @@ export function SettingsScreen() {
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: colors.bg }]} edges={["top"]}>
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
-        <Pressable onPress={() => navigation.goBack()} style={styles.backBtn} hitSlop={8}>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          style={[styles.backBtn, { minHeight: 44, minWidth: 44, justifyContent: 'center' }]}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
           <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
             <Path stroke={colors.t1} strokeWidth={2.2} strokeLinecap="round" d="M15 18l-6-6 6-6" />
           </Svg>
         </Pressable>
-        <Text style={[styles.title, { color: colors.t1, fontFamily: fonts.displayBold }]}>Settings</Text>
+        <View ref={headingRef} accessible accessibilityRole="header" style={{ flex: 1, alignItems: 'center' }}>
+          <Text style={[styles.title, { color: colors.t1, fontFamily: fonts.displayBold, fontSize: scaledFonts.xxl }]}>Settings</Text>
+        </View>
         <View style={{ width: 32 }} />
       </View>
 
@@ -318,7 +336,11 @@ export function SettingsScreen() {
                 </Svg>
               }
               label="Reduced Motion"
-              desc="Minimize animations and transitions"
+              desc={
+                systemReduceMotion
+                  ? "System reduced motion is on — animations are minimized"
+                  : "Minimize animations (also respects system setting)"
+              }
               value={reducedMotion}
               onChange={setReducedMotion}
               iconBg={`${colors.gold}12`}
@@ -338,6 +360,9 @@ export function SettingsScreen() {
                 <Pressable
                   key={scheme}
                   onPress={() => setColorScheme(scheme)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${scheme === "light" ? "Light" : scheme === "dark" ? "Dark" : "System"} theme`}
+                  accessibilityState={{ selected: colorScheme === scheme }}
                   style={[
                     styles.schemeChip,
                     { borderColor: colors.border, backgroundColor: colors.bg2 },
@@ -359,6 +384,78 @@ export function SettingsScreen() {
                 </Pressable>
               ))}
             </View>
+            <Text style={[styles.schemeLabel, { color: colors.t2, fontFamily: fonts.body, marginTop: spacing.md }]}>
+              Adjust colors for red-green color blindness.
+            </Text>
+            <View style={styles.schemeRow}>
+              {([
+                { id: 'none' as const, label: 'None' },
+                { id: 'protanopia' as const, label: 'Protanopia' },
+                { id: 'deuteranopia' as const, label: 'Deuteranopia' },
+              ]).map(({ id, label }) => (
+                <Pressable
+                  key={id}
+                  onPress={() => setColorBlindMode(id)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Color blind mode ${label}`}
+                  accessibilityState={{ selected: colorBlindMode === id }}
+                  style={[
+                    styles.schemeChip,
+                    { borderColor: colors.border, backgroundColor: colors.bg2 },
+                    colorBlindMode === id && {
+                      borderColor: colors.orchid,
+                      backgroundColor: `${colors.orchid}12`,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.schemeChipText,
+                      {
+                        color: colorBlindMode === id ? colors.orchid : colors.t3,
+                        fontFamily: colorBlindMode === id ? fonts.bodyBold : fonts.body,
+                      },
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </Card>
+        </View>
+
+        {/* ── Learning ── */}
+        <View style={styles.section}>
+          <SectionLabel label="Learning" />
+          <Card style={{ gap: 0 }}>
+            <FeedbackPressable
+              onPress={() => {
+                Alert.alert(
+                  'Replay Tutorial',
+                  'This will reset all tutorial coach marks so they show again on each screen.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Reset',
+                      style: 'destructive',
+                      onPress: () => {
+                        resetTutorial();
+                        Alert.alert('Done', 'Tutorial has been reset. Revisit each screen to see the guides again.');
+                      },
+                    },
+                  ],
+                );
+              }}
+              style={styles.legalRow}
+            >
+              <Text style={[styles.legalText, { color: colors.t1, fontFamily: fonts.bodySemiBold }]}>
+                Replay Tutorial
+              </Text>
+              <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+                <Path stroke={colors.t4} strokeWidth={2} strokeLinecap="round" d="M9 18l6-6-6-6" />
+              </Svg>
+            </FeedbackPressable>
           </Card>
         </View>
 

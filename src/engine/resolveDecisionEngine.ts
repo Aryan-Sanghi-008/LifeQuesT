@@ -1,5 +1,7 @@
 import { Character, LifeEvent, LifeEventRecord, StatEffect } from '../types';
 import { applyEffect, computeNetWorth } from './economyEngine';
+import { scaleEventBankEffect } from './countryScaleEngine';
+import { appendFinanceLedger, createLedgerEntry } from './financeLedgerEngine';
 import { applySuccessChance, consumeLuckBoost, resolveEventRarity } from './eventEngine';
 import { jobToCareer } from './careerEngine';
 import { advanceRelationship, processDivorce } from './relationshipEngine';
@@ -9,6 +11,7 @@ import {
   markChainComplete,
   resolveChoiceMemoryTags,
 } from './memoryEngine';
+import { getKarmaTraitBonus, getLuckRollBonusPercent, getResilientHealthEventMultiplier } from './traitEngine';
 
 function generateId(): string {
   return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
@@ -35,23 +38,47 @@ export function runResolveDecision(
   const choice = event.choices?.find(c => c.id === choiceId);
   if (!choice) return null;
 
-  const isLucky = character.traits.includes('lucky') || character.traits.includes('prestige_lucky_star');
+  const luckBonus = getLuckRollBonusPercent(character.traits ?? []);
   const hadChance = choice.successChance !== undefined;
   let luckBoosts = character.luckBoostsRemaining;
-  const success = applySuccessChance(choice.successChance, isLucky, luckBoosts);
-  if (hadChance && luckBoosts > 0 && !isLucky) {
-    luckBoosts = consumeLuckBoost(isLucky, luckBoosts, hadChance);
+  const success = applySuccessChance(choice.successChance, luckBonus, luckBoosts);
+  if (hadChance && luckBoosts > 0) {
+    luckBoosts = consumeLuckBoost(luckBonus, luckBoosts, hadChance);
   }
 
   const effectToApply: StatEffect = success
     ? { ...event.statEffect, ...choice.statEffect }
     : event.statEffect;
-  const bankDelta = success ? (choice.bankEffect ?? event.bankEffect ?? 0) : (event.bankEffect ?? 0);
 
+  if (event.category === 'health') {
+    const resilientMult = getResilientHealthEventMultiplier(character.traits ?? []);
+    if (resilientMult !== 1) {
+      if (effectToApply.health != null && effectToApply.health < 0) {
+        effectToApply.health = Math.round(effectToApply.health * resilientMult);
+      }
+      if (effectToApply.mentalHealth != null && effectToApply.mentalHealth < 0) {
+        effectToApply.mentalHealth = Math.round(effectToApply.mentalHealth * resilientMult);
+      }
+    }
+  }
+  const rawBankDelta = success ? (choice.bankEffect ?? event.bankEffect ?? 0) : (event.bankEffect ?? 0);
+  const bankDelta = scaleEventBankEffect(
+    rawBankDelta,
+    character.countryCode ?? 'US',
+    event.category === 'crime' ? 'fine' : 'cost',
+    event.category,
+    character.age,
+  );
+
+  const debtBefore = character.debt ?? 0;
   let { stats, karma, bankBalance, debt } = applyEffect(
     character.stats, character.karma, character.bankBalance,
     effectToApply, bankDelta, character.assets, character.debt ?? 0,
   );
+  const karmaTraitBonus = getKarmaTraitBonus(character.traits ?? []);
+  if (karmaTraitBonus > 0 && (bankDelta > 0 || event.category === 'relationship')) {
+    karma = Math.min(100, karma + karmaTraitBonus);
+  }
 
   let updatedJob = character.job;
   let career = character.career;
@@ -126,6 +153,21 @@ export function runResolveDecision(
       character.netWorthPeak,
       computeNetWorth({ bankBalance, assets: character.assets, debt }),
     ),
+    financeLedger:
+      bankDelta !== 0
+        ? appendFinanceLedger(
+            character.financeLedger,
+            createLedgerEntry({
+              age: character.age,
+              category: 'event',
+              label: event.title,
+              amount: bankDelta,
+              bankAfter: bankBalance,
+              debtAfter: debt,
+              debtBefore,
+            }),
+          )
+        : character.financeLedger,
   };
 
   if (success) {
