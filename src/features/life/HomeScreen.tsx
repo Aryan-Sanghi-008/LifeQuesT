@@ -164,7 +164,7 @@ export function HomeScreen() {
           </Text>
           <CharacterNameText
             name={character.name}
-            style={[styles.name, { fontFamily: fonts.bodyBold, fontSize: scaledFonts.lg }]}
+            style={[styles.name, { fontSize: scaledFonts.lg }]}
           />
           <Text style={[styles.subText, { color: colors.t3, fontFamily: fonts.body, fontSize: scaledFonts.md }]} numberOfLines={1} ellipsizeMode="tail">
             Age {character.age} · {character.countryFlag} {character.country}

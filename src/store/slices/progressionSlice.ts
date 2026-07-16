@@ -60,6 +60,7 @@ import {
   migrateCosmeticId,
   migrateCosmeticIdList,
 } from "../../data/cosmeticCatalog";
+import { migrateEquippedSoundPackId } from "../../data/soundPacks";
 import { useSettingsStore } from "../settingsStore";
 import { themeSkinIdFromCosmetic } from "@theme/themeSkins";
 import {
@@ -71,7 +72,7 @@ import {
 } from "../../engine/economyCapEngine";
 import { useToastStore } from "../toastStore";
 import { hapticAchievement, hapticMoneyEarned } from "../../services/haptics";
-import { playSound } from "../../services/audio";
+import { playSound, reloadSoundPack } from "../../services/audio";
 import { applyAbsenceCatchUp } from "../../engine/absenceCatchUpEngine";
 import { getEligibleDynastyMilestones } from "../../engine/dynastyMilestoneEngine";
 import { DynastyMilestone } from "../../data/dynastyMilestones";
@@ -1249,12 +1250,17 @@ export const createProgressionSlice: StateCreator<
       if (!s.character) return;
       if (item.gemCost) s.character.gems = (s.character.gems ?? 0) - item.gemCost;
       const ids = s.globalPrestige.unlockedCosmeticIds ?? [];
-      if (!ids.includes(cosmeticId)) {
-        s.globalPrestige.unlockedCosmeticIds = [...ids, cosmeticId];
+      const resolved = migrateCosmeticId(cosmeticId);
+      if (!ids.includes(resolved) && !ids.includes(cosmeticId)) {
+        s.globalPrestige.unlockedCosmeticIds = [...ids, resolved];
       }
     });
     saveGlobalPrestige(get().globalPrestige);
     void get()._persist();
+    const applyResult = get().applyCosmetic(cosmeticId);
+    if (applyResult.ok) {
+      return { ok: true, message: `${item.label} unlocked and equipped.` };
+    }
     return { ok: true, message: `${item.label} unlocked!` };
   },
 
@@ -1299,13 +1305,16 @@ export const createProgressionSlice: StateCreator<
       return { ok: true, message: `${item.label} event cards equipped.` };
     }
     if (item.category === 'name_font') {
-      useSettingsStore.getState().setEquippedNameFontId(resolvedId);
-      return { ok: true, message: `${item.label} name font equipped.` };
+      const fontId = resolvedId === 'font_default' ? null : resolvedId;
+      useSettingsStore.getState().setEquippedNameFontId(fontId);
+      return { ok: true, message: `${item.label} font pack equipped.` };
     }
     if (item.category === 'sound_pack') {
-      const packId = resolvedId === 'sound_pack_classic' ? null : resolvedId;
+      const packId = migrateEquippedSoundPackId(
+        resolvedId === 'sound_pack_classic' ? null : resolvedId,
+      );
       useSettingsStore.getState().setEquippedSoundPackId(packId);
-      void import('../../services/audio').then((m) => m.reloadSoundPack());
+      void reloadSoundPack();
       return { ok: true, message: `${item.label} sound pack equipped.` };
     }
     if (item.category === 'plus_frame') {

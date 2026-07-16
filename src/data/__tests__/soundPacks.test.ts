@@ -1,4 +1,8 @@
-import { resolveSoundPackId, SOUND_PACK_PROFILES } from '../soundPacks';
+import {
+  resolveSoundPackId,
+  migrateEquippedSoundPackId,
+  SOUND_PACK_PROFILES,
+} from '../soundPacks';
 
 describe('soundPacks', () => {
   it('resolves cosmetic ids to pack ids', () => {
@@ -8,6 +12,15 @@ describe('soundPacks', () => {
     expect(resolveSoundPackId('sound_pack_minimal')).toBe('minimal');
     expect(resolveSoundPackId('sound_pack_jazz')).toBe('jazz');
     expect(resolveSoundPackId('sound_pack_cinematic')).toBe('cinematic');
+    expect(resolveSoundPackId('sound_pack_lofi')).toBe('minimal');
+  });
+
+  it('migrates equipped sound pack ids', () => {
+    expect(migrateEquippedSoundPackId(null)).toBeNull();
+    expect(migrateEquippedSoundPackId('')).toBeNull();
+    expect(migrateEquippedSoundPackId('sound_pack_classic')).toBeNull();
+    expect(migrateEquippedSoundPackId('sound_pack_lofi')).toBe('sound_pack_minimal');
+    expect(migrateEquippedSoundPackId('sound_pack_jazz')).toBe('sound_pack_jazz');
   });
 
   it('has profiles for every resolved pack', () => {

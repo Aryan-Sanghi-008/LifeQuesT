@@ -1,6 +1,7 @@
 import { doc, setDoc } from 'firebase/firestore';
 import { getFirestoreDb } from '@services/firebaseClient';
 import { useSettingsStore, type SettingsState } from '@store/settingsStore';
+import { migrateEquippedSoundPackId } from '@data/soundPacks';
 
 export type CloudSettings = Pick<
   SettingsState,
@@ -65,8 +66,17 @@ export function applyCloudSettings(settings: Partial<CloudSettings>): void {
       (patch as Record<string, unknown>)[key] = settings[key];
     }
   }
+  if (patch.equippedSoundPackId !== undefined) {
+    patch.equippedSoundPackId = migrateEquippedSoundPackId(patch.equippedSoundPackId);
+  }
+  if (patch.equippedNameFontId === 'font_default') {
+    patch.equippedNameFontId = null;
+  }
   if (Object.keys(patch).length > 0) {
     useSettingsStore.setState(patch);
+    if (patch.equippedSoundPackId !== undefined) {
+      void import('@services/audio').then((m) => m.reloadSoundPack());
+    }
   }
 }
 

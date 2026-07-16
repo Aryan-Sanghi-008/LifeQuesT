@@ -108,7 +108,7 @@ export function TombstoneHero({ name, birthYear, deathAge, tombstoneStyleId, com
         </Text>
         <CharacterNameText
           name={name}
-          style={[styles.name, { fontFamily: fonts.displayBlack, fontSize: compact ? 14 : 22 }]}
+          style={[styles.name, { fontSize: compact ? 14 : 22 }]}
           numberOfLines={2}
         />
         {!compact && (

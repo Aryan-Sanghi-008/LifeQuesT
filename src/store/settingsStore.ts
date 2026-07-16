@@ -7,6 +7,7 @@ import { isMmkvAvailable } from '@utils/nativeAvailability';
 import type { ColorBlindMode } from '@theme/colorBlind';
 import type { ThemeSkinId } from '@theme/themeSkins';
 import { migrateThemeSkinId } from '@theme/themeSkins';
+import { migrateEquippedSoundPackId } from '@data/soundPacks';
 
 type SettingsStorage = {
   getString: (key: string) => string | undefined;
@@ -86,7 +87,9 @@ export async function hydrateSettingsStore(): Promise<void> {
     appThemeId: migrateThemeSkinId(load('appThemeId', DEFAULTS.appThemeId)),
     equippedEventSkinId: load<string | null>('equippedEventSkinId', DEFAULTS.equippedEventSkinId),
     equippedNameFontId: load<string | null>('equippedNameFontId', DEFAULTS.equippedNameFontId),
-    equippedSoundPackId: load<string | null>('equippedSoundPackId', DEFAULTS.equippedSoundPackId),
+    equippedSoundPackId: migrateEquippedSoundPackId(
+      load<string | null>('equippedSoundPackId', DEFAULTS.equippedSoundPackId),
+    ),
     equippedProfileFrameId: load<string | null>('equippedProfileFrameId', DEFAULTS.equippedProfileFrameId),
     equippedTombstoneId: load<string | null>('equippedTombstoneId', DEFAULTS.equippedTombstoneId),
     onboardingComplete: load('onboardingComplete', DEFAULTS.onboardingComplete),
@@ -232,7 +235,9 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
   appThemeId: migrateThemeSkinId(load('appThemeId', DEFAULTS.appThemeId)),
   equippedEventSkinId: load<string | null>('equippedEventSkinId', DEFAULTS.equippedEventSkinId),
   equippedNameFontId: load<string | null>('equippedNameFontId', DEFAULTS.equippedNameFontId),
-  equippedSoundPackId: load<string | null>('equippedSoundPackId', DEFAULTS.equippedSoundPackId),
+  equippedSoundPackId: migrateEquippedSoundPackId(
+    load<string | null>('equippedSoundPackId', DEFAULTS.equippedSoundPackId),
+  ),
   equippedProfileFrameId: load<string | null>('equippedProfileFrameId', DEFAULTS.equippedProfileFrameId),
   equippedTombstoneId: load<string | null>('equippedTombstoneId', DEFAULTS.equippedTombstoneId),
   onboardingComplete: load('onboardingComplete', DEFAULTS.onboardingComplete),
@@ -297,12 +302,14 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
     set({ equippedEventSkinId: v });
   },
   setEquippedNameFontId: (v) => {
-    save('equippedNameFontId', v ?? '');
-    set({ equippedNameFontId: v });
+    const resolved = !v || v === 'font_default' ? null : v;
+    save('equippedNameFontId', resolved ?? '');
+    set({ equippedNameFontId: resolved });
   },
   setEquippedSoundPackId: (v) => {
-    save('equippedSoundPackId', v ?? '');
-    set({ equippedSoundPackId: v });
+    const migrated = migrateEquippedSoundPackId(v);
+    save('equippedSoundPackId', migrated ?? '');
+    set({ equippedSoundPackId: migrated });
   },
   setEquippedProfileFrameId: (v) => {
     save('equippedProfileFrameId', v ?? '');

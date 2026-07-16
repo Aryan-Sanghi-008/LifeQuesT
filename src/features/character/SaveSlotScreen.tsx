@@ -128,7 +128,7 @@ const createStyles = ({ colors, fonts, spacing }: ReturnType<typeof useTheme>) =
   sub: { fontFamily: fonts.body, fontSize: 13, color: colors.t3, marginBottom: spacing.xl },
   card: { marginBottom: spacing.md },
   row: { flexDirection: 'row', alignItems: 'center' },
-  slotName: { fontFamily: fonts.bodySemiBold, fontSize: 16, color: colors.t1 },
+  slotName: { fontSize: 16, color: colors.t1 },
   slotMeta: { fontFamily: fonts.body, fontSize: 12, color: colors.t4, marginTop: 2 },
   delete: { fontFamily: fonts.bodySemiBold, fontSize: 12, color: colors.crimson },
 });

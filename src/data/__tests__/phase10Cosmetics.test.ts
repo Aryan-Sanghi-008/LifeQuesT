@@ -19,7 +19,7 @@ describe('nameFonts', () => {
 
 describe('soundPacks', () => {
   it('maps sound pack cosmetic ids', () => {
-    expect(resolveSoundPackId('sound_pack_lofi')).toBe('lofi');
+    expect(resolveSoundPackId('sound_pack_lofi')).toBe('minimal');
   });
 });
 

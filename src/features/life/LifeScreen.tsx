@@ -885,10 +885,7 @@ export function LifeScreen() {
           <View style={styles.headerMeta} ref={headingRef} accessible accessibilityRole="header">
             <CharacterNameText
               name={character.name}
-              style={[
-                styles.name,
-                { color: colors.t1, fontFamily: fonts.bodyBold },
-              ]}
+              style={[styles.name, { color: colors.t1 }]}
             />
             <View style={styles.jobRow}>
               {character.job ? (

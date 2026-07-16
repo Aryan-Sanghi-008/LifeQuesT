@@ -292,7 +292,7 @@ export const createHeroStyles = ({
       fontSize: 8,
       letterSpacing: 0.8,
     },
-    heroName: { fontFamily: fonts.displayBold, fontSize: 28, color: colors.t1 },
+    heroName: { fontSize: 28, color: colors.t1 },
     heroSub: { fontFamily: fonts.body, fontSize: 13, color: colors.t3 },
     heroBadges: {
       flexDirection: "row",

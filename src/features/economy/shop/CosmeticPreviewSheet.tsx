@@ -10,6 +10,8 @@ import { TombstoneHero } from '@features/character/death/TombstoneHero';
 import { playSoundPackPreview } from '@services/audio';
 import { useSettingsStore } from '@store/settingsStore';
 import { getPlusFrameColor } from '@data/cosmeticCatalog';
+import { applyFontPack, resolveFontPackId } from '@data/fontPacks';
+import { FONTS as BASE_FONTS } from '@theme/themes';
 import { useToastStore } from '@store/toastStore';
 
 interface Props {
@@ -107,15 +109,35 @@ export function CosmeticPreviewSheet({
       );
     }
     if (item.category === 'name_font') {
+      const previewFonts = applyFontPack(BASE_FONTS, resolveFontPackId(item.id));
       return (
-        <View style={{ alignItems: 'center', padding: spacing.lg }}>
+        <View style={{ alignItems: 'center', padding: spacing.lg, width: '100%' }}>
           <CharacterNameText
             name="Alex Rivera"
             forceFontId={item.id}
             style={{ fontSize: 28, color: colors.t1 }}
           />
-          <Text style={{ color: colors.t3, fontFamily: fonts.body, fontSize: 12, marginTop: 8 }}>
-            Your character name across the app
+          <Text
+            style={{
+              color: colors.t1,
+              fontFamily: previewFonts.displayBold,
+              fontSize: 18,
+              marginTop: 12,
+            }}
+          >
+            Age Up · Life Events
+          </Text>
+          <Text
+            style={{
+              color: colors.t3,
+              fontFamily: previewFonts.body,
+              fontSize: 13,
+              marginTop: 6,
+              textAlign: 'center',
+              lineHeight: 18,
+            }}
+          >
+            Typography updates across the app when equipped.
           </Text>
         </View>
       );

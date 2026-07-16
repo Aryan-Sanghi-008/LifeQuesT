@@ -21,6 +21,7 @@ import {
   migrateCosmeticIdList,
   getThemeCosmeticsByMode,
   getCosmeticsByCategory,
+  getCosmeticByIapProduct,
   isFreeBaselineCosmetic,
   type CosmeticItem,
 } from "@data/cosmeticCatalog";
@@ -119,12 +120,20 @@ export function ShopScreen() {
       case 'event_skin':
         return equippedEventSkinId === item.id;
       case 'name_font':
+        if (item.id === 'font_default') {
+          return !equippedNameFontId || equippedNameFontId === 'font_default';
+        }
         return equippedNameFontId === item.id;
-      case 'sound_pack':
+      case 'sound_pack': {
         if (item.id === 'sound_pack_classic') {
           return !equippedSoundPackId || equippedSoundPackId === 'sound_pack_classic';
         }
-        return equippedSoundPackId === item.id;
+        const active =
+          equippedSoundPackId === 'sound_pack_lofi' && item.id === 'sound_pack_minimal'
+            ? 'sound_pack_minimal'
+            : equippedSoundPackId;
+        return active === item.id;
+      }
       case 'tombstone':
         return equippedTombstoneId === item.id;
       case 'plus_frame':
@@ -138,6 +147,11 @@ export function ShopScreen() {
     const store = getShopStoreState();
     applyPurchaseToStore(productId, store);
     void store._persist();
+    const cosmetic = getCosmeticByIapProduct(productId);
+    if (cosmetic && (cosmetic.category === 'sound_pack' || cosmetic.category === 'name_font')) {
+      showToast(`${cosmetic.label} unlocked and equipped.`, 'success');
+      return;
+    }
     showToast('Purchase activated! Enjoy your benefits.', 'success');
   };
 
@@ -375,16 +389,13 @@ export function ShopScreen() {
     const item = previewCosmetic.item;
     if (item.iapProductId) {
       setPreviewCosmetic(null);
+      // applyPurchaseToStore / purchase listener auto-equips cosmetics
       await buy(item.iapProductId);
-      applyCosmetic(item.id);
       return;
     }
     const result = purchaseCosmetic(item.id);
     showToast(result.message, result.ok ? 'success' : 'error');
-    if (result.ok) {
-      applyCosmetic(item.id);
-      setPreviewCosmetic(null);
-    }
+    if (result.ok) setPreviewCosmetic(null);
   };
 
   const starterOfferActive = shouldShowStarterOffer();
@@ -745,7 +756,7 @@ export function ShopScreen() {
                   </FadeInView>
                 ))}
               </View>
-              <Text style={styles.gridLabel}>NAME FONTS</Text>
+              <Text style={styles.gridLabel}>FONT PACKS</Text>
               <View style={styles.productGrid}>
                 {nameFontCosmetics.map((item, i) => (
                   <FadeInView key={item.id} delay={i * 60 + 100} style={{ width: "48%" }}>

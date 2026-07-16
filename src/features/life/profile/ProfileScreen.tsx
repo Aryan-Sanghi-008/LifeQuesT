@@ -95,7 +95,7 @@ export function ProfileScreen() {
         subtitle={
           <CharacterNameText
             name={character.name}
-            style={{ fontSize: 12, color: colors.t3, fontFamily: fonts.body }}
+            style={{ fontSize: 12, color: colors.t3 }}
           />
         }
         accent={colors.catMilestone}

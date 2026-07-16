@@ -136,6 +136,7 @@ const PACK_SOUND_FILES: Record<Exclude<SoundPackId, 'default'>, Partial<Record<S
 const soundPool: Partial<Record<string, AudioPlayer>> = {};
 let sessionReady = false;
 let activePackId: SoundPackId = 'default';
+let loggedFirstPlay = false;
 
 function poolKey(effect: SoundEffect, packId: SoundPackId): string {
   return `${packId}:${effect}`;
@@ -148,8 +149,12 @@ function getActiveSoundPackId(): SoundPackId {
 
 function resolveModuleId(effect: SoundEffect, packId: SoundPackId): number {
   if (packId !== 'default') {
-    const packFile = PACK_SOUND_FILES[packId][effect];
+    const packFiles = PACK_SOUND_FILES[packId];
+    const packFile = packFiles?.[effect];
     if (packFile) return packFile;
+    if (__DEV__) {
+      console.warn(`[Audio] pack "${packId}" missing "${effect}" — falling back to classic`);
+    }
   }
   return SOUND_FILES[effect];
 }
@@ -214,6 +219,10 @@ export async function playSound(effect: SoundEffect): Promise<void> {
   await ensureSession();
 
   try {
+    if (__DEV__ && !loggedFirstPlay) {
+      loggedFirstPlay = true;
+      console.log(`[Audio] first play effect=${effect} pack=${packId}`);
+    }
     const player = await getOrCreateAsync(effect, packId);
     player.volume = Math.max(0, Math.min(1, masterVolume * profile.volumeScale));
     player.muted = false;

@@ -68,6 +68,13 @@ export const FREE_BASELINE_COSMETICS: CosmeticItem[] = [
     description: 'Original LifeQuest UI sounds',
     previewColor: '#64748B',
   },
+  {
+    id: 'font_default',
+    category: 'name_font',
+    label: 'Default',
+    description: 'Standard LifeQuest typography across the app',
+    previewColor: '#64748B',
+  },
 ];
 
 export function isFreeBaselineCosmetic(id: string): boolean {
@@ -141,7 +148,7 @@ export const COSMETIC_ITEMS: CosmeticItem[] = [
     id: 'font_serif',
     category: 'name_font',
     label: 'Serif',
-    description: 'Elegant serif name style',
+    description: 'Elegant serif typography across the app',
     gemCost: 10,
     iapProductId: 'cosmetic_font_serif',
     fallbackPriceLabel: '$0.49',
@@ -151,7 +158,7 @@ export const COSMETIC_ITEMS: CosmeticItem[] = [
     id: 'font_script',
     category: 'name_font',
     label: 'Script',
-    description: 'Italic script name style',
+    description: 'Italic script typography across the app',
     gemCost: 10,
     iapProductId: 'cosmetic_font_script',
     fallbackPriceLabel: '$0.49',
@@ -161,7 +168,7 @@ export const COSMETIC_ITEMS: CosmeticItem[] = [
     id: 'font_mono',
     category: 'name_font',
     label: 'Mono',
-    description: 'Monospace name style',
+    description: 'Monospace typography across the app',
     gemCost: 10,
     iapProductId: 'cosmetic_font_mono',
     fallbackPriceLabel: '$0.49',

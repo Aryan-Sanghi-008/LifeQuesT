@@ -17,6 +17,7 @@ import { scaleFontSizes } from "./a11y";
 import { applyColorBlindMode } from "./colorBlind";
 import { useFontScale } from "@hooks/useFontScale";
 import { useAccessibilityPreferences } from "@hooks/useAccessibilityPreferences";
+import { applyFontPack, resolveFontPackId } from "@data/fontPacks";
 
 export function useTheme() {
   const colorScheme = useSettingsStore((s) => s.colorScheme);
@@ -24,6 +25,7 @@ export function useTheme() {
   const appThemeId = migrateThemeSkinId(appThemeIdRaw);
   const colorBlindMode = useSettingsStore((s) => s.colorBlindMode);
   const manualReducedMotion = useSettingsStore((s) => s.reducedMotion);
+  const equippedNameFontId = useSettingsStore((s) => s.equippedNameFontId);
   const systemScheme = useNativeColorScheme();
   const fontScale = useFontScale();
   const { systemReduceMotion, highTextContrast } = useAccessibilityPreferences();
@@ -42,11 +44,12 @@ export function useTheme() {
   const reducedMotion = systemReduceMotion || manualReducedMotion;
   const skin = getThemeSkin(appThemeId);
   const skinActive = !!skin && ((skin.mode === "dark") === isDark);
+  const fonts = applyFontPack(FONTS, resolveFontPackId(equippedNameFontId));
 
   return {
     isDark,
     colors,
-    fonts: FONTS,
+    fonts,
     fontScale,
     scaledFonts: scaleFontSizes(fontScale),
     highContrast: highTextContrast,

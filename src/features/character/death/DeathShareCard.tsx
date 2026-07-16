@@ -42,7 +42,7 @@ export function DeathShareCard({ character, deathAge, score, country }: Props) {
           <Text style={[styles.brand, { color: colors.gold, fontFamily: fonts.bodyBold }]}>LIFEQUESTTM</Text>
           <CharacterNameText
             name={character.name}
-            style={[styles.shareName, { color: '#FFFFFF', fontFamily: fonts.displayBlack }]}
+            style={[styles.shareName, { color: '#FFFFFF' }]}
           />
           <Text style={[styles.shareAge, { color: colors.t3, fontFamily: fonts.body }]}>
             {character.birthYear} – {character.birthYear + deathAge} · Aged {deathAge}

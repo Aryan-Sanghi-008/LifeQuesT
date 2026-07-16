@@ -3,6 +3,7 @@ import { getFirestoreDb } from '@services/firebaseClient';
 import type { UserEntitlements } from '@utils/entitlementGrants';
 import type { CloudSettings } from '@services/settingsSync';
 import { migrateThemeSkinId } from '@theme/themeSkins';
+import { migrateEquippedSoundPackId } from '@data/soundPacks';
 
 export interface UserBootstrapResult {
   entitlements: UserEntitlements | null;
@@ -59,10 +60,13 @@ function parseSettings(raw: unknown): Partial<CloudSettings> | null {
     settings.equippedEventSkinId = s.equippedEventSkinId as string | null;
   }
   if (typeof s.equippedNameFontId === 'string' || s.equippedNameFontId === null) {
-    settings.equippedNameFontId = s.equippedNameFontId as string | null;
+    const fontId = s.equippedNameFontId as string | null;
+    settings.equippedNameFontId = !fontId || fontId === 'font_default' ? null : fontId;
   }
   if (typeof s.equippedSoundPackId === 'string' || s.equippedSoundPackId === null) {
-    settings.equippedSoundPackId = s.equippedSoundPackId as string | null;
+    settings.equippedSoundPackId = migrateEquippedSoundPackId(
+      s.equippedSoundPackId as string | null,
+    );
   }
   if (typeof s.equippedProfileFrameId === 'string' || s.equippedProfileFrameId === null) {
     settings.equippedProfileFrameId = s.equippedProfileFrameId as string | null;
