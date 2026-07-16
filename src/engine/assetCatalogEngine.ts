@@ -4,6 +4,7 @@ import { getVehicleById, type VehicleDef } from '../data/vehicles';
 import { getInvestmentById, type InvestmentDef } from '../data/investments';
 import { getCollectibleById } from '../data/collectibles';
 import { getInstrumentById } from '../data/marketInstruments';
+import { PROPERTY_MAP } from '../data/properties';
 import { MAX_LTV } from './financingEngine';
 
 export function scaleVehiclePrice(def: VehicleDef, countryCode: string): number {
@@ -129,9 +130,27 @@ export function tickCatalogInvestment(
 
 export function getVehicleHappinessBonus(assets: Asset[]): number {
   return assets
-    .filter((a) => a.type === 'vehicle' && a.catalogId)
+    .filter((a) => a.type === 'vehicle' && a.catalogId && a.equipped)
     .reduce((sum, a) => {
       const def = getVehicleById(a.catalogId!);
+      return sum + (def?.happinessBonus ?? 0);
+    }, 0);
+}
+
+export function getCollectibleHappinessBonus(assets: Asset[]): number {
+  return assets
+    .filter((a) => a.type === 'collectible' && a.catalogId && a.equipped)
+    .reduce((sum, a) => {
+      const def = getCollectibleById(a.catalogId!);
+      return sum + (def?.happinessBonus ?? 0);
+    }, 0);
+}
+
+export function getEquippedPropertyHappinessBonus(assets: Asset[]): number {
+  return assets
+    .filter((a) => a.type === 'property' && a.equipped && a.propertyDefId)
+    .reduce((sum, a) => {
+      const def = PROPERTY_MAP[a.propertyDefId!];
       return sum + (def?.happinessBonus ?? 0);
     }, 0);
 }

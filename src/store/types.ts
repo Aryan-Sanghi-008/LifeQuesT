@@ -148,6 +148,10 @@ export interface GameStore {
   ) => { ok: boolean; message: string };
   purchaseCollectible: (collectibleId: string) => { ok: boolean; message: string };
   purchaseInsurance: (productId: string) => { ok: boolean; message: string };
+  sellInsurance: (policyId: string) => { ok: boolean; message: string };
+  setInsuranceEquipped: (policyId: string, equipped: boolean) => { ok: boolean; message: string };
+  setAssetEquipped: (assetId: string, equipped: boolean) => { ok: boolean; message: string };
+  setBusinessEquipped: (businessId: string, equipped: boolean) => { ok: boolean; message: string };
   investAngel: (opportunityId: string) => { ok: boolean; message: string };
   refreshAngelDeals: () => void;
   renovateProperty: (assetId: string) => { ok: boolean; message: string };
@@ -184,8 +188,17 @@ export interface GameStore {
   repayDebt: (amount: number) => { ok: boolean; message: string };
   setWill: (will: WillDetails) => { ok: boolean; message?: string };
   playAsHeir: (heirId: string) => { ok: boolean; message?: string };
-  createSocialPost: (content: string) => { ok: boolean; message: string };
+  createSocialPost: (
+    content: string,
+    options?: { platformId?: string; contentType?: string; marketingSpend?: number },
+  ) => { ok: boolean; message: string };
   practiceHobby: (hobbyId: string) => { ok: boolean; message: string };
+  competeHobby: (hobbyId: string, competitionId: string) => { ok: boolean; message: string };
+  hireSocialStaff: (platformId: string, role: string) => { ok: boolean; message: string };
+  runSocialMonetization: (
+    platformId: string,
+    kind: 'ads' | 'sponsorship' | 'brand_deal' | 'super_thanks',
+  ) => { ok: boolean; message: string };
   careForPet: (
     personId: string,
     action: "feed" | "train" | "vet" | "play",

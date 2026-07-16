@@ -43,6 +43,10 @@ export interface EconomySlice {
   purchaseAsset: (asset: Omit<Asset, "id" | "purchasedAge">) => boolean;
   purchaseCollectible: (collectibleId: string) => { ok: boolean; message: string };
   purchaseInsurance: (productId: string) => { ok: boolean; message: string };
+  sellInsurance: (policyId: string) => { ok: boolean; message: string };
+  setInsuranceEquipped: (policyId: string, equipped: boolean) => { ok: boolean; message: string };
+  setAssetEquipped: (assetId: string, equipped: boolean) => { ok: boolean; message: string };
+  setBusinessEquipped: (businessId: string, equipped: boolean) => { ok: boolean; message: string };
   investAngel: (opportunityId: string) => { ok: boolean; message: string };
   refreshAngelDeals: () => void;
   renovateProperty: (assetId: string) => { ok: boolean; message: string };
@@ -262,8 +266,6 @@ export const createEconomySlice: StateCreator<
     if (!character) return { ok: false, message: "No character." };
     const product = getInsuranceProduct(productId);
     if (!product) return { ok: false, message: "Product not found." };
-    const existing = (character.insurancePolicies ?? []).some((p) => p.line === product.line);
-    if (existing) return { ok: false, message: `Already have ${product.line} cover.` };
     const policy = createPolicy(product, character.age, character.countryCode);
     if (character.bankBalance < policy.annualPremium) {
       return { ok: false, message: "Need cash for the first premium." };
@@ -282,6 +284,80 @@ export const createEconomySlice: StateCreator<
     });
     void get()._persist();
     return { ok: true, message: `Purchased ${product.name}.` };
+  },
+
+  sellInsurance: (policyId) => {
+    const { character } = get();
+    if (!character) return { ok: false, message: "No character." };
+    const policy = (character.insurancePolicies ?? []).find((p) => p.id === policyId);
+    if (!policy) return { ok: false, message: "Policy not found." };
+    const refund = Math.round(policy.annualPremium * 0.25);
+    set((s) => {
+      if (!s.character) return;
+      s.character.insurancePolicies = (s.character.insurancePolicies ?? []).filter(
+        (p) => p.id !== policyId,
+      );
+      s.character.bankBalance += refund;
+    });
+    void get()._persist();
+    return { ok: true, message: `Cancelled policy. Refund ${refund}.` };
+  },
+
+  setInsuranceEquipped: (policyId, equipped) => {
+    const { character } = get();
+    if (!character) return { ok: false, message: "No character." };
+    const idx = (character.insurancePolicies ?? []).findIndex((p) => p.id === policyId);
+    if (idx < 0) return { ok: false, message: "Policy not found." };
+    set((s) => {
+      if (!s.character?.insurancePolicies) return;
+      s.character.insurancePolicies[idx] = {
+        ...s.character.insurancePolicies[idx],
+        equipped,
+      };
+    });
+    void get()._persist();
+    return { ok: true, message: equipped ? "Policy equipped." : "Policy unequipped — premiums paused." };
+  },
+
+  setAssetEquipped: (assetId, equipped) => {
+    const { character } = get();
+    if (!character) return { ok: false, message: "No character." };
+    const asset = character.assets.find((a) => a.id === assetId);
+    if (!asset) return { ok: false, message: "Asset not found." };
+    set((s) => {
+      if (!s.character) return;
+      s.character.assets = s.character.assets.map((a) => {
+        if (a.id === assetId) return { ...a, equipped };
+        // One daily driver / display piece / primary home of same type
+        if (
+          equipped &&
+          a.type === asset.type &&
+          (a.type === 'vehicle' || a.type === 'collectible' || a.type === 'property')
+        ) {
+          return { ...a, equipped: false };
+        }
+        return a;
+      });
+    });
+    void get()._persist();
+    return { ok: true, message: equipped ? "Equipped." : "Unequipped." };
+  },
+
+  setBusinessEquipped: (businessId, equipped) => {
+    const { character } = get();
+    if (!character) return { ok: false, message: "No character." };
+    if (!character.businesses.some((b) => b.id === businessId)) {
+      return { ok: false, message: "Business not found." };
+    }
+    set((s) => {
+      if (!s.character) return;
+      s.character.businesses = s.character.businesses.map((b) => ({
+        ...b,
+        equipped: b.id === businessId ? equipped : equipped ? false : b.equipped,
+      }));
+    });
+    void get()._persist();
+    return { ok: true, message: equipped ? "Business featured." : "Business unfeatured." };
   },
 
   investAngel: (opportunityId) => {

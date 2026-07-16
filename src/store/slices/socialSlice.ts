@@ -9,15 +9,33 @@ import {
   rollInteraction,
   getInteraction,
 } from "../../engine/peopleEngine";
-import { createPost, applyPostToCharacter } from "../../engine/socialMediaEngine";
-import { practiceHobby as runPracticeHobby } from "../../engine/hobbyEngine";
+import {
+  createPost,
+  applyPostToCharacter,
+  hireStaff,
+  runMonetization,
+} from "../../engine/socialMediaEngine";
+import {
+  practiceHobby as runPracticeHobby,
+  competeHobby as runCompeteHobby,
+} from "../../engine/hobbyEngine";
 import { careForPet, initPetStats } from "../../engine/petEngine";
 import { applyEffect } from "../../engine/economyEngine";
+import type { SocialPlatformId, SocialStaffRole } from "../../types";
 
 export interface SocialSlice {
   getClassmates: () => Person[];
-  createSocialPost: (content: string) => { ok: boolean; message: string };
+  createSocialPost: (
+    content: string,
+    options?: { platformId?: string; contentType?: string; marketingSpend?: number },
+  ) => { ok: boolean; message: string };
   practiceHobby: (hobbyId: string) => { ok: boolean; message: string };
+  competeHobby: (hobbyId: string, competitionId: string) => { ok: boolean; message: string };
+  hireSocialStaff: (platformId: string, role: string) => { ok: boolean; message: string };
+  runSocialMonetization: (
+    platformId: string,
+    kind: 'ads' | 'sponsorship' | 'brand_deal' | 'super_thanks',
+  ) => { ok: boolean; message: string };
   careForPet: (
     personId: string,
     action: "feed" | "train" | "vet" | "play",
@@ -40,17 +58,25 @@ export const createSocialSlice: StateCreator<
     return getClassmates(character.people);
   },
 
-  createSocialPost: (content) => {
+  createSocialPost: (content, options) => {
     const { character } = get();
     if (!character) return { ok: false, message: "No character." };
-    const { post } = createPost(character, content);
+    const result = createPost(character, content, options);
+    if (result.error || !result.post) {
+      return { ok: false, message: result.error ?? "Could not post." };
+    }
+    const post = result.post;
     set((s) => {
       if (!s.character) return;
       const patch = applyPostToCharacter(s.character, post);
       Object.assign(s.character, patch);
     });
     void get()._persist();
-    return { ok: true, message: `Posted! +${post.followerDelta} followers.` };
+    const likes = post.metrics?.likes ?? post.virality;
+    return {
+      ok: true,
+      message: `Posted! +${post.followerDelta} followers · ${likes} likes.`,
+    };
   },
 
   practiceHobby: (hobbyId) => {
@@ -58,7 +84,7 @@ export const createSocialSlice: StateCreator<
     if (!character) return { ok: false, message: "No character." };
     const result = runPracticeHobby(character, hobbyId);
     if (!result)
-      return { ok: false, message: "Cannot practice this hobby now." };
+      return { ok: false, message: "Already practiced this year (or locked)." };
     set((s) => {
       if (!s.character) return;
       s.character.hobbyProgress = {
@@ -68,10 +94,67 @@ export const createSocialSlice: StateCreator<
       s.character.stats = { ...s.character.stats, ...result.statPatch };
     });
     void get()._persist();
+    const unlockMsg = result.newUnlocks.length
+      ? ` Unlocked: ${result.newUnlocks.join(", ")}.`
+      : "";
     return {
       ok: true,
-      message: `Leveled up! Now level ${result.progress.level}.`,
+      message: `+${result.xpGained} XP → Level ${result.progress.level}.${unlockMsg}`,
     };
+  },
+
+  competeHobby: (hobbyId, competitionId) => {
+    const { character } = get();
+    if (!character) return { ok: false, message: "No character." };
+    const result = runCompeteHobby(character, hobbyId, competitionId);
+    if (!result.ok) return { ok: false, message: result.message };
+    set((s) => {
+      if (!s.character || !result.progress) return;
+      s.character.hobbyProgress = {
+        ...s.character.hobbyProgress,
+        [hobbyId]: result.progress,
+      };
+      if (result.bankBalance !== undefined) {
+        s.character.bankBalance = result.bankBalance;
+      }
+      if (result.statPatch) {
+        s.character.stats = { ...s.character.stats, ...result.statPatch };
+      }
+    });
+    void get()._persist();
+    return { ok: true, message: result.message };
+  },
+
+  hireSocialStaff: (platformId, role) => {
+    const { character } = get();
+    if (!character) return { ok: false, message: "No character." };
+    const result = hireStaff(
+      character,
+      platformId as SocialPlatformId,
+      role as SocialStaffRole,
+    );
+    if (!result.ok) return { ok: false, message: result.message };
+    set((s) => {
+      if (!s.character || !result.state) return;
+      s.character.socialMedia = result.state;
+      if (result.bankBalance !== undefined) s.character.bankBalance = result.bankBalance;
+    });
+    void get()._persist();
+    return { ok: true, message: result.message };
+  },
+
+  runSocialMonetization: (platformId, kind) => {
+    const { character } = get();
+    if (!character) return { ok: false, message: "No character." };
+    const result = runMonetization(character, platformId as SocialPlatformId, kind);
+    if (!result.ok) return { ok: false, message: result.message };
+    set((s) => {
+      if (!s.character || !result.state) return;
+      s.character.socialMedia = result.state;
+      if (result.bankBalance !== undefined) s.character.bankBalance = result.bankBalance;
+    });
+    void get()._persist();
+    return { ok: true, message: result.message };
   },
 
   careForPet: (personId, action) => {

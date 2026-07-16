@@ -17,16 +17,37 @@ export async function submitLeaderboardScore(payload: {
   lifeAge: number;
   country: string;
   displayName: string;
+  characterName?: string;
   avatarSeed: string;
   seasonId?: string;
   netWorth?: number;
+  causeOfDeath?: string;
+  peakNetWorth?: number;
+  careerTitle?: string;
+  karma?: number;
+  prestigeLevel?: number;
 }): Promise<void> {
   const fn = getFunctionsInstance();
   if (!fn) return;
   const callable = httpsCallable(fn, 'updateLeaderboard');
+  const seasonId = payload.seasonId ?? getCurrentSeason().id;
   await callable({
     ...payload,
-    seasonId: payload.seasonId ?? getCurrentSeason().id,
+    seasonId,
+    lifeSnapshot: {
+      characterName: payload.characterName ?? payload.displayName,
+      displayName: payload.displayName,
+      country: payload.country,
+      lifeAge: payload.lifeAge,
+      causeOfDeath: payload.causeOfDeath,
+      peakNetWorth: payload.peakNetWorth ?? payload.netWorth ?? 0,
+      careerTitle: payload.careerTitle,
+      karma: payload.karma ?? 0,
+      prestigeLevel: payload.prestigeLevel,
+      avatarSeed: payload.avatarSeed,
+      netWorth: payload.netWorth ?? 0,
+      score: payload.score,
+    },
   });
 }
 

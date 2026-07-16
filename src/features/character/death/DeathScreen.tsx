@@ -124,9 +124,15 @@ export function DeathScreen() {
         score,
         lifeAge: deathAge,
         country,
-        displayName: character.name,
+        displayName: useGameStore.getState().user?.displayName ?? character.name,
+        characterName: character.name,
         avatarSeed: character.avatarSeed,
         netWorth: computeNetWorth(character),
+        causeOfDeath: character.deathCause,
+        peakNetWorth: character.netWorthPeak,
+        careerTitle: character.career?.title ?? character.job,
+        karma: character.karma,
+        prestigeLevel: useGameStore.getState().globalPrestige?.prestigeLevel,
       });
       const uid = useGameStore.getState().user?.uid;
       const rank = uid ? await findPlayerRank(uid) : null;

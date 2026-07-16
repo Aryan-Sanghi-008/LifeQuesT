@@ -330,6 +330,8 @@ export function FinancesSection({ character }: { character: Character }) {
 export function StatsTab({ character }: { character: Character }) {
   const { colors } = useTheme();
   const styles = useThemedStyles(createSectionStyles);
+  const globalPrestige = useGameStore((s) => s.globalPrestige);
+  const user = useGameStore((s) => s.user);
 
   const {
     age,
@@ -346,6 +348,61 @@ export function StatsTab({ character }: { character: Character }) {
 
   return (
     <>
+      <View style={styles.section}>
+        <SectionLabel label="Account" />
+        <Card style={{ gap: 0 }}>
+          <LifeStatRow
+            icon={
+              <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                <Circle stroke={colors.gold} strokeWidth={2} cx="12" cy="12" r="10" />
+              </Svg>
+            }
+            label="Player"
+            value={user?.displayName ?? 'Guest'}
+          />
+          <Divider />
+          <LifeStatRow
+            icon={
+              <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                <Path
+                  stroke={colors.orchid}
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  d="M12 2l3 7h7l-5.5 4 2 7L12 16l-6.5 4 2-7L2 9h7z"
+                />
+              </Svg>
+            }
+            label="Prestige level"
+            value={globalPrestige?.prestigeLevel ?? 0}
+          />
+          <Divider />
+          <LifeStatRow
+            icon={
+              <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                <Path
+                  stroke={colors.sapphire}
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  d="M4 19V5M4 19h16M8 15v4M12 11v8M16 7v12"
+                />
+              </Svg>
+            }
+            label="Lives lived (account)"
+            value={globalPrestige?.totalLivesLived ?? 0}
+          />
+          <Divider />
+          <LifeStatRow
+            icon={
+              <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                <Circle stroke={colors.teal} strokeWidth={2} cx="12" cy="12" r="10" />
+              </Svg>
+            }
+            label="Lifetime followers (this life)"
+            value={formatCount(socialFollowers ?? 0)}
+          />
+        </Card>
+      </View>
+
       <FinancesSection character={character} />
 
       <View style={styles.section}>

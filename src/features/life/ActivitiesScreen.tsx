@@ -148,7 +148,7 @@ export function ActivitiesScreen() {
 
   const catMeta = getCatMeta(colors);
   const { countryCode, age } = character;
-  const eligibleHobbies = HOBBY_CATALOG.filter(h => age >= h.minAge).slice(0, 20);
+  const eligibleHobbies = HOBBY_CATALOG.filter(h => age >= h.minAge);
   const eligible = ACTIVITIES.filter(a => {
     if (character.age < a.minAge || character.age > a.maxAge) return false;
     if (filter !== 'all' && a.category !== filter) return false;

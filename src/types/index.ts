@@ -223,6 +223,8 @@ export interface HobbyProgress {
   xp: number;
   level: number;
   lastPracticedAge?: number;
+  lastCompetedAge?: number;
+  unlockedTags?: string[];
 }
 
 export type HobbyCategory =
@@ -237,6 +239,13 @@ export type HobbyCategory =
   | 'music'
   | 'other';
 
+export interface HobbyUnlock {
+  level: number;
+  tag: string;
+  label: string;
+  description: string;
+}
+
 export interface HobbyDef {
   id: string;
   label: string;
@@ -246,15 +255,72 @@ export interface HobbyDef {
   minAge: number;
   maxLevel: number;
   statEffect: Partial<CharacterStats>;
+  /** Annual cash / salary-style perk while leveled */
+  financePerkUsd?: number;
+  careerPerk?: string;
+  unlocks?: HobbyUnlock[];
+}
+
+export type SocialPlatformId =
+  | 'lifefeed'
+  | 'youtube'
+  | 'x'
+  | 'instagram'
+  | 'tiktok'
+  | 'linkedin'
+  | 'twitch'
+  | 'threads';
+
+export type SocialContentType = 'text' | 'photo' | 'video' | 'short' | 'live';
+
+export type SocialStaffRole = 'editor' | 'manager' | 'marketer';
+
+export interface SocialStaffMember {
+  id: string;
+  role: SocialStaffRole;
+  monthlyCost: number;
+  hiredAge: number;
+}
+
+export interface SocialPostMetrics {
+  likes: number;
+  views: number;
+  comments: number;
+  subsDelta: number;
 }
 
 export interface SocialPost {
   id: string;
   age: number;
-  platform: string;
+  platform: SocialPlatformId | string;
   content: string;
+  contentType?: SocialContentType;
   virality: number;
   followerDelta: number;
+  cost?: number;
+  metrics?: SocialPostMetrics;
+}
+
+export interface SocialPlatformAccount {
+  platformId: SocialPlatformId;
+  unlocked: boolean;
+  followers: number;
+  subscribers: number;
+  totalLikes: number;
+  totalViews: number;
+  totalComments: number;
+  earningsYtd: number;
+  expensesYtd: number;
+  posts: SocialPost[];
+  staff: SocialStaffMember[];
+  marketingBudgetMonthly: number;
+}
+
+export interface SocialMediaState {
+  /** Shared posting energy spent this age year */
+  energySpentThisAge: number;
+  energyAge: number;
+  platforms: Partial<Record<SocialPlatformId, SocialPlatformAccount>>;
 }
 
 export interface PetStats {
@@ -285,6 +351,8 @@ export interface Business {
   franchiseId?: string;
   industry?: string;
   risk?: number;
+  /** Featured business for fame/perk application */
+  equipped?: boolean;
 }
 
 // ─── Career ───────────────────────────────────────────────────────────────────
@@ -331,6 +399,8 @@ export interface Asset {
   renovationLevel?: number;
   rentalYieldPct?: number;
   instrumentKind?: string;
+  /** Equipped for annual perks (vehicle, collectible, featured property, etc.) */
+  equipped?: boolean;
 }
 
 export type InsuranceLine = 'health' | 'auto' | 'home' | 'life';
@@ -341,6 +411,9 @@ export interface InsurancePolicy {
   annualPremium: number;
   coveragePct: number;
   purchasedAge: number;
+  productId?: string;
+  /** Unequipped = no premium, no coverage */
+  equipped?: boolean;
 }
 
 export interface CreditFactors {
@@ -483,6 +556,8 @@ export interface Character {
   criminalRecord?: CriminalRecord;
   businesses: Business[];
   socialFollowers: number;
+  /** Multi-platform social media state (preferred). Legacy socialPosts still migrated. */
+  socialMedia?: SocialMediaState;
   avatarStyle?: AvatarStyleId;
   seasonXp?: number;
   unlockedAvatarStyles?: AvatarStyleId[];
@@ -840,6 +915,21 @@ export interface AppUser {
 
 // ─── Leaderboard ─────────────────────────────────────────────────────────────
 
+export interface LeaderboardLifeSnapshot {
+  characterName: string;
+  displayName: string;
+  country: string;
+  lifeAge: number;
+  causeOfDeath?: string;
+  peakNetWorth: number;
+  careerTitle?: string;
+  karma: number;
+  prestigeLevel?: number;
+  avatarSeed: string;
+  netWorth?: number;
+  score: number;
+}
+
 export interface LeaderboardEntry {
   uid: string;
   displayName: string;
@@ -847,6 +937,13 @@ export interface LeaderboardEntry {
   score: number;
   lifeAge: number;
   country: string;
+  characterName?: string;
+  causeOfDeath?: string;
+  peakNetWorth?: number;
+  careerTitle?: string;
+  karma?: number;
+  prestigeLevel?: number;
+  lifeSnapshot?: LeaderboardLifeSnapshot;
 }
 
 // ─── Save Slots ──────────────────────────────────────────────────────────────

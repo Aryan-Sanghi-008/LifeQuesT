@@ -7,7 +7,13 @@ import { useThemedStyles, useTheme } from '@theme';
 import { StatBar } from '@components/index';
 import { useGameStore } from '@store/gameStore';
 import { HOBBY_MAP } from '@data/hobbies';
-import { getHobbyProgress, canPracticeHobby, getEligibleCompetitions } from '@engine/hobbyEngine';
+import {
+  getHobbyProgress,
+  canPracticeHobby,
+  canCompeteHobby,
+  getEligibleCompetitions,
+} from '@engine/hobbyEngine';
+import { computePracticeXp as computeXpFromData } from '@data/hobbies';
 import { CAREER_PATHS } from '@data/careerPaths';
 import type { RootStackParamList } from '@/types';
 
@@ -16,17 +22,18 @@ export function HobbyDetailScreen() {
   const styles = useThemedStyles(createStyles);
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'HobbyDetail'>>();
-  const character = useGameStore(s => s.character);
-  const practiceHobby = useGameStore(s => s.practiceHobby);
+  const character = useGameStore((s) => s.character);
+  const practiceHobby = useGameStore((s) => s.practiceHobby);
+  const competeHobby = useGameStore((s) => s.competeHobby);
 
   const def = HOBBY_MAP[route.params.hobbyId];
 
-  // Hooks must run before early return
   const relatedCareers = useMemo(() => {
     if (!def) return [];
-    return CAREER_PATHS.filter(cp =>
-      cp.requirements?.requiredHobbyCategory === def.category &&
-      cp.requirements?.minHobbyLevel !== undefined,
+    return CAREER_PATHS.filter(
+      (cp) =>
+        cp.requirements?.requiredHobbyCategory === def.category &&
+        cp.requirements?.minHobbyLevel !== undefined,
     );
   }, [def]);
 
@@ -43,8 +50,10 @@ export function HobbyDetailScreen() {
 
   const progress = getHobbyProgress(character, def.id);
   const canPractice = canPracticeHobby(character, def.id);
+  const canCompete = canCompeteHobby(character, def.id);
   const xpInLevel = progress.xp % 100;
   const competitions = getEligibleCompetitions(def.id, progress.level);
+  const nextXp = computeXpFromData(def, progress.level, character.stats);
 
   const handlePractice = () => {
     const result = practiceHobby(def.id);
@@ -59,25 +68,67 @@ export function HobbyDetailScreen() {
         <Text style={styles.desc}>{def.description}</Text>
 
         <View style={styles.levelCard}>
-          <Text style={styles.levelLabel}>Level {progress.level} / {def.maxLevel}</Text>
+          <Text style={styles.levelLabel}>
+            Level {progress.level} / {def.maxLevel}
+          </Text>
           <StatBar value={xpInLevel} color={colors.gold} height={10} />
-          <Text style={styles.xpText}>{progress.xp} total XP · +{def.xpPerSession} per session</Text>
+          <Text style={styles.xpText}>
+            {progress.xp} total XP · ~+{nextXp} next practice (once / year)
+          </Text>
+          {def.careerPerk ? (
+            <Text style={styles.xpText}>Career: {def.careerPerk}</Text>
+          ) : null}
+          {def.financePerkUsd ? (
+            <Text style={styles.xpText}>
+              Finance perk from Lv5: side income scales with level
+            </Text>
+          ) : null}
         </View>
+
+        {(def.unlocks?.length ?? 0) > 0 && (
+          <View style={styles.compCard}>
+            <Text style={styles.compLabel}>UNLOCKS</Text>
+            {def.unlocks!.map((u) => {
+              const got = (progress.unlockedTags ?? []).includes(u.tag) || progress.level >= u.level;
+              return (
+                <Text key={u.tag} style={styles.compItem}>
+                  {got ? '✓' : '○'} Lv{u.level} {u.label} — {u.description}
+                </Text>
+              );
+            })}
+          </View>
+        )}
 
         {competitions.length > 0 && (
           <View style={styles.compCard}>
-            <Text style={styles.compLabel}>UNLOCKED COMPETITIONS</Text>
-            {competitions.map(c => (
-              <Text key={c.id} style={styles.compItem}>{c.label} (Lv {c.minLevel}+)</Text>
+            <Text style={styles.compLabel}>COMPETE / PERFORM</Text>
+            {competitions.map((c) => (
+              <Pressable
+                key={c.id}
+                disabled={!canCompete}
+                onPress={() => {
+                  const r = competeHobby(def.id, c.id);
+                  Alert.alert(r.ok ? 'Result' : 'Cannot Compete', r.message);
+                }}
+                style={[styles.compBtn, !canCompete && { opacity: 0.4 }]}
+              >
+                <Text style={styles.compItem}>
+                  {c.label} (Lv{c.minLevel}+) · entry cost · prizes
+                </Text>
+              </Pressable>
             ))}
+            {!canCompete ? (
+              <Text style={styles.xpText}>
+                Compete once per year after Level 5 (and not already competed this age).
+              </Text>
+            ) : null}
           </View>
         )}
 
         {relatedCareers.length > 0 && (
           <View style={styles.careerCard}>
             <Text style={styles.careerLabel}>CAREER PATHS</Text>
-            <Text style={styles.careerHint}>Reach the required level to unlock these careers</Text>
-            {relatedCareers.map(cp => {
+            {relatedCareers.map((cp) => {
               const required = cp.requirements!.minHobbyLevel!;
               const unlocked = progress.level >= required;
               return (
@@ -87,12 +138,9 @@ export function HobbyDetailScreen() {
                       {cp.label}
                     </Text>
                     <Text style={styles.careerReq}>
-                      Level {required} required · {unlocked ? 'Unlocked!' : `${required - progress.level} more levels`}
+                      Level {required} · {unlocked ? 'Unlocked!' : `${required - progress.level} more`}
                     </Text>
                   </View>
-                  <Text style={[styles.careerLock, { color: unlocked ? colors.teal : colors.t4 }]}>
-                    {unlocked ? '✓' : '🔒'}
-                  </Text>
                 </View>
               );
             })}
@@ -105,7 +153,7 @@ export function HobbyDetailScreen() {
           style={[styles.btn, !canPractice && styles.btnDisabled]}
         >
           <Text style={styles.btnText}>
-            {canPractice ? 'Practice Today' : 'Already practiced this year'}
+            {canPractice ? `Practice (+~${nextXp} XP)` : 'Already practiced this year'}
           </Text>
         </Pressable>
 
@@ -117,66 +165,81 @@ export function HobbyDetailScreen() {
   );
 }
 
-const createStyles = ({ colors, fonts, spacing, radii }: ReturnType<typeof useTheme>) => StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: spacing.xl, gap: spacing.md },
-  category: { fontFamily: fonts.bodySemiBold, fontSize: 10, color: colors.gold, letterSpacing: 2 },
-  title: { fontFamily: fonts.displayBold, fontSize: 24, color: colors.t1 },
-  desc: { fontFamily: fonts.body, fontSize: 14, color: colors.t3, lineHeight: 20 },
-  levelCard: {
-    backgroundColor: colors.bgCard,
-    borderRadius: radii.md,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: spacing.sm,
-    marginTop: spacing.md,
-  },
-  levelLabel: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.t1 },
-  xpText: { fontFamily: fonts.body, fontSize: 12, color: colors.t4 },
-  compCard: {
-    backgroundColor: `${colors.emerald}10`,
-    borderRadius: radii.md,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: `${colors.emerald}30`,
-    gap: 4,
-  },
-  compLabel: { fontFamily: fonts.bodySemiBold, fontSize: 10, color: colors.emerald, letterSpacing: 1 },
-  compItem: { fontFamily: fonts.body, fontSize: 13, color: colors.t2 },
-  careerCard: {
-    backgroundColor: `${colors.sapphire}10`,
-    borderRadius: radii.md,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: `${colors.sapphire}30`,
-    gap: spacing.sm,
-  },
-  careerLabel: { fontFamily: fonts.bodySemiBold, fontSize: 10, color: colors.sapphire, letterSpacing: 1 },
-  careerHint: { fontFamily: fonts.body, fontSize: 12, color: colors.t4, marginBottom: 4 },
-  careerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.sm,
-    borderRadius: radii.sm,
-    backgroundColor: colors.bgCard,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  careerRowUnlocked: { borderColor: colors.teal },
-  careerInfo: { flex: 1, gap: 2 },
-  careerName: { fontFamily: fonts.bodySemiBold, fontSize: 14 },
-  careerReq: { fontFamily: fonts.body, fontSize: 11, color: colors.t4 },
-  careerLock: { fontSize: 18, marginLeft: spacing.sm },
-  btn: {
-    marginTop: spacing.lg,
-    padding: spacing.md,
-    borderRadius: radii.md,
-    backgroundColor: colors.gold,
-    alignItems: 'center',
-  },
-  btnDisabled: { opacity: 0.4 },
-  btnText: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.bg },
-  backBtn: { alignItems: 'center', padding: spacing.md },
-  backText: { fontFamily: fonts.body, fontSize: 14, color: colors.t3 },
-});
+const createStyles = ({ colors, fonts, spacing, radii }: ReturnType<typeof useTheme>) =>
+  StyleSheet.create({
+    root: { flex: 1, backgroundColor: colors.bg },
+    content: { padding: spacing.xl, gap: spacing.md },
+    category: {
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 10,
+      color: colors.gold,
+      letterSpacing: 2,
+    },
+    title: { fontFamily: fonts.displayBold, fontSize: 24, color: colors.t1 },
+    desc: { fontFamily: fonts.body, fontSize: 14, color: colors.t3, lineHeight: 20 },
+    levelCard: {
+      backgroundColor: colors.bgCard,
+      borderRadius: radii.md,
+      padding: spacing.lg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      gap: spacing.sm,
+      marginTop: spacing.md,
+    },
+    levelLabel: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.t1 },
+    xpText: { fontFamily: fonts.body, fontSize: 12, color: colors.t4 },
+    compCard: {
+      backgroundColor: `${colors.emerald}10`,
+      borderRadius: radii.md,
+      padding: spacing.md,
+      borderWidth: 1,
+      borderColor: `${colors.emerald}30`,
+      gap: 4,
+    },
+    compLabel: {
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 10,
+      color: colors.emerald,
+      letterSpacing: 1,
+    },
+    compItem: { fontFamily: fonts.body, fontSize: 13, color: colors.t2 },
+    compBtn: { paddingVertical: 6 },
+    careerCard: {
+      backgroundColor: `${colors.sapphire}10`,
+      borderRadius: radii.md,
+      padding: spacing.md,
+      borderWidth: 1,
+      borderColor: `${colors.sapphire}30`,
+      gap: spacing.sm,
+    },
+    careerLabel: {
+      fontFamily: fonts.bodySemiBold,
+      fontSize: 10,
+      color: colors.sapphire,
+      letterSpacing: 1,
+    },
+    careerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      padding: spacing.sm,
+      borderRadius: radii.sm,
+      backgroundColor: colors.bgCard,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    careerRowUnlocked: { borderColor: colors.teal },
+    careerInfo: { flex: 1, gap: 2 },
+    careerName: { fontFamily: fonts.bodySemiBold, fontSize: 14 },
+    careerReq: { fontFamily: fonts.body, fontSize: 11, color: colors.t4 },
+    btn: {
+      marginTop: spacing.lg,
+      padding: spacing.md,
+      borderRadius: radii.md,
+      backgroundColor: colors.gold,
+      alignItems: 'center',
+    },
+    btnDisabled: { opacity: 0.4 },
+    btnText: { fontFamily: fonts.bodySemiBold, fontSize: 15, color: colors.bg },
+    backBtn: { alignItems: 'center', padding: spacing.md },
+    backText: { fontFamily: fonts.body, fontSize: 14, color: colors.t3 },
+  });

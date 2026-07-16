@@ -19,7 +19,7 @@ import {
   AnnualEconomyResult,
 } from "./economyEngine";
 import { getCountryEconomy, getLifeExpectancy } from "../data/countryEconomy";
-import { scaleEventBankEffect } from "./countryScaleEngine";
+import { scaleEventBankEffect, scaleCountryAmount } from "./countryScaleEngine";
 import {
   applyTrackedCashDelta,
   appendFinanceLedger,
@@ -94,16 +94,19 @@ import {
   tickCatalogInvestment,
   tickCollectibleYear,
   getVehicleHappinessBonus,
+  getCollectibleHappinessBonus,
+  getEquippedPropertyHappinessBonus,
 } from "./assetCatalogEngine";
 import { tickMarketHoldings, tickAngelStake, generateAngelOpportunities } from "./marketEngine";
 import { tickCreditScore } from "./creditScoreEngine";
 import {
   totalAnnualPremiums,
   applyInsuranceCoverage,
+  lifeInsuranceEstatePayout,
 } from "../data/insurancePolicies";
 import { tickAllPets } from "./petEngine";
 import { tickSocialYear } from "./socialMediaEngine";
-import { tickHobbyDecay, tickHobbyCompetitions } from "./hobbyEngine";
+import { tickHobbyDecay, tickHobbyCompetitions, hobbyAnnualFinanceBonus } from "./hobbyEngine";
 import { getPersonalityMods } from "./personalityModifiers";
 import { advanceToTrial } from "./legalEngine";
 import { runAnnualSimulation } from "./simulationEngine";
@@ -431,10 +434,45 @@ export function runAgeUp(
     }
   }
 
-  // Insurance premiums (cash)
+  // Insurance premiums (cash) — equipped policies only
   const insurancePremiums = totalAnnualPremiums(character.insurancePolicies);
   if (insurancePremiums > 0) {
     pushCash(-insurancePremiums, "other", "Insurance premiums");
+  }
+
+  // Health / auto insurance claim events (equipped policies pay out)
+  const claimLogs: string[] = [];
+  if (Math.random() < 0.08 + Math.max(0, (50 - stats.health) / 400)) {
+    const medicalBill = scaleCountryAmount(8_000 + Math.random() * 22_000, countryCode, 'cost');
+    const { coveredLoss, payout } = applyInsuranceCoverage(
+      character.insurancePolicies,
+      'health',
+      medicalBill,
+    );
+    pushCash(-coveredLoss, 'other', 'Medical expenses');
+    if (payout > 0) pushCash(payout, 'other', 'Health insurance payout');
+    claimLogs.push(
+      payout > 0
+        ? `Hospital stay — insurance covered ${Math.round((payout / medicalBill) * 100)}% of the bill.`
+        : 'Hospital stay — paid medical expenses out of pocket.',
+    );
+    stats = { ...stats, health: clamp(stats.health - 4), happiness: clamp(stats.happiness - 2) };
+  }
+  if (character.assets.some((a) => a.type === 'vehicle') && Math.random() < 0.06) {
+    const crashLoss = scaleCountryAmount(5_000 + Math.random() * 25_000, countryCode, 'cost');
+    const { coveredLoss, payout } = applyInsuranceCoverage(
+      character.insurancePolicies,
+      'auto',
+      crashLoss,
+    );
+    pushCash(-coveredLoss, 'other', 'Vehicle accident costs');
+    if (payout > 0) pushCash(payout, 'other', 'Auto insurance payout');
+    claimLogs.push(
+      payout > 0
+        ? `Car accident — auto insurance paid out on repairs.`
+        : 'Car accident — repair costs hit your wallet.',
+    );
+    stats = { ...stats, health: clamp(stats.health - 3), happiness: clamp(stats.happiness - 3) };
   }
 
   // Tick properties with world appreciation multiplier and investments
@@ -560,22 +598,36 @@ export function runAgeUp(
     ...stats,
     happiness: clamp(
       applyPropertyHappinessBonus({ ...character, assets, stats })
-      + getVehicleHappinessBonus(assets),
+      + getVehicleHappinessBonus(assets)
+      + getCollectibleHappinessBonus(assets)
+      + getEquippedPropertyHappinessBonus(assets),
     ),
     wealth: clamp(computeNetWorth({ bankBalance, assets, debt }) / 10000),
   };
 
   // Disaster entries are deferred until newRecords is declared below
-  const disasterEntries: LifeEventRecord[] = disasterLogs.map((desc) => ({
-    id: `property_disaster_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
-    age: newAge,
-    title: "Property Damage",
-    description: desc,
-    statEffect: { happiness: -5 },
-    category: "financial" as const,
-    color: "#F59E0B",
-    timestamp: Date.now(),
-  }));
+  const disasterEntries: LifeEventRecord[] = [
+    ...disasterLogs.map((desc) => ({
+      id: `property_disaster_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      age: newAge,
+      title: "Property Damage",
+      description: desc,
+      statEffect: { happiness: -5 },
+      category: "financial" as const,
+      color: "#F59E0B",
+      timestamp: Date.now(),
+    })),
+    ...claimLogs.map((desc) => ({
+      id: `insurance_claim_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+      age: newAge,
+      title: "Insurance Claim",
+      description: desc,
+      statEffect: {},
+      category: "financial" as const,
+      color: "#0EA5E9",
+      timestamp: Date.now(),
+    })),
+  ];
 
   const economyRecords = buildEconomyLedgerRecords(
     newAge,
@@ -621,6 +673,13 @@ export function runAgeUp(
       ? "debt crisis"
       : (DEATH_CAUSES.find((d) => newAge >= d.minAge && newAge <= d.maxAge)
           ?.cause ?? "natural causes");
+    const lifePayout = lifeInsuranceEstatePayout(
+      character.insurancePolicies,
+      character.netWorthPeak ?? computeNetWorth({ bankBalance, assets, debt }),
+    );
+    if (lifePayout > 0) {
+      bankBalance += lifePayout;
+    }
     return {
       type: "death",
       patch: {
@@ -838,18 +897,32 @@ export function runAgeUp(
 
   const socialTick = tickSocialYear({
     ...character,
+    age: newAge,
     socialFollowers: character.socialFollowers,
+    socialMedia: character.socialMedia,
+    socialPosts: character.socialPosts,
   });
   let socialPosts = socialTick.posts;
   let socialFollowers = socialTick.socialFollowers;
+  const socialMediaState = socialTick.socialMedia;
   if (socialTick.followerIncome > 0) {
     pushCash(socialTick.followerIncome, "social", "Follower income");
+  }
+  if (socialTick.staffCost > 0) {
+    pushCash(-socialTick.staffCost, "social", "Social media staff payroll");
   }
 
   const hobbyProgress = tickHobbyDecay({
     ...character,
     hobbyProgress: character.hobbyProgress,
   });
+  const hobbyCash = hobbyAnnualFinanceBonus({
+    ...character,
+    hobbyProgress,
+  });
+  if (hobbyCash > 0) {
+    pushCash(hobbyCash, "other", "Hobby side income");
+  }
   const competitionResults = tickHobbyCompetitions({
     ...character,
     hobbyProgress,
@@ -1156,6 +1229,7 @@ export function runAgeUp(
     luckBoostsRemaining: luckBoosts,
     socialFollowers,
     socialPosts,
+    socialMedia: socialMediaState,
     gpa,
     heatLevel,
     hobbyProgress: mergedHobbyProgress,
