@@ -100,8 +100,21 @@ jest.mock('../hooks/useShopActions', () => ({
     purchaseMysterySpinWithGems: jest.fn(() => ({ ok: true, message: 'ok' })),
     purchaseCosmetic: jest.fn(() => ({ ok: true, message: 'ok' })),
     applyCosmetic: jest.fn(),
+    setAvatarStyle: jest.fn(),
   }),
   getShopStoreState: jest.fn(() => ({ _persist: jest.fn() })),
+}));
+
+jest.mock('@store/settingsStore', () => ({
+  useSettingsStore: (selector: (s: Record<string, unknown>) => unknown) =>
+    selector({
+      appThemeId: 'default',
+      equippedEventSkinId: null,
+      equippedNameFontId: null,
+      equippedSoundPackId: null,
+      equippedTombstoneId: null,
+      equippedProfileFrameId: null,
+    }),
 }));
 
 jest.mock('@store/toastStore', () => ({

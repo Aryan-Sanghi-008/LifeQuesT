@@ -52,7 +52,30 @@ const THEME_ITEMS: CosmeticItem[] = (Object.values(THEME_SKINS) as Array<(typeof
   mode: skin.mode,
 }));
 
+/** Free baseline cosmetics — always owned; equip clears paid selection */
+export const FREE_BASELINE_COSMETICS: CosmeticItem[] = [
+  {
+    id: 'theme_system_default',
+    category: 'theme',
+    label: 'System Default',
+    description: 'Built-in light and dark palette — no skin overlay',
+    previewColor: '#94A3B8',
+  },
+  {
+    id: 'sound_pack_classic',
+    category: 'sound_pack',
+    label: 'Classic',
+    description: 'Original LifeQuest UI sounds',
+    previewColor: '#64748B',
+  },
+];
+
+export function isFreeBaselineCosmetic(id: string): boolean {
+  return FREE_BASELINE_COSMETICS.some((c) => c.id === id);
+}
+
 export const COSMETIC_ITEMS: CosmeticItem[] = [
+  ...FREE_BASELINE_COSMETICS,
   ...THEME_ITEMS,
   {
     id: 'tombstone_gothic',
@@ -224,7 +247,32 @@ export function getCosmeticsByCategory(category: CosmeticCategory): CosmeticItem
 }
 
 export function getThemeCosmeticsByMode(mode: ThemeSkinMode): CosmeticItem[] {
-  return COSMETIC_ITEMS.filter((c) => c.category === 'theme' && c.mode === mode);
+  const paid = COSMETIC_ITEMS.filter((c) => c.category === 'theme' && c.mode === mode);
+  const baseline = FREE_BASELINE_COSMETICS.find((c) => c.id === 'theme_system_default');
+  // Show System Default once at the start of the Light themes grid only
+  if (mode === 'light' && baseline) return [baseline, ...paid];
+  return paid;
+}
+
+/** High-contrast text colors for shop cards tinted with a swatch */
+export function contrastTextForSwatch(previewColor: string): {
+  titleColor: string;
+  descColor: string;
+  ctaTextColor: string;
+} {
+  const hex = previewColor.replace('#', '');
+  if (hex.length < 6) {
+    return { titleColor: '#0F172A', descColor: '#334155', ctaTextColor: '#0F172A' };
+  }
+  const r = parseInt(hex.slice(0, 2), 16) / 255;
+  const g = parseInt(hex.slice(2, 4), 16) / 255;
+  const b = parseInt(hex.slice(4, 6), 16) / 255;
+  const toLin = (c: number) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const L = 0.2126 * toLin(r) + 0.7152 * toLin(g) + 0.0722 * toLin(b);
+  if (L > 0.45) {
+    return { titleColor: '#0F172A', descColor: '#334155', ctaTextColor: '#0F172A' };
+  }
+  return { titleColor: '#F8FAFC', descColor: '#CBD5E1', ctaTextColor: '#F8FAFC' };
 }
 
 export function getPlusFrameColor(frameCosmeticId?: string | null): string | null {

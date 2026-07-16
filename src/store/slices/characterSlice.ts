@@ -20,6 +20,7 @@ import { TRAITS, COUNTRIES } from "../../data/gameData";
 import { getStartingBalance } from "../../data/countryEconomy";
 import { scaleEventBankEffect } from "../../engine/countryScaleEngine";
 import { generateParents } from "@utils/npcGenerator";
+import { resolveAvatarStyleForGender } from "@utils/lifeStage";
 import { clamp } from "../../engine/economyEngine";
 import {
   saveCharacterLocal,
@@ -840,6 +841,19 @@ export const createCharacterSlice: StateCreator<
       );
       styles.forEach((style) => unlocked.add(style));
       s.character.unlockedAvatarStyles = Array.from(unlocked);
+      // Auto-equip pack: primary style with soft gender mapping
+      const primary = styles.find((st) => !st.includes('neutral')) ?? styles[0];
+      if (primary) {
+        const resolved = resolveAvatarStyleForGender(
+          primary,
+          s.character.gender,
+        ) as NonNullable<Character['avatarStyle']>;
+        if (unlocked.has(resolved)) {
+          s.character.avatarStyle = resolved;
+        } else if (unlocked.has(primary)) {
+          s.character.avatarStyle = primary;
+        }
+      }
     });
     void get()._persist();
   },

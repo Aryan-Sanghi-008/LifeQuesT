@@ -52,6 +52,7 @@ export function cosmeticIdForThemeSkin(skinId: ThemeSkinId): string | null {
 }
 
 export function themeSkinIdFromCosmetic(cosmeticId: string): ThemeSkinId {
+  if (cosmeticId === 'theme_system_default') return 'default';
   const stripped = cosmeticId.replace(/^theme_/, '');
   return migrateThemeSkinId(stripped);
 }

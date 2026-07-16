@@ -21,6 +21,7 @@ import {
   migrateCosmeticIdList,
   getThemeCosmeticsByMode,
   getCosmeticsByCategory,
+  isFreeBaselineCosmetic,
   type CosmeticItem,
 } from "@data/cosmeticCatalog";
 import {
@@ -28,6 +29,7 @@ import {
   AVATAR_PACK_CATALOG,
   MYSTERY_SPIN_CATALOG,
   SCENARIO_PACK_CATALOG,
+  PREMIUM_CATALOG,
   IAP_CLIENT_GRANTS,
   getCatalogPriceLabel,
   STARTER_PACK_FALLBACK_PRICE,
@@ -52,8 +54,28 @@ import { SupportLifeQuestButton } from "@shared/components/SupportLifeQuestButto
 import { getHydratedLiveOpsConfig } from "@engine/liveOpsEngine";
 import { getActiveLimitedTimeOffers } from "@services/liveOpsConfig";
 import { getPrivacyPolicyUrl, openLegalUrlSafe } from "@config/legal";
-import { IAPProductId, RootStackParamList, ScenarioId } from "@/types";
+import { AvatarStyleId, IAPProductId, RootStackParamList, ScenarioId } from "@/types";
 import { SEASON_PASS_TIERS } from "@data/gameData";
+import { useSettingsStore } from "@store/settingsStore";
+import { cosmeticIdForThemeSkin, migrateThemeSkinId, getThemeSkin, themeSkinIdFromCosmetic } from "@theme/themeSkins";
+import { resolveAvatarStyleForGender } from "@utils/lifeStage";
+
+function premiumFallback(productId: IAPProductId): string {
+  return PREMIUM_CATALOG.find((e) => e.productId === productId)?.fallbackPriceLabel
+    ?? (productId === 'premium_yearly' ? '$2.99/yr' : '$0.49/mo');
+}
+
+function themeShopAccent(item: CosmeticItem, fallback: string): string {
+  if (item.id === 'theme_system_default') return fallback;
+  const skin = getThemeSkin(themeSkinIdFromCosmetic(item.id));
+  if (!skin) return item.previewColor ?? fallback;
+  // Prefer saturated token over near-white preview swatches for readable chrome/CTA
+  return skin.tokens.sapphire
+    ?? skin.tokens.gold
+    ?? skin.tokens.t1
+    ?? item.previewColor
+    ?? fallback;
+}
 
 export function ShopScreen() {
   const styles = useThemedStyles(createStyles);
@@ -70,6 +92,7 @@ export function ShopScreen() {
     purchaseMysterySpinWithGems,
     purchaseCosmetic,
     applyCosmetic,
+    setAvatarStyle,
   } = useShopActions();
   const [purchasing, setPurchasing] = useState<string | null>(null);
   const [previewCosmetic, setPreviewCosmetic] = useState<{ item: CosmeticItem; owned: boolean } | null>(null);
@@ -77,8 +100,39 @@ export function ShopScreen() {
     route.params?.tab ?? (traitUpsell ? "premium" : "bundles"),
   );
   const showToast = useToastStore((s) => s.showToast);
+  const appThemeId = useSettingsStore((s) => s.appThemeId);
+  const equippedEventSkinId = useSettingsStore((s) => s.equippedEventSkinId);
+  const equippedNameFontId = useSettingsStore((s) => s.equippedNameFontId);
+  const equippedSoundPackId = useSettingsStore((s) => s.equippedSoundPackId);
+  const equippedTombstoneId = useSettingsStore((s) => s.equippedTombstoneId);
+  const equippedProfileFrameId = useSettingsStore((s) => s.equippedProfileFrameId);
 
   const storeProducts = getIAPProducts();
+
+  const isCosmeticEquipped = (item: CosmeticItem): boolean => {
+    switch (item.category) {
+      case 'theme': {
+        const skin = migrateThemeSkinId(appThemeId);
+        if (item.id === 'theme_system_default') return skin === 'default';
+        return cosmeticIdForThemeSkin(skin) === item.id;
+      }
+      case 'event_skin':
+        return equippedEventSkinId === item.id;
+      case 'name_font':
+        return equippedNameFontId === item.id;
+      case 'sound_pack':
+        if (item.id === 'sound_pack_classic') {
+          return !equippedSoundPackId || equippedSoundPackId === 'sound_pack_classic';
+        }
+        return equippedSoundPackId === item.id;
+      case 'tombstone':
+        return equippedTombstoneId === item.id;
+      case 'plus_frame':
+        return equippedProfileFrameId === item.id;
+      default:
+        return false;
+    }
+  };
 
   const grantDevFallback = (productId: IAPProductId) => {
     const store = getShopStoreState();
@@ -248,21 +302,54 @@ export function ShopScreen() {
   const mapCosmetics = (category: import('@data/cosmeticCatalog').CosmeticCategory) =>
     getCosmeticsByCategory(category).map((item) => ({
       ...item,
-      owned: unlockedCosmeticIds.includes(item.id),
+      owned: isFreeBaselineCosmetic(item.id) || unlockedCosmeticIds.includes(item.id),
+      equipped: isCosmeticEquipped(item),
     }));
 
   const lightThemes = getThemeCosmeticsByMode('light').map((item) => ({
     ...item,
-    owned: unlockedCosmeticIds.includes(item.id),
+    owned: isFreeBaselineCosmetic(item.id) || unlockedCosmeticIds.includes(item.id),
+    equipped: isCosmeticEquipped(item),
   }));
   const darkThemes = getThemeCosmeticsByMode('dark').map((item) => ({
     ...item,
-    owned: unlockedCosmeticIds.includes(item.id),
+    owned: isFreeBaselineCosmetic(item.id) || unlockedCosmeticIds.includes(item.id),
+    equipped: isCosmeticEquipped(item),
   }));
   const tombstoneCosmetics = mapCosmetics('tombstone');
   const eventSkinCosmetics = mapCosmetics('event_skin');
   const nameFontCosmetics = mapCosmetics('name_font');
   const soundPackCosmetics = mapCosmetics('sound_pack');
+
+  const avatarPackStyles = (productId: IAPProductId): AvatarStyleId[] => {
+    const grants = IAP_CLIENT_GRANTS[productId];
+    return (grants?.avatarStyles ?? []) as AvatarStyleId[];
+  };
+
+  const isAvatarPackEquipped = (productId: IAPProductId) => {
+    const styles = avatarPackStyles(productId);
+    const current = character.avatarStyle;
+    return !!current && styles.includes(current);
+  };
+
+  const equipAvatarPack = (productId: IAPProductId) => {
+    const styles = avatarPackStyles(productId);
+    if (!styles.length) return;
+    const primary = styles.find((st) => !st.includes('neutral')) ?? styles[0];
+    const resolved = resolveAvatarStyleForGender(primary, character.gender) as AvatarStyleId;
+    const unlocked = character.unlockedAvatarStyles ?? [];
+    const target = unlocked.includes(resolved)
+      ? resolved
+      : unlocked.includes(primary)
+        ? primary
+        : styles.find((st) => unlocked.includes(st));
+    if (!target) {
+      showToast('Unlock this avatar pack first.', 'error');
+      return;
+    }
+    setAvatarStyle(target);
+    showToast('Avatar pack equipped.', 'success');
+  };
 
   const formatCosmeticPrice = (item: CosmeticItem) => {
     if (item.iapProductId) {
@@ -340,7 +427,9 @@ export function ShopScreen() {
           </View>
         ) : (
           <Pressable style={styles.rewardedBtn} onPress={() => void buy("season_pass")} accessibilityLabel="Buy season pass">
-            <Text style={styles.rewardedText}>Unlock Season Pass</Text>
+            <Text style={styles.rewardedText}>
+              Unlock Season Pass · {getCatalogPriceLabel("season_pass", storeProducts, "$0.99")}
+            </Text>
           </Pressable>
         )}
         {character.hasSeasonPass && SEASON_PASS_TIERS.map((tier) => {
@@ -438,8 +527,8 @@ export function ShopScreen() {
                   isPremium={character.isPremium}
                   onPressMonthly={() => void buy("premium_monthly")}
                   onPressYearly={() => void buy("premium_yearly")}
-                  monthlyPriceLabel={getCatalogPriceLabel("premium_monthly", storeProducts, "$4.99")}
-                  yearlyPriceLabel={getCatalogPriceLabel("premium_yearly", storeProducts, "$34.99")}
+                  monthlyPriceLabel={getCatalogPriceLabel("premium_monthly", storeProducts, premiumFallback("premium_monthly"))}
+                  yearlyPriceLabel={getCatalogPriceLabel("premium_yearly", storeProducts, premiumFallback("premium_yearly"))}
                   loadingMonthly={purchasing === "premium_monthly"}
                   loadingYearly={purchasing === "premium_yearly"}
                 />
@@ -613,8 +702,9 @@ export function ShopScreen() {
                       title={item.label}
                       desc={item.description}
                       price={item.owned ? 'View' : formatCosmeticPrice(item)}
-                      color={item.previewColor ?? colors.sapphire}
+                      color={themeShopAccent(item, colors.sapphire)}
                       owned={item.owned}
+                      equipped={item.equipped}
                       onPress={() => openCosmeticPreview(item, item.owned)}
                       onOwnedPress={() => openCosmeticPreview(item, true)}
                     />
@@ -629,8 +719,9 @@ export function ShopScreen() {
                       title={item.label}
                       desc={item.description}
                       price={item.owned ? 'View' : formatCosmeticPrice(item)}
-                      color={item.previewColor ?? colors.sapphire}
+                      color={themeShopAccent(item, colors.sapphire)}
                       owned={item.owned}
+                      equipped={item.equipped}
                       onPress={() => openCosmeticPreview(item, item.owned)}
                       onOwnedPress={() => openCosmeticPreview(item, true)}
                     />
@@ -647,6 +738,7 @@ export function ShopScreen() {
                       price={item.owned ? 'View' : formatCosmeticPrice(item)}
                       color={item.previewColor ?? colors.orchid}
                       owned={item.owned}
+                      equipped={item.equipped}
                       onPress={() => openCosmeticPreview(item, item.owned)}
                       onOwnedPress={() => openCosmeticPreview(item, true)}
                     />
@@ -663,6 +755,7 @@ export function ShopScreen() {
                       price={item.owned ? 'View' : formatCosmeticPrice(item)}
                       color={item.previewColor ?? colors.gold}
                       owned={item.owned}
+                      equipped={item.equipped}
                       onPress={() => openCosmeticPreview(item, item.owned)}
                       onOwnedPress={() => openCosmeticPreview(item, true)}
                     />
@@ -679,6 +772,7 @@ export function ShopScreen() {
                       price={item.owned ? 'View' : formatCosmeticPrice(item)}
                       color={item.previewColor ?? colors.teal}
                       owned={item.owned}
+                      equipped={item.equipped}
                       onPress={() => openCosmeticPreview(item, item.owned)}
                       onOwnedPress={() => openCosmeticPreview(item, true)}
                     />
@@ -695,6 +789,7 @@ export function ShopScreen() {
                       price={item.owned ? 'View' : formatCosmeticPrice(item)}
                       color={item.previewColor ?? colors.t3}
                       owned={item.owned}
+                      equipped={item.equipped}
                       onPress={() => openCosmeticPreview(item, item.owned)}
                       onOwnedPress={() => openCosmeticPreview(item, true)}
                     />
@@ -703,18 +798,23 @@ export function ShopScreen() {
               </View>
               <Text style={styles.gridLabel}>AVATAR PACKS</Text>
               <View style={styles.productGrid}>
-                {avatarPacks.map((pack, i) => (
+                {avatarPacks.map((pack, i) => {
+                  const equipped = isAvatarPackEquipped(pack.productId);
+                  return (
                   <FadeInView key={pack.productId} delay={i * 60 + 140} style={{ width: "48%" }}>
                     <ProductCard
                       title={pack.title}
                       desc={pack.description}
-                      price={pack.owned ? 'Owned' : pack.price}
+                      price={pack.owned ? 'View' : pack.price}
                       color={pack.color}
                       owned={pack.owned}
-                      onPress={() => pack.owned ? undefined : void buy(pack.productId)}
+                      equipped={equipped}
+                      onPress={() => void buy(pack.productId)}
+                      onOwnedPress={() => equipAvatarPack(pack.productId)}
                     />
                   </FadeInView>
-                ))}
+                  );
+                })}
               </View>
               {footer}
             </>

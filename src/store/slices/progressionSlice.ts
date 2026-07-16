@@ -54,7 +54,12 @@ import {
   getMonthlyScenarioPool,
   PLUS_SCENARIO_CREDITS_PER_MONTH,
 } from "../../data/plusRotation";
-import { getCosmeticById, migrateCosmeticId, migrateCosmeticIdList } from "../../data/cosmeticCatalog";
+import {
+  getCosmeticById,
+  isFreeBaselineCosmetic,
+  migrateCosmeticId,
+  migrateCosmeticIdList,
+} from "../../data/cosmeticCatalog";
 import { useSettingsStore } from "../settingsStore";
 import { themeSkinIdFromCosmetic } from "@theme/themeSkins";
 import {
@@ -1229,6 +1234,9 @@ export const createProgressionSlice: StateCreator<
     const item = getCosmeticById(cosmeticId);
     const { character, globalPrestige } = get();
     if (!item) return { ok: false, message: 'Invalid cosmetic.' };
+    if (isFreeBaselineCosmetic(item.id)) {
+      return { ok: false, message: 'Already owned.' };
+    }
     if (!character) return { ok: false, message: 'No active character.' };
     if ((globalPrestige.unlockedCosmeticIds ?? []).includes(cosmeticId)) {
       return { ok: false, message: 'Already owned.' };
@@ -1268,7 +1276,7 @@ export const createProgressionSlice: StateCreator<
     const { globalPrestige } = get();
     if (!item) return { ok: false, message: 'Invalid cosmetic.' };
     const unlocked = migrateCosmeticIdList(globalPrestige.unlockedCosmeticIds);
-    if (!unlocked.includes(resolvedId)) {
+    if (!isFreeBaselineCosmetic(resolvedId) && !unlocked.includes(resolvedId)) {
       return { ok: false, message: 'Cosmetic not owned.' };
     }
     if (item.category === 'theme') {
@@ -1277,30 +1285,31 @@ export const createProgressionSlice: StateCreator<
       return { ok: true, message: `${item.label} theme applied.` };
     }
     if (item.category === 'tombstone') {
-      useSettingsStore.getState().setEquippedTombstoneId(cosmeticId);
+      useSettingsStore.getState().setEquippedTombstoneId(resolvedId);
       set((s) => {
         if (s.character) {
-          s.character.tombstoneStyleId = cosmeticId.replace('tombstone_', '');
+          s.character.tombstoneStyleId = resolvedId.replace('tombstone_', '');
         }
       });
       void get()._persist();
       return { ok: true, message: `${item.label} tombstone equipped.` };
     }
     if (item.category === 'event_skin') {
-      useSettingsStore.getState().setEquippedEventSkinId(cosmeticId);
+      useSettingsStore.getState().setEquippedEventSkinId(resolvedId);
       return { ok: true, message: `${item.label} event cards equipped.` };
     }
     if (item.category === 'name_font') {
-      useSettingsStore.getState().setEquippedNameFontId(cosmeticId);
+      useSettingsStore.getState().setEquippedNameFontId(resolvedId);
       return { ok: true, message: `${item.label} name font equipped.` };
     }
     if (item.category === 'sound_pack') {
-      useSettingsStore.getState().setEquippedSoundPackId(cosmeticId);
+      const packId = resolvedId === 'sound_pack_classic' ? null : resolvedId;
+      useSettingsStore.getState().setEquippedSoundPackId(packId);
       void import('../../services/audio').then((m) => m.reloadSoundPack());
       return { ok: true, message: `${item.label} sound pack equipped.` };
     }
     if (item.category === 'plus_frame') {
-      useSettingsStore.getState().setEquippedProfileFrameId(cosmeticId);
+      useSettingsStore.getState().setEquippedProfileFrameId(resolvedId);
       return { ok: true, message: `${item.label} profile frame equipped.` };
     }
     return { ok: true, message: `${item.label} saved.` };

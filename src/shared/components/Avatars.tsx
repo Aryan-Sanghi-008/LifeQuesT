@@ -175,10 +175,18 @@ export function NpcAvatar({
     age < 51 ? 'adult'       :
     age < 66 ? 'middle_aged' : 'senior';
 
+  // Normalize to pack root so soft gender mapping applies (adventurer-neutral → adventurer pack)
+  const packRoot = (() => {
+    const style = playerAvatarStyle ?? 'adventurer';
+    if (style.startsWith('adventurer')) return 'adventurer';
+    if (style.startsWith('lorelei')) return 'lorelei';
+    return style;
+  })();
+
   // Pets always use bottts style regardless of player pack
   const avatarStyle = (relationType === 'pet' || gender === 'animal')
     ? 'bottts'
-    : playerAvatarStyle;
+    : packRoot;
 
   return (
     <DiceBearAvatar

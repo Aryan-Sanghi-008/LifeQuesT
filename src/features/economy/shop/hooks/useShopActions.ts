@@ -12,6 +12,7 @@ export function useShopActions() {
       purchaseMysterySpinWithGems: s.purchaseMysterySpinWithGems,
       purchaseCosmetic: s.purchaseCosmetic,
       applyCosmetic: s.applyCosmetic,
+      setAvatarStyle: s.setAvatarStyle,
     })),
   );
 }

@@ -10,6 +10,7 @@ import { TombstoneHero } from '@features/character/death/TombstoneHero';
 import { playSoundPackPreview } from '@services/audio';
 import { useSettingsStore } from '@store/settingsStore';
 import { getPlusFrameColor } from '@data/cosmeticCatalog';
+import { useToastStore } from '@store/toastStore';
 
 interface Props {
   item: CosmeticItem | null;
@@ -34,9 +35,11 @@ export function CosmeticPreviewSheet({
 }: Props) {
   const { colors, fonts, spacing, radii, isDark } = useTheme();
   const colorScheme = useSettingsStore((s) => s.colorScheme);
+  const showToast = useToastStore((s) => s.showToast);
 
   const modeMismatch = useMemo(() => {
     if (!item || item.category !== 'theme' || !item.mode) return false;
+    if (item.id === 'theme_system_default') return false;
     const effectiveDark =
       colorScheme === 'system' ? isDark : colorScheme === 'dark';
     return (item.mode === 'dark') !== effectiveDark;
@@ -48,7 +51,23 @@ export function CosmeticPreviewSheet({
     if (item.category === 'theme') {
       const skinId = themeSkinIdFromCosmetic(item.id);
       const skin = getThemeSkin(skinId);
-      const wantDark = skin?.mode === 'dark';
+      if (!skin || skinId === 'default') {
+        const base = isDark ? DARK_COLORS : COLORS;
+        return (
+          <View style={[styles.phone, { backgroundColor: base.bg, borderColor: base.border }]}>
+            <View style={[styles.phoneHeader, { backgroundColor: base.bg2 }]}>
+              <Text style={{ color: base.t3, fontFamily: fonts.bodyBold, fontSize: 10 }}>HOME</Text>
+            </View>
+            <View style={[styles.phoneCard, { backgroundColor: base.bgCard, borderColor: base.border }]}>
+              <Text style={{ color: base.t1, fontFamily: fonts.displayBold, fontSize: 16 }}>{item.label}</Text>
+              <Text style={{ color: base.t2, fontFamily: fonts.body, fontSize: 12, marginTop: 4 }}>
+                Built-in palette with no premium skin overlay.
+              </Text>
+            </View>
+          </View>
+        );
+      }
+      const wantDark = skin.mode === 'dark';
       const base = wantDark ? DARK_COLORS : COLORS;
       const tokens = applyThemeSkinTokens(base, skinId, !!wantDark);
       return (
@@ -104,7 +123,19 @@ export function CosmeticPreviewSheet({
     if (item.category === 'sound_pack') {
       return (
         <Pressable
-          onPress={() => void playSoundPackPreview(item.id)}
+          onPress={() => {
+            void playSoundPackPreview(item.id).then((result) => {
+              if (result.ok) {
+                showToast(`Playing ${item.label} sample`, 'info');
+                return;
+              }
+              if (result.reason === 'muted') {
+                showToast('Enable sounds in Settings to preview', 'info');
+                return;
+              }
+              showToast('Could not play sound sample', 'error');
+            });
+          }}
           style={[styles.soundBtn, { backgroundColor: `${item.previewColor ?? colors.teal}22`, borderColor: item.previewColor ?? colors.teal }]}
           accessibilityRole="button"
           accessibilityLabel="Play sound pack sample"

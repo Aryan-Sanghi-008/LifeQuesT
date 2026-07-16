@@ -149,7 +149,7 @@ export function PremiumBanner({
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
                 <>
-                  <Text style={styles.ctaPrice}>{monthlyPriceLabel ?? "$4.99"}</Text>
+                  <Text style={styles.ctaPrice}>{monthlyPriceLabel ?? "$0.49"}</Text>
                   <Text style={styles.ctaPeriod}>/month</Text>
                 </>
               )}
@@ -163,7 +163,7 @@ export function PremiumBanner({
                 <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
                 <>
-                  <Text style={styles.ctaPrice}>{yearlyPriceLabel ?? "$34.99"}</Text>
+                  <Text style={styles.ctaPrice}>{yearlyPriceLabel ?? "$2.99"}</Text>
                   <Text style={styles.ctaPeriod}>/year</Text>
                 </>
               )}

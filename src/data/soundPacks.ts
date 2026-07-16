@@ -17,7 +17,7 @@ export const SOUND_PACK_PROFILES: Record<SoundPackId, SoundPackProfile> = {
 };
 
 export function resolveSoundPackId(cosmeticId?: string | null): SoundPackId {
-  if (!cosmeticId) return 'default';
+  if (!cosmeticId || cosmeticId === 'sound_pack_classic') return 'default';
   if (cosmeticId === 'sound_pack_minimal') return 'minimal';
   if (cosmeticId === 'sound_pack_jazz') return 'jazz';
   if (cosmeticId === 'sound_pack_cinematic') return 'cinematic';
