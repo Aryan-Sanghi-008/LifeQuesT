@@ -1,11 +1,7 @@
 import { EducationLevel, Character } from '../types';
-import { clamp } from './economyEngine';
+import { clamp, clampRange } from './economyEngine';
 import { scaleEducationCost } from './countryScaleEngine';
 import { isFeatureEnabled } from './scenarioEngine';
-
-function clampRange(v: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, v));
-}
 import {
   DEGREES,
   Degree,

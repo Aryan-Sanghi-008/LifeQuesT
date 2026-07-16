@@ -33,6 +33,10 @@ export interface SaveSlice {
   _persist: () => Promise<void>;
 }
 
+/** Serialize concurrent _persist calls so older cloud writes cannot overwrite newer stamps. */
+let persistChain: Promise<void> = Promise.resolve();
+let persistGeneration = 0;
+
 export const createSaveSlice: StateCreator<
   GameStore,
   [["zustand/immer", never]],
@@ -206,23 +210,38 @@ export const createSaveSlice: StateCreator<
   },
 
   _persist: async () => {
-    const { character, user, activeSlotId } = get();
-    if (!character) return;
+    const run = async () => {
+      const { character, user, activeSlotId } = get();
+      if (!character) return;
 
-    const stamped = { ...character, updatedAt: Date.now() };
-    set((s) => {
-      if (s.character) s.character.updatedAt = stamped.updatedAt;
-    });
+      const generation = ++persistGeneration;
+      const stamped = { ...character, updatedAt: Date.now() };
+      set((s) => {
+        if (s.character) s.character.updatedAt = stamped.updatedAt;
+      });
 
-    saveCharacterLocal(stamped, activeSlotId);
-    writeWidgetSnapshot(stamped);
+      saveCharacterLocal(stamped, activeSlotId);
+      writeWidgetSnapshot(stamped);
 
-    if (isCloudUser(user?.uid)) {
+      if (!isCloudUser(user?.uid)) return;
+
+      // Skip cloud sync if a newer persist already stamped the character.
+      if (generation !== persistGeneration) return;
+      const latest = get().character;
+      if (!latest || (latest.updatedAt ?? 0) > stamped.updatedAt) return;
+
       try {
         await syncSaveToCloud(user!.uid, activeSlotId, stamped);
       } catch (e) {
         console.warn("[cloudSave] sync failed", e);
       }
-    }
+    };
+
+    const next = persistChain.then(run, run);
+    persistChain = next.then(
+      () => undefined,
+      () => undefined,
+    );
+    await next;
   },
 });

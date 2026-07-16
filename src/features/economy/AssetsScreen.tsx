@@ -4,8 +4,10 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { PieChart, LineChart } from 'react-native-gifted-charts';
+import { useShallow } from 'zustand/react/shallow';
 import { useTheme } from '@theme';
-import { useGameStore } from '../../store/gameStore';
+import { useGameStore } from '@store/gameStore';
+import { selectCharacterAssetsContext } from '@store/selectors';
 import { Asset, PropertyTier, RootStackParamList } from '../../types';
 import { Card, SectionLabel, ScreenShell, TabScreenHeader, CurrencyChip, HorizontalChipTabBar } from '@components/index';
 import { ContextualTutorial } from '@shared/components/ContextualTutorial';
@@ -38,6 +40,7 @@ import { portfolioAllocation, performanceSeries } from '../../engine/marketEngin
 import { InvestAmountModal } from './InvestAmountModal';
 import { AssetDetailSheet } from './AssetDetailSheet';
 import { CatalogItemCard } from './components/CatalogItemCard';
+import { CatalogFlatList } from '@features/economy/assets/components/CatalogFlatList';
 import {
   detailFromVehicleCatalog,
   detailFromCollectibleCatalog,
@@ -80,11 +83,12 @@ const MARKET_CHIPS: { id: MarketChip; label: string }[] = [
 
 function BalanceHero() {
   const { colors, fonts } = useTheme();
-  const character = useGameStore((s) => s.character)!;
-  const finance = getFinanceSummary(character);
-  const cc = character.countryCode ?? 'IN';
+  const financeInput = useGameStore(useShallow(selectCharacterAssetsContext));
+  if (!financeInput) return null;
+  const finance = getFinanceSummary(financeInput);
+  const cc = financeInput.countryCode ?? 'IN';
   const fmt = (n: number) => formatCurrency(n, cc);
-  const score = character.creditScore ?? 650;
+  const score = financeInput.creditScore ?? 650;
 
   return (
     <LinearGradient colors={[colors.bg2, colors.bg]} style={styles.hero}>
@@ -98,7 +102,7 @@ function BalanceHero() {
         <View style={[styles.metricDivider, { backgroundColor: colors.border }]} />
         <View style={styles.metric}>
           <Text style={[styles.metricLabel, { color: colors.t4, fontFamily: fonts.body }]}>Debt</Text>
-          <Text style={[styles.metricValue, { color: colors.crimson, fontFamily: fonts.monoSemiBold }]}>{fmt(character.debt ?? 0)}</Text>
+          <Text style={[styles.metricValue, { color: colors.crimson, fontFamily: fonts.monoSemiBold }]}>{fmt(financeInput.debt ?? 0)}</Text>
         </View>
         <View style={[styles.metricDivider, { backgroundColor: colors.border }]} />
         <View style={styles.metric}>
@@ -110,8 +114,8 @@ function BalanceHero() {
         Investments are cash-only (margin at 750+). Loans ≤ 50% of cash and ≤ 50% of price.
       </Text>
       <View style={styles.currencyRow}>
-        <CurrencyChip type="coin" amount={character.coins} />
-        <CurrencyChip type="gem" amount={character.gems} />
+        <CurrencyChip type="coin" amount={financeInput.coins} />
+        <CurrencyChip type="gem" amount={financeInput.gems} />
       </View>
     </LinearGradient>
   );
@@ -119,8 +123,9 @@ function BalanceHero() {
 
 function CreditFactorsCard() {
   const { colors, fonts } = useTheme();
-  const character = useGameStore((s) => s.character)!;
-  const f = character.creditFactors;
+  const financeInput = useGameStore(useShallow(selectCharacterAssetsContext));
+  if (!financeInput) return null;
+  const f = financeInput.creditFactors;
   if (!f) {
     return (
       <Card style={[styles.card, { borderColor: colors.border, backgroundColor: colors.bgCard }]}>
@@ -146,7 +151,7 @@ function CreditFactorsCard() {
           <Text style={[styles.meta, { color: colors.t1, fontFamily: fonts.monoSemiBold }]}>{val}</Text>
         </View>
       ))}
-      {marginUnlocked(character.creditScore) ? (
+      {marginUnlocked(financeInput.creditScore) ? (
         <Text style={[styles.meta, { color: colors.emerald, fontFamily: fonts.body, marginTop: 6 }]}>
           Margin investing unlocked (capped).
         </Text>
@@ -214,7 +219,7 @@ function AssetCard({
 export function AssetsScreen() {
   const { colors, fonts, spacing } = useTheme();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const character = useGameStore((s) => s.character);
+  const character = useGameStore(useShallow(selectCharacterAssetsContext));
   const sellAsset = useGameStore((s) => s.sellAsset);
   const purchaseAsset = useGameStore((s) => s.purchaseAsset);
   const purchaseProperty = useGameStore((s) => s.purchaseProperty);
@@ -407,68 +412,79 @@ export function AssetsScreen() {
 
             {(marketChip === 'stock' || marketChip === 'crypto' || marketChip === 'mutual_fund' || marketChip === 'bond' || marketChip === 'commodity' || marketChip === 'reit' || marketChip === 'venture') && (
               <>
-                <SectionLabel label={`${marketChip.replace('_', ' ')} · cash max ${fmt(maxInvest)}`} />
-                {MARKET_INSTRUMENTS.filter((i) => i.kind === marketChip).map((inst) => {
-                  const suggested = scaleCountryAmount(inst.suggestedBuyUsd, cc, 'cost');
-                  return (
-                    <CatalogItemCard
-                      key={inst.id}
-                      title={inst.name}
-                      subtitle={inst.description}
-                      tier={tierFromUsdPrice(inst.suggestedBuyUsd)}
-                      roleTag={inst.roleTag}
-                      perks={inst.holdingPerks}
-                      metaLine={`~${(inst.annualReturnBase * 100).toFixed(0)}% · vol ${(inst.volatility * 100).toFixed(0)}%${inst.dividendYield > 0 ? ` · div ${(inst.dividendYield * 100).toFixed(1)}%` : ''}`}
-                      priceLabel={`Suggested ${fmt(suggested)}`}
-                      onPress={() => setInvestTarget({ catalogId: inst.id })}
-                    />
-                  );
-                })}
+                <CatalogFlatList
+                  data={MARKET_INSTRUMENTS.filter((i) => i.kind === marketChip)}
+                  keyExtractor={(inst) => inst.id}
+                  ListHeaderComponent={
+                    <SectionLabel label={`${marketChip.replace('_', ' ')} · cash max ${fmt(maxInvest)}`} />
+                  }
+                  renderItem={({ item: inst }) => {
+                    const suggested = scaleCountryAmount(inst.suggestedBuyUsd, cc, 'cost');
+                    return (
+                      <CatalogItemCard
+                        title={inst.name}
+                        subtitle={inst.description}
+                        tier={tierFromUsdPrice(inst.suggestedBuyUsd)}
+                        roleTag={inst.roleTag}
+                        perks={inst.holdingPerks}
+                        metaLine={`~${(inst.annualReturnBase * 100).toFixed(0)}% · vol ${(inst.volatility * 100).toFixed(0)}%${inst.dividendYield > 0 ? ` · div ${(inst.dividendYield * 100).toFixed(1)}%` : ''}`}
+                        priceLabel={`Suggested ${fmt(suggested)}`}
+                        onPress={() => setInvestTarget({ catalogId: inst.id })}
+                      />
+                    );
+                  }}
+                />
               </>
             )}
 
             {marketChip === 'vehicle' && (
               <>
                 <SectionLabel label="Vehicles · max 50% loan" />
-                {VEHICLES.map((v) => (
-                  <CatalogItemCard
-                    key={v.id}
-                    title={v.name}
-                    subtitle={v.description}
-                    tier={tierFromUsdPrice(v.baseValueUsd)}
-                    roleTag={v.roleTag}
-                    perks={v.perks}
-                    metaLine={`${(v.depreciationPct * 100).toFixed(0)}% dep/yr · loan ≤50%`}
-                    priceLabel={fmt(scaleVehiclePrice(v, cc))}
-                    onPress={() => setDetail(detailFromVehicleCatalog(v.id, scaleVehiclePrice(v, cc)))}
-                  />
-                ))}
+                <CatalogFlatList
+                  data={VEHICLES}
+                  keyExtractor={(v) => v.id}
+                  renderItem={({ item: v }) => (
+                    <CatalogItemCard
+                      title={v.name}
+                      subtitle={v.description}
+                      tier={tierFromUsdPrice(v.baseValueUsd)}
+                      roleTag={v.roleTag}
+                      perks={v.perks}
+                      metaLine={`${(v.depreciationPct * 100).toFixed(0)}% dep/yr · loan ≤50%`}
+                      priceLabel={fmt(scaleVehiclePrice(v, cc))}
+                      onPress={() => setDetail(detailFromVehicleCatalog(v.id, scaleVehiclePrice(v, cc)))}
+                    />
+                  )}
+                />
               </>
             )}
 
             {marketChip === 'collectible' && (
               <>
                 <SectionLabel label="Collectibles" />
-                {COLLECTIBLES.map((c) => (
-                  <CatalogItemCard
-                    key={c.id}
-                    title={c.name}
-                    subtitle={c.description}
-                    tier={tierFromUsdPrice(c.baseValueUsd)}
-                    roleTag={c.roleTag}
-                    perks={c.perks}
-                    metaLine={`${c.category} · ~${(c.appreciationPct * 100).toFixed(1)}% appr`}
-                    priceLabel={fmt(scaleCountryAmount(c.baseValueUsd, cc, 'cost'))}
-                    onPress={() =>
-                      setDetail(
-                        detailFromCollectibleCatalog(
-                          c.id,
-                          scaleCountryAmount(c.baseValueUsd, cc, 'cost'),
-                        ),
-                      )
-                    }
-                  />
-                ))}
+                <CatalogFlatList
+                  data={COLLECTIBLES}
+                  keyExtractor={(c) => c.id}
+                  renderItem={({ item: c }) => (
+                    <CatalogItemCard
+                      title={c.name}
+                      subtitle={c.description}
+                      tier={tierFromUsdPrice(c.baseValueUsd)}
+                      roleTag={c.roleTag}
+                      perks={c.perks}
+                      metaLine={`${c.category} · ~${(c.appreciationPct * 100).toFixed(1)}% appr`}
+                      priceLabel={fmt(scaleCountryAmount(c.baseValueUsd, cc, 'cost'))}
+                      onPress={() =>
+                        setDetail(
+                          detailFromCollectibleCatalog(
+                            c.id,
+                            scaleCountryAmount(c.baseValueUsd, cc, 'cost'),
+                          ),
+                        )
+                      }
+                    />
+                  )}
+                />
               </>
             )}
 

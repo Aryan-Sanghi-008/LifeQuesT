@@ -2,9 +2,10 @@ import { useState, useMemo, useEffect } from "react";
 import {
   View,
   Text,
-  ScrollView,
   Pressable,
   Modal,
+  FlatList,
+  ScrollView,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -12,8 +13,13 @@ import { useNavigation } from "@react-navigation/native";
 import Svg, { Path, Circle } from "react-native-svg";
 import { useTheme, MIN_TAP_TARGET } from "@theme";
 import { useGameStore } from "@store/gameStore";
+import { useShallow } from "zustand/react/shallow";
+import {
+  selectCompletedCollectionSetIds,
+  selectUnlockedCollectionIds,
+} from "@store/selectors";
 import { ALL_COLLECTION_ITEMS, COLLECTION_SETS } from "@data/collections";
-import { evaluateUnlockedCollectionIds, getSetProgress } from "@engine/collectionsEngine";
+import { getSetProgress } from "@engine/collectionsEngine";
 import { CollectionCategory, CollectionItem, EventRarity } from "@/types";
 import { CollectionSetIcon } from "./CollectionSetIcon";
 
@@ -203,22 +209,19 @@ function CollectionTile({ item, unlocked, onPress }: {
 export function CollectionsScreen() {
   const { colors, fonts, spacing, radii } = useTheme();
   const navigation = useNavigation();
-  const character = useGameStore((s) => s.character);
-  const globalPrestige = useGameStore((s) => s.globalPrestige);
+  const unlockedIds = useGameStore(useShallow(selectUnlockedCollectionIds));
+  const completedCollectionSetIds = useGameStore(useShallow(selectCompletedCollectionSetIds));
   const checkCollectionSetRewards = useGameStore((s) => s.checkCollectionSetRewards);
 
   const [viewMode, setViewMode] = useState<'sets' | 'gallery'>('sets');
   const [activeCategory, setActiveCategory] = useState<CollectionCategory>("life_moment");
   const [selectedItem, setSelectedItem] = useState<CollectionItem | null>(null);
 
-  const unlockedIds = useMemo(() => {
-    if (!character) return [];
-    return evaluateUnlockedCollectionIds(character, globalPrestige?.prestigeLevel);
-  }, [character, globalPrestige?.prestigeLevel]);
+  const unlockedIdsMemo = useMemo(() => unlockedIds, [unlockedIds.join("|")]);
 
   useEffect(() => {
-    if (character) checkCollectionSetRewards();
-  }, [character, unlockedIds.length, checkCollectionSetRewards]);
+    if (unlockedIdsMemo.length >= 0) checkCollectionSetRewards();
+  }, [unlockedIdsMemo.length, checkCollectionSetRewards]);
 
   const categoryItems = useMemo(
     () => ALL_COLLECTION_ITEMS.filter((i) => i.category === activeCategory),
@@ -289,11 +292,15 @@ export function CollectionsScreen() {
       </View>
 
       {viewMode === 'sets' ? (
-        <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: 60 }}>
-          {COLLECTION_SETS.map((set) => {
+        <FlatList
+          data={COLLECTION_SETS}
+          keyExtractor={(set) => set.id}
+          contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: 60 }}
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item: set }) => {
             const { unlocked, total } = getSetProgress(set.id, unlockedIds);
             const complete = unlocked >= total && total > 0;
-            const claimed = character?.completedCollectionSetIds?.includes(set.id);
+            const claimed = completedCollectionSetIds.includes(set.id);
             const pct = total > 0 ? unlocked / total : 0;
             const RING = 52;
             const STROKE = 4;
@@ -302,7 +309,7 @@ export function CollectionsScreen() {
             const dash = pct * CIRC;
             const accent = complete ? set.accentColor : colors.t4;
             return (
-              <View key={set.id} style={{
+              <View style={{
                 padding: spacing.md,
                 borderRadius: radii.lg,
                 borderWidth: 1,
@@ -312,15 +319,9 @@ export function CollectionsScreen() {
                 alignItems: 'center',
                 gap: spacing.md,
               }}>
-                {/* Circular progress ring */}
                 <View style={{ width: RING, height: RING }}>
                   <Svg width={RING} height={RING} viewBox={`0 0 ${RING} ${RING}`}>
-                    {/* Track */}
-                    <Circle
-                      cx={RING / 2} cy={RING / 2} r={R}
-                      stroke={colors.bg2} strokeWidth={STROKE} fill="none"
-                    />
-                    {/* Progress arc */}
+                    <Circle cx={RING / 2} cy={RING / 2} r={R} stroke={colors.bg2} strokeWidth={STROKE} fill="none" />
                     <Circle
                       cx={RING / 2} cy={RING / 2} r={R}
                       stroke={complete ? set.accentColor : `${set.accentColor}60`}
@@ -331,12 +332,10 @@ export function CollectionsScreen() {
                       strokeLinecap="round"
                     />
                   </Svg>
-                  {/* Center icon */}
                   <View style={{ position: 'absolute', top: 0, left: 0, width: RING, height: RING, alignItems: 'center', justifyContent: 'center' }}>
                     <CollectionSetIcon setId={set.id} color={accent} size={18} />
                   </View>
                 </View>
-                {/* Text column */}
                 <View style={{ flex: 1, gap: 3 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                     <Text style={{ color: colors.t1, fontFamily: fonts.displayBold, fontSize: 15, flex: 1 }}>{set.name}</Text>
@@ -358,8 +357,8 @@ export function CollectionsScreen() {
                 </View>
               </View>
             );
-          })}
-        </ScrollView>
+          }}
+        />
       ) : (
       <>
       {/* Category tabs */}
@@ -408,26 +407,28 @@ export function CollectionsScreen() {
         })}
       </ScrollView>
 
-      {/* Grid */}
-      <ScrollView contentContainerStyle={{
-        flexDirection: "row", flexWrap: "wrap", gap: spacing.sm,
-        padding: spacing.lg, paddingBottom: 60, justifyContent: "flex-start",
-      }} showsVerticalScrollIndicator={false}>
-        <View style={{ width: "100%", flexDirection: "row", justifyContent: "space-between",
-          alignItems: "center", marginBottom: spacing.xs }}>
-          <Text style={{ color: colors.t3, fontFamily: fonts.body, fontSize: 12 }}>
-            {unlockedInCategory} of {categoryItems.length} unlocked
-          </Text>
-        </View>
-        {categoryItems.map((item) => (
+      <FlatList
+        data={categoryItems}
+        keyExtractor={(item) => item.id}
+        numColumns={3}
+        columnWrapperStyle={{ gap: spacing.sm }}
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 60, gap: spacing.sm }}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
+          <View style={{ width: "100%", marginBottom: spacing.xs }}>
+            <Text style={{ color: colors.t3, fontFamily: fonts.body, fontSize: 12 }}>
+              {unlockedInCategory} of {categoryItems.length} unlocked
+            </Text>
+          </View>
+        }
+        renderItem={({ item }) => (
           <CollectionTile
-            key={item.id}
             item={item}
             unlocked={unlockedIds.includes(item.id)}
             onPress={() => setSelectedItem(item)}
           />
-        ))}
-      </ScrollView>
+        )}
+      />
 
       <DetailSheet
         item={selectedItem}

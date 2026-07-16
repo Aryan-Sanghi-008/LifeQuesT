@@ -13,3 +13,5 @@
 | 2026-06-24 | ALL | Drift fixes, 4 skills, app-boot rule, alias parity, seed test, CI workflow, hook tightening |
 | 2026-06-24 | RELEASE | EAS build fix — app.config.ts + GOOGLE_SERVICES_JSON/PLIST file env vars; eas-build skill updated |
 | 2026-06-24 | RELEASE | Add react-native-iap Expo plugin — fixes Gradle store flavor ambiguity on Android builds |
+| 2026-07-17 | FRONTEND/META | Removed NativeWind/Tailwind conventions; StyleSheet + `@theme` is the only styling path; deleted migrate-nativewind skills/hooks |
+| 2026-07-17 | RELEASE | Added docs/STORE_LISTING.md (Google Play ASO); production AdMob/OAuth fail-fast in app.config |

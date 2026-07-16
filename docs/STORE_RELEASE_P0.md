@@ -55,11 +55,17 @@ Create products matching `IAPProductId` in [`src/types/index.ts`](../src/types/i
 
 ## Play Console — Store listing
 
+See full copy + keyword checklist: [STORE_LISTING.md](./STORE_LISTING.md).
+
 - [ ] Privacy policy URL (same as `EXPO_PUBLIC_PRIVACY_POLICY_URL`)
 - [ ] Terms of service URL (same as `EXPO_PUBLIC_TERMS_URL`)
 - [ ] Data safety form: declare Auth, Analytics, Ads, purchases
+- [ ] Account deletion path (in-app or documented support flow — Play policy)
 - [ ] Add license testers for sandbox IAP
 - [ ] Complete content rating questionnaire
+- [ ] Production AdMob + Google OAuth IDs in EAS (production builds fail on placeholders)
+- [ ] OTA / `runtimeVersion`: deferred until expo-updates is enabled
+- [ ] Dual Firebase client SDKs (`firebase` JS + `@react-native-firebase/*`): keep for now; consolidate in a later pass (too risky for this release)
 
 ## Verify on device
 

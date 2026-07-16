@@ -1,12 +1,12 @@
 # Frontend
 
-## Styling — NativeWind target
-- **New files:** `className` for layout/color/spacing.
-- **Legacy:** StyleSheet + `COLORS`/`SPACING` — migrate when touching via `migrate-nativewind`.
-- **Bulk pass:** `frontend/bulk-nativewind-migration`.
-- `StyleSheet` only for `SHADOWS` elevation.
-- Tokens: `bg-bg`, `text-t-1`, `text-gold` — `tailwind.config.js`.
+## Styling — StyleSheet + `@theme`
+- Layout/color/spacing via `useTheme()` / `useThemedStyles()` + `StyleSheet`.
+- Tokens: `colors`, `fonts`, `spacing`, `radii`, `shadows`.
+- Use `withAlpha` for translucent overlays.
 
-## Screens / components
-- SafeAreaView root; granular selectors; store actions only.
-- Skills: `new-screen`, `migrate-nativewind`, `bulk-nativewind-migration`, `add-navigation-route`
+## Screens
+- SafeAreaView + `colors.bg`
+- Granular Zustand selectors
+- No engine game logic in screens (store actions only)
+- Skills: `new-screen`, `add-navigation-route`, `new-component`

@@ -47,10 +47,7 @@ import { applyCountriesLived } from "@utils/countriesLived";
 import { pickDailyQuests, updateQuestProgress } from "../../engine/questEngine";
 import { applyScenarioAtCreation } from "../../engine/scenarioEngine";
 import { applyDynastyStatMultiplier } from "../../engine/economyCapEngine";
-
-function generateId(): string {
-  return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-}
+import { makeId } from "@engine/ids";
 
 function defaultUnlockedStyles(
   _gender: Gender,
@@ -161,7 +158,7 @@ function buildCharacter(data: CreateCharacterPayload): Character {
   if (data.traits.includes("prestige_royal_blood")) {
     bankBalance += scaleEventBankEffect(150000, data.countryCode ?? "US", "gift");
   }
-  const id = generateId();
+  const id = makeId();
   const parents = generateParents(
     data.name,
     data.countryCode,

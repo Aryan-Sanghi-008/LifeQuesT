@@ -10,9 +10,11 @@ describe('cosmeticCatalog baselines', () => {
     expect(FREE_BASELINE_COSMETICS.map((c) => c.id)).toEqual([
       'theme_system_default',
       'sound_pack_classic',
+      'font_default',
     ]);
     expect(isFreeBaselineCosmetic('theme_system_default')).toBe(true);
     expect(isFreeBaselineCosmetic('sound_pack_classic')).toBe(true);
+    expect(isFreeBaselineCosmetic('font_default')).toBe(true);
     expect(isFreeBaselineCosmetic('theme_porcelain')).toBe(false);
   });
 

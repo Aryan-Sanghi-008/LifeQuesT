@@ -113,7 +113,14 @@ export function getPerksForAsset(asset: Asset): AssetPerk[] {
   return [];
 }
 
-function collectRawSlots(character: Character): Omit<EquippedPerkSlot, 'weight' | 'weightedPerks'>[] {
+export type EquippedPerksCharacter = Pick<
+  Character,
+  'assets' | 'businesses' | 'insurancePolicies'
+>;
+
+function collectRawSlots(
+  character: EquippedPerksCharacter,
+): Omit<EquippedPerkSlot, 'weight' | 'weightedPerks'>[] {
   const slots: Omit<EquippedPerkSlot, 'weight' | 'weightedPerks'>[] = [];
 
   for (const asset of character.assets) {
@@ -177,7 +184,7 @@ function collectRawSlots(character: Character): Omit<EquippedPerkSlot, 'weight' 
  * Collect equipped perks, apply stacking by equippedOrder (then name),
  * and resolve aggregate effects.
  */
-export function resolveEquippedPerks(character: Character): ResolvedPerkEffects {
+export function resolveEquippedPerks(character: EquippedPerksCharacter): ResolvedPerkEffects {
   const raw = collectRawSlots(character);
   raw.sort((a, b) => {
     if (a.equippedOrder !== b.equippedOrder) return a.equippedOrder - b.equippedOrder;
@@ -238,7 +245,7 @@ export function applyEquippedStatPerks(
   return applyStatPatch(stats, statPatch, clampFn);
 }
 
-export function getEquippedPerkSummary(character: Character): string[] {
+export function getEquippedPerkSummary(character: EquippedPerksCharacter): string[] {
   const effects = resolveEquippedPerks(character);
   const lines: string[] = [];
   const s = effects.statPatch;

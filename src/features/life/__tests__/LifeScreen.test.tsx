@@ -66,6 +66,10 @@ jest.mock('@services/audio', () => ({
   playSound: jest.fn(),
 }));
 
+jest.mock('@hooks/useReducedMotion', () => ({
+  useReducedMotion: () => true,
+}));
+
 const mockAgeUp = jest.fn();
 
 jest.mock('@features/character/hooks/useCharacter', () => ({
@@ -76,6 +80,7 @@ jest.mock('@features/character/hooks/useCharacter', () => ({
       focusConfirmedForAge: 25,
       eventHistory: [],
       isAlive: true,
+      birthYear: 2001,
     }),
     pendingDecision: null,
     isProcessing: false,
@@ -89,6 +94,26 @@ jest.mock('@features/character/hooks/useCharacter', () => ({
     pendingAspirationPicker: false,
   }),
 }));
+
+jest.mock('@store/gameStore', () => {
+  const character = require('@test/fixtures/character').createTestCharacter({
+    age: 25,
+    lifePhase: 'acting',
+    focusConfirmedForAge: 25,
+    eventHistory: [],
+    isAlive: true,
+    birthYear: 2001,
+  });
+  const state = {
+    character,
+    dismissYearReview: jest.fn(),
+    pendingCollegeMajorPicker: false,
+  };
+  const useGameStore = (selector?: (s: typeof state) => unknown) =>
+    typeof selector === 'function' ? selector(state) : state;
+  useGameStore.getState = () => state;
+  return { useGameStore };
+});
 
 import { fireEvent, waitFor } from '@testing-library/react-native';
 import { LifeScreen } from '../LifeScreen';

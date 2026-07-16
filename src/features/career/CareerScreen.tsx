@@ -1,8 +1,8 @@
-import { View, Text, ScrollView, Pressable, Alert, StyleSheet } from "react-native";
+import { View, Text, ScrollView, Pressable, Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RootStackParamList, Character, Person } from "../../types";
-import type { GameStore } from "../../store/gameStore";
+import { RootStackParamList, Character, Person } from "@/types";
+import type { GameStore } from "@store/gameStore";
 import { useTheme } from "@theme";
 import { useCareerScreen } from "@features/career/hooks/useCareerScreen";
 import { NpcAvatar } from "@components/Avatars";
@@ -10,21 +10,19 @@ import { Card, StatBar, SectionLabel, Badge } from "@components/index";
 import { ScreenShell } from "@components/ScreenShell";
 import { TabScreenHeader } from "@components/TabScreenHeader";
 import {
-  getEligibleCareers,
-  getScenarioCareerBoard,
-  checkCareerEligibility,
-  getCountrySalary,
   getSkillTreeProgress,
   getPromotionTarget,
-} from "../../engine/careerEngine";
-import { getAllCareerPaths } from "../../data/careerPaths";
+} from "@engine/careerEngine";
+import { getAllCareerPaths } from "@data/careerPaths";
 import {
   resolveEducationTrackForDisplay,
-} from "../../engine/educationEngine";
-import { getDegreeById } from "../../data/educationDegrees";
+} from "@engine/educationEngine";
+import { getDegreeById } from "@data/educationDegrees";
 import { useGameStore } from "@store/gameStore";
-import { listPursuableCertifications, getCertificationLabel } from "../../engine/certificationEngine";
+import { listPursuableCertifications, getCertificationLabel } from "@engine/certificationEngine";
 import { formatCurrency } from "@utils/currency";
+import { JobBoard } from "@features/career/components/JobBoard";
+import { getCareerStyles } from "@features/career/components/careerStyles";
 import Svg, { Path, Rect } from "react-native-svg";
 
 // ─── Education Icons and Colors Dynamic Generators ───────────────────────────
@@ -292,7 +290,7 @@ function JobPanel({
   applyForPromotion: GameStore["applyForPromotion"];
 }) {
   const { colors, fonts, spacing } = useTheme();
-  const styles = getStyles(spacing);
+  const styles = getCareerStyles(spacing);
   const promoTarget = character.career ? getPromotionTarget(character.career) : null;
   const promoHint = promoTarget
     ? `Eligible for ${promoTarget.label}`
@@ -543,7 +541,7 @@ function CertExamsPanel({
   takeCertificationExam: GameStore["takeCertificationExam"];
 }) {
   const { colors, fonts, spacing } = useTheme();
-  const styles = getStyles(spacing);
+  const styles = getCareerStyles(spacing);
 
   if (character.age < 18) return null;
 
@@ -649,400 +647,6 @@ function CertExamsPanel({
           </Text>
         </View>
       )}
-    </Card>
-  );
-}
-
-// ─── Job Board ────────────────────────────────────────────────────────────────
-
-function JobBoard({
-  character,
-  applyForJob,
-}: {
-  character: Character;
-  applyForJob: GameStore["applyForJob"];
-}) {
-  const { colors, fonts, spacing } = useTheme();
-  const styles = getStyles(spacing);
-
-  if (character.age < 16) return null;
-  const countryCode = character.countryCode ?? "IN";
-
-  const allEligible = getEligibleCareers(character);
-  const preferredJobs = allEligible.filter((e) => e.preferred).slice(0, 6);
-  const otherJobs =
-    preferredJobs.length > 0
-      ? allEligible.filter((e) => !e.preferred).slice(0, 4)
-      : allEligible.slice(0, 8);
-  const scenarioCareers = getScenarioCareerBoard(character);
-  const scenarioId = character.scenarioId ?? 'classic';
-
-  const renderJobRow = (
-    { career, eligibility }: (typeof allEligible)[number],
-    i: number,
-  ) => {
-    const localSalary = getCountrySalary(career.baseSalary, countryCode);
-    const probColor =
-      eligibility.hireProbability >= 70
-        ? colors.emerald
-        : eligibility.hireProbability >= 40
-          ? colors.gold
-          : colors.crimson;
-    return (
-      <Pressable
-        key={career.id}
-        onPress={() => {
-          const r = applyForJob(career.id);
-          Alert.alert(r.success ? "Hired!" : "Not This Time", r.message);
-        }}
-        style={[
-          styles.jobRow,
-          i > 0 && { borderTopWidth: 1, borderTopColor: colors.border },
-        ]}
-      >
-        <View
-          style={[styles.jobIcon, { backgroundColor: `${colors.catCareer}12` }]}
-        >
-          <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-            <Rect
-              stroke={colors.catCareer}
-              strokeWidth={2}
-              x="2"
-              y="7"
-              width="20"
-              height="14"
-              rx="2"
-            />
-            <Path
-              stroke={colors.catCareer}
-              strokeWidth={2}
-              strokeLinecap="round"
-              d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"
-            />
-          </Svg>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text
-            style={{
-              fontFamily: fonts.bodySemiBold,
-              fontSize: 14,
-              color: colors.t1,
-            }}
-          >
-            {career.label}
-          </Text>
-          <Text style={{ fontFamily: fonts.body, fontSize: 11, color: colors.t4 }}>
-            {career.company}
-          </Text>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 4,
-              marginTop: 2,
-            }}
-          >
-            <View
-              style={{
-                width: 40,
-                height: 3,
-                backgroundColor: colors.bg2,
-                borderRadius: 2,
-                overflow: "hidden",
-              }}
-            >
-              <View
-                style={{
-                  width: `${eligibility.hireProbability}%` as `${number}%`,
-                  height: "100%",
-                  backgroundColor: probColor,
-                  borderRadius: 2,
-                }}
-              />
-            </View>
-            <Text
-              style={{
-                fontFamily: fonts.monoSemiBold,
-                fontSize: 9,
-                color: probColor,
-              }}
-            >
-              {eligibility.hireProbability}%
-            </Text>
-          </View>
-        </View>
-        <View
-          style={[
-            styles.salaryBadge,
-            {
-              backgroundColor: `${colors.wealth}12`,
-              borderColor: `${colors.wealth}25`,
-            },
-          ]}
-        >
-          <Text
-            style={{
-              fontFamily: fonts.monoSemiBold,
-              fontSize: 12,
-              color: colors.wealth,
-            }}
-          >
-            {formatCurrency(localSalary, countryCode)}/yr
-          </Text>
-        </View>
-      </Pressable>
-    );
-  };
-
-  const sectionHeader = (label: string, extraTop?: boolean) => (
-    <Text
-      style={{
-        fontFamily: fonts.bodySemiBold,
-        fontSize: 10,
-        color: colors.t4,
-        letterSpacing: 2,
-        marginTop: extraTop ? spacing.sm : 0,
-      }}
-    >
-      {label}
-    </Text>
-  );
-
-  return (
-    <Card style={{ gap: spacing.sm }}>
-      {preferredJobs.length > 0 ? (
-        <>
-          {sectionHeader("YOUR FIELD")}
-          {preferredJobs.map(renderJobRow)}
-          {otherJobs.length > 0 && (
-            <>
-              {sectionHeader("OTHER JOBS", true)}
-              {otherJobs.map(renderJobRow)}
-            </>
-          )}
-        </>
-      ) : otherJobs.length === 0 ? (
-        <>
-          {sectionHeader("AVAILABLE CAREERS")}
-          <Text
-            style={{
-              fontFamily: fonts.body,
-              fontSize: 13,
-              color: colors.t4,
-            }}
-          >
-            No careers available yet. Finish school or meet requirements below.
-          </Text>
-        </>
-      ) : (
-        <>
-          {sectionHeader("AVAILABLE CAREERS")}
-          {otherJobs.map(renderJobRow)}
-        </>
-      )}
-      {scenarioCareers.length > 0 && (
-        <>
-          <Text
-            style={{
-              fontFamily: fonts.bodySemiBold,
-              fontSize: 10,
-              color: colors.t4,
-              letterSpacing: 2,
-              marginTop: spacing.sm,
-            }}
-          >
-            SCENARIO CAREERS
-          </Text>
-          {scenarioCareers.slice(0, 6).map(({ career, eligibility }, i) => {
-            const localSalary = getCountrySalary(career.baseSalary, countryCode);
-            const wrongScenario =
-              career.requiresScenario?.length &&
-              !career.requiresScenario.includes(scenarioId);
-            const isLocked = wrongScenario || !eligibility.eligible;
-            const row = (
-              <View
-                style={[
-                  styles.jobRow,
-                  isLocked && { opacity: 0.45 },
-                  i > 0 && { borderTopWidth: 1, borderTopColor: colors.border },
-                ]}
-              >
-                <View
-                  style={[
-                    styles.jobIcon,
-                    { backgroundColor: `${colors.catCareer}12` },
-                  ]}
-                >
-                  <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-                    <Rect
-                      stroke={colors.catCareer}
-                      strokeWidth={2}
-                      x="2"
-                      y="7"
-                      width="20"
-                      height="14"
-                      rx="2"
-                    />
-                    <Path
-                      stroke={colors.catCareer}
-                      strokeWidth={2}
-                      strokeLinecap="round"
-                      d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"
-                    />
-                  </Svg>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{
-                      fontFamily: fonts.bodySemiBold,
-                      fontSize: 14,
-                      color: colors.t1,
-                    }}
-                  >
-                    {career.label}
-                  </Text>
-                  <Text
-                    style={{
-                      fontFamily: fonts.body,
-                      fontSize: 11,
-                      color: colors.t4,
-                    }}
-                    numberOfLines={2}
-                  >
-                    {wrongScenario
-                      ? 'Not available in this scenario.'
-                      : eligibility.eligible
-                        ? career.company
-                        : eligibility.reason ?? career.company}
-                  </Text>
-                </View>
-                <View
-                  style={[
-                    styles.salaryBadge,
-                    {
-                      backgroundColor: `${colors.wealth}12`,
-                      borderColor: `${colors.wealth}25`,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={{
-                      fontFamily: fonts.monoSemiBold,
-                      fontSize: 12,
-                      color: colors.wealth,
-                    }}
-                  >
-                    {formatCurrency(localSalary, countryCode)}/yr
-                  </Text>
-                </View>
-              </View>
-            );
-            if (isLocked) {
-              return <View key={career.id}>{row}</View>;
-            }
-            return (
-              <Pressable
-                key={career.id}
-                onPress={() => {
-                  const r = applyForJob(career.id);
-                  Alert.alert(r.success ? "Hired!" : "Not This Time", r.message);
-                }}
-              >
-                {row}
-              </Pressable>
-            );
-          })}
-        </>
-      )}
-      {(() => {
-        const shownIds = new Set([
-          ...preferredJobs.map((e) => e.career.id),
-          ...otherJobs.map((e) => e.career.id),
-        ]);
-        const locked = getAllCareerPaths().filter(
-          (c) =>
-            c.id !== "entrepreneur" &&
-            c.isEntryLevel &&
-            !c.requiresScenario?.length &&
-            !shownIds.has(c.id),
-        ).slice(0, 3);
-        if (locked.length === 0) return null;
-        return (
-          <>
-            <Text
-              style={{
-                fontFamily: fonts.bodySemiBold,
-                fontSize: 10,
-                color: colors.t4,
-                letterSpacing: 2,
-                marginTop: spacing.sm,
-              }}
-            >
-              LOCKED (REQUIREMENTS NOT MET)
-            </Text>
-            {locked.map((career, i) => {
-              const check = checkCareerEligibility(character, career.id);
-              return (
-                <View
-                  key={career.id}
-                  style={[
-                    styles.jobRow,
-                    { opacity: 0.4 },
-                    i > 0 && { borderTopWidth: 1, borderTopColor: colors.border },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.jobIcon,
-                      { backgroundColor: `${colors.t4}12` },
-                    ]}
-                  >
-                    <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-                      <Rect
-                        stroke={colors.t4}
-                        strokeWidth={2}
-                        x="2"
-                        y="7"
-                        width="20"
-                        height="14"
-                        rx="2"
-                      />
-                      <Path
-                        stroke={colors.t4}
-                        strokeWidth={2}
-                        strokeLinecap="round"
-                        d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"
-                      />
-                    </Svg>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text
-                      style={{
-                        fontFamily: fonts.bodySemiBold,
-                        fontSize: 14,
-                        color: colors.t3,
-                      }}
-                    >
-                      {career.label}
-                    </Text>
-                    <Text
-                      style={{
-                        fontFamily: fonts.body,
-                        fontSize: 10,
-                        color: colors.t4,
-                      }}
-                      numberOfLines={1}
-                    >
-                      {check.reason ??
-                        `Requires: ${career.requirements.minEducationStage}`}
-                    </Text>
-                  </View>
-                </View>
-              );
-            })}
-          </>
-        );
-      })()}
     </Card>
   );
 }
@@ -1178,7 +782,7 @@ function PromotionOfferBanner({
 
 export function CareerScreen() {
   const { colors, fonts, spacing } = useTheme();
-  const styles = getStyles(spacing);
+  const styles = getCareerStyles(spacing);
 
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -1290,34 +894,3 @@ export function CareerScreen() {
   );
 }
 
-const getStyles = (spacing: { lg: number; md: number; sm: number; xl: number; xxxl: number }) =>
-  StyleSheet.create({
-    scroll: { padding: spacing.lg },
-    btn: {
-      paddingHorizontal: spacing.md,
-      paddingVertical: 9,
-      borderRadius: 8,
-      borderWidth: 1.5,
-    },
-    btnText: { fontSize: 12 },
-    jobRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      paddingVertical: spacing.md,
-      gap: spacing.sm,
-    },
-    jobIcon: {
-      width: 34,
-      height: 34,
-      borderRadius: 8,
-      alignItems: "center",
-      justifyContent: "center",
-      flexShrink: 0,
-    },
-    salaryBadge: {
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 8,
-      borderWidth: 1,
-    },
-  });

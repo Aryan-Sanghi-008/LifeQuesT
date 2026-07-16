@@ -14,6 +14,7 @@ import { SOCIAL_PLATFORMS, getSocialPlatform } from '@data/socialPlatforms';
 import { clamp } from './economyEngine';
 import { scaleCountryAmount } from './countryScaleEngine';
 import { getSocialIncomeTraitMultiplier } from './traitEngine';
+import { makeId } from './ids';
 
 export { SOCIAL_PLATFORMS } from '@data/socialPlatforms';
 
@@ -56,10 +57,6 @@ export const FOLLOWER_MILESTONES = [
   { followers: 100_000, label: 'National Star', annualIncomeUsd: 25_000, unlockEventId: 'cancelled_online' },
 ] as const;
 
-function generateId(prefix: string): string {
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-}
-
 function makeLedgerEntry(params: {
   age: number;
   platformId: SocialPlatformId;
@@ -72,7 +69,7 @@ function makeLedgerEntry(params: {
   monetizationKind?: SocialMonetizationKind;
 }): SocialLedgerEntry {
   return {
-    id: generateId('sled'),
+    id: makeId('sled'),
     age: params.age,
     platformId: params.platformId,
     kind: params.kind,
@@ -450,7 +447,7 @@ export function createPost(
   const virality = Math.min(99, Math.floor((likes / Math.max(1, views)) * 400 + roll * 40));
 
   const post: SocialPost = {
-    id: generateId('post'),
+    id: makeId('post'),
     age: character.age,
     platform: platformId,
     content: content.slice(0, 280),
@@ -577,7 +574,7 @@ export function hireStaff(
     unlocked: true,
     staff: [
       ...account.staff,
-      { id: generateId('staff'), role, monthlyCost: monthly, hiredAge: character.age },
+      { id: makeId('staff'), role, monthlyCost: monthly, hiredAge: character.age },
     ],
     ledger: appendSocialLedger(account.ledger, hireEntry),
   };

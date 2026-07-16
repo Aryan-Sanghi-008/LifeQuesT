@@ -7,6 +7,8 @@ import {
   updateLeaderboardEntry,
   fetchLeaderboardEntries,
   cleanupStaleSaves,
+  sanitizeLeaderboardPayload,
+  LeaderboardValidationError,
   DEFAULT_SEASON_ID,
   type LeaderboardPayload,
 } from './leaderboard';
@@ -105,7 +107,13 @@ export const verifyPurchase = functions.https.onCall(async (data, context) => {
 
   const uid = context.auth.uid;
   const userRef = db.doc(`users/${uid}`);
-  const purchaseRef = db.doc(`users/${uid}/purchases/${transactionId}`);
+  // Prefer platform-native idempotency keys when present (Play token / txn id).
+  const idempotencyKey =
+    (resolvedPlatform === 'android' && purchaseToken
+      ? `gp_${purchaseToken.slice(0, 120)}`
+      : null)
+    ?? `txn_${transactionId}`;
+  const purchaseRef = db.doc(`users/${uid}/purchases/${idempotencyKey}`);
 
   const existing = await purchaseRef.get();
   if (existing.exists) {
@@ -123,6 +131,7 @@ export const verifyPurchase = functions.https.onCall(async (data, context) => {
     productId,
     transactionId,
     platform: resolvedPlatform,
+    purchaseToken: purchaseToken ?? null,
     verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
@@ -155,18 +164,26 @@ export const updateLeaderboard = functions.https.onCall(async (data, context) =>
   }
 
   const payload = data as LeaderboardPayload;
-  if (typeof payload.score !== 'number' || typeof payload.lifeAge !== 'number') {
-    throw new functions.https.HttpsError('invalid-argument', 'score and lifeAge required.');
+  try {
+    sanitizeLeaderboardPayload(payload);
+  } catch (e) {
+    const message = e instanceof LeaderboardValidationError
+      ? e.message
+      : 'Invalid leaderboard payload.';
+    throw new functions.https.HttpsError('invalid-argument', message);
   }
 
   return updateLeaderboardEntry(db, context.auth.uid, payload);
 });
 
-export const getLeaderboard = functions.https.onCall(async (data) => {
+export const getLeaderboard = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Sign in required.');
+  }
   const payload = data as { limit?: number; seasonId?: string };
-  const limit = payload.limit ?? 50;
-  const seasonId = payload.seasonId;
-  return fetchLeaderboardEntries(db, limit, seasonId ?? DEFAULT_SEASON_ID);
+  const limit = typeof payload.limit === 'number' ? payload.limit : 50;
+  const seasonId = typeof payload.seasonId === 'string' ? payload.seasonId : DEFAULT_SEASON_ID;
+  return fetchLeaderboardEntries(db, limit, seasonId);
 });
 
 export const cleanupOldSaves = functions.pubsub.schedule('every 24 hours').onRun(async () => {

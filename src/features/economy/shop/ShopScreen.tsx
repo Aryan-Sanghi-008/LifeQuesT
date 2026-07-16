@@ -95,6 +95,14 @@ export function ShopScreen() {
     applyCosmetic,
     setAvatarStyle,
   } = useShopActions();
+  const fantasyDlcUnlocked = character
+    ? isDlcUnlocked(
+        { isPremium: character.isPremium, unlockedDlcIds: character.unlockedDlcIds } as Parameters<
+          typeof isDlcUnlocked
+        >[0],
+        "dlc_fantasy",
+      )
+    : false;
   const [purchasing, setPurchasing] = useState<string | null>(null);
   const [previewCosmetic, setPreviewCosmetic] = useState<{ item: CosmeticItem; owned: boolean } | null>(null);
   const [activeTab, setActiveTab] = useState<ShopTab>(
@@ -468,12 +476,12 @@ export function ShopScreen() {
         <View style={styles.expansionCard}>
           <View style={styles.expansionHeader}>
             <Text style={styles.expansionTitle}>🧙‍♂️ Fantasy Expansion Pack</Text>
-            {isDlcUnlocked(character, "dlc_fantasy")
+            {fantasyDlcUnlocked
               ? <View style={styles.unlockedBadge}><Text style={styles.unlockedBadgeText}>ACTIVE</Text></View>
               : <View style={styles.lockedBadge}><Text style={styles.lockedBadgeText}>LOCKED</Text></View>}
           </View>
           <Text style={styles.expansionDesc}>Unlock rare magical careers (Alchemist, Wizard) and fantasy species traits with custom magical events!</Text>
-          {isDlcUnlocked(character, "dlc_fantasy")
+          {fantasyDlcUnlocked
             ? <Text style={styles.expansionActiveText}>✨ All magical careers, species traits, and events are active!</Text>
             : <View style={styles.unlockButtonsRow}>
                 <Pressable style={styles.unlockBtn} onPress={() => { const res = unlockFantasyDlc("gems"); showToast(res.message ?? "Done", res.ok ? "success" : "error"); }}>

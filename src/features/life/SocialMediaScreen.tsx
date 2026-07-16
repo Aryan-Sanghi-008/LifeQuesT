@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useThemedStyles, useTheme } from '@theme';
+import { useThemedStyles, useTheme, withAlpha } from '@theme';
 import { ScreenHeader } from '@components/ScreenHeader';
 import { useGameStore } from '@store/gameStore';
 import { SOCIAL_PLATFORMS } from '@data/socialPlatforms';
@@ -20,23 +20,6 @@ import {
 import { formatCurrency } from '@utils/currency';
 import type { RootStackParamList, SocialPlatformId } from '@/types';
 import { LockedPlatformSheet } from './social/components/LockedPlatformSheet';
-
-/** Append 2-digit hex alpha to a #RRGGBB (or #RGB) color. Falls back to input if parse fails. */
-function withAlpha(hex: string, alpha01: number): string {
-  const a = Math.round(Math.max(0, Math.min(1, alpha01)) * 255)
-    .toString(16)
-    .padStart(2, '0');
-  const raw = hex.replace('#', '');
-  if (raw.length === 3) {
-    const expanded = raw
-      .split('')
-      .map((c) => c + c)
-      .join('');
-    return `#${expanded}${a}`;
-  }
-  if (raw.length === 6) return `#${raw}${a}`;
-  return hex;
-}
 
 export function SocialMediaScreen() {
   const { colors, fonts } = useTheme();

@@ -1,5 +1,6 @@
 # Theme
 
-- Tokens: `src/theme/themes.ts` → `tailwind.config.js`.
-- NativeWind v4 via `global.css` + `metro.config.js`.
-- Shadows: `StyleSheet` + `SHADOWS` only.
+- Tokens: `src/shared/theme/themes.ts` + skins in `themeSkins.ts`.
+- Runtime: `useTheme` / `useThemedStyles` from `@theme`.
+- Helpers: `withAlpha`.
+- Color scheme: light / dark / system; `userInterfaceStyle: automatic`.

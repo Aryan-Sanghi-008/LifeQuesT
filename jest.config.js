@@ -5,6 +5,7 @@ module.exports = {
   testMatch: ['**/__tests__/**/*.(ts|tsx)', '**/*.(test|spec).(ts|tsx)'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    '^@features/(.*)$': '<rootDir>/src/features/$1',
     '^@screens/(.*)$': '<rootDir>/src/screens/$1',
     '^@components/(.*)$': '<rootDir>/src/shared/components/$1',
     '^@components$': '<rootDir>/src/shared/components/index.tsx',
@@ -35,7 +36,11 @@ module.exports = {
       lines: 50,
     },
   },
-  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/functions/'],
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '<rootDir>/functions/',
+    '<rootDir>/tests/',
+  ],
   transformIgnorePatterns: [
     'node_modules/(?!((jest-)?react-native|@react-native(-community)?)|expo(nent)?|@expo(nent)?/.*|@expo-google-fonts/.*|react-navigation|@react-navigation/.*|@sentry/react-native|native-base|react-native-svg|immer|zustand)',
   ],

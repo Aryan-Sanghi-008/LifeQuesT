@@ -26,7 +26,10 @@ import {
   DAILY_GAMEPLAY_COIN_CAP,
   getGameplayCoinsEarnedToday,
 } from "@engine/economyCapEngine";
+import { useShallow } from "zustand/react/shallow";
 import { useHomeHub } from "@features/life/hooks/useHomeHub";
+import { useGameStore } from "@store/gameStore";
+import { selectCharacterChallengeContext } from "@store/selectors";
 import { MetaProgressHelpSheet } from "@shared/components/MetaProgressHelpSheet";
 import { getCurrentSeason } from "@engine/liveOpsEngine";
 import { useScreenA11yFocus } from "@hooks/useScreenA11yFocus";
@@ -95,6 +98,8 @@ export function HomeScreen() {
     };
   }, []);
 
+  const challengeContext = useGameStore(useShallow(selectCharacterChallengeContext));
+
   if (!character) {
     return (
       <ScreenShell>
@@ -125,7 +130,9 @@ export function HomeScreen() {
   const activeChallengeTitle = activeChallenge
     ? activeChallenge.title
     : "No active challenge — browse catalog";
-  const challengeProgress = character ? getChallengeProgress(character) : null;
+  const challengeProgress = challengeContext
+    ? getChallengeProgress(challengeContext as Parameters<typeof getChallengeProgress>[0])
+    : null;
   const nextSeasonTier = character
     ? SEASON_PASS_TIERS.find((t) => (character.seasonXp ?? 0) < t.xpRequired)
     : undefined;
@@ -156,7 +163,7 @@ export function HomeScreen() {
     <View style={styles.header}>
       <View style={styles.headerLeft}>
         <View style={[styles.avatarRing, { borderColor: colors.gold, backgroundColor: colors.bgCard }]}>
-          <AvatarByCharacter character={character} size={50} clipCircular />
+          <AvatarByCharacter character={character as never} size={50} clipCircular />
         </View>
         <View style={styles.profileText} ref={headingRef} accessible accessibilityRole="header">
           <Text style={[styles.welcome, { color: colors.t3, fontFamily: fonts.body, fontSize: scaledFonts.md }]}>

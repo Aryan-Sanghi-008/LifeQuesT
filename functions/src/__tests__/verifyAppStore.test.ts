@@ -62,6 +62,14 @@ describe('verifyAppStorePurchase', () => {
     ).resolves.toBeUndefined();
   });
 
+  it('does not allow bypass when IAP_ALLOW_UNVERIFIED is set outside emulator', async () => {
+    process.env.IAP_ALLOW_UNVERIFIED = 'true';
+    delete process.env.FUNCTIONS_EMULATOR;
+    await expect(
+      verifyAppStorePurchase('season_pass', 'tx-1'),
+    ).rejects.toThrow('not configured');
+  });
+
   it('throws not implemented when config is present', async () => {
     process.env.APPLE_ISSUER_ID = 'issuer';
     process.env.APPLE_KEY_ID = 'key';

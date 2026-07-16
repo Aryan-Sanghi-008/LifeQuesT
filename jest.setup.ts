@@ -152,3 +152,10 @@ jest.mock('@services/widgetSnapshot', () => ({
     updatedAt: Date.now(),
   })),
 }));
+
+jest.mock('@hooks/useAccessibilityPreferences', () => ({
+  useAccessibilityPreferences: () => ({
+    systemReduceMotion: false,
+    highTextContrast: false,
+  }),
+}));

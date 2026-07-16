@@ -10,7 +10,7 @@ Keep Cursor (`.cursor/`) and Claude (`.claude/`) config aligned when project con
 | Requirement type | Create/update | Keep short? | Example |
 |------------------|---------------|-------------|---------|
 | Always-on constraint | **Rule** (`global` or dept `.mdc`/`.md`) | Yes (~50 lines) | "No `any` in TypeScript" |
-| File-scoped constraint | **Rule** with `globs` | Yes | NativeWind on screens |
+| File-scoped constraint | **Rule** with `globs` | Yes | StyleSheet + `@theme` on screens |
 | Multi-step procedure | **Skill** (`SKILL.md`) | ≤120 lines body | Add life event template |
 | Must run every time | **Hook** (shell script) | N/A | Block `.env` commits |
 | Deep encyclopedia | **Workflow doc** (`docs/workflows/`) | Any length | Architecture, balance curve |

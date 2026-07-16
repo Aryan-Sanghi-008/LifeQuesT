@@ -3,8 +3,11 @@ import {
   updateLeaderboardEntry,
   fetchLeaderboardEntries,
   cleanupStaleSaves,
+  sanitizeLeaderboardPayload,
+  LeaderboardValidationError,
   DEFAULT_SEASON_ID,
   CLEANUP_BATCH_LIMIT,
+  MAX_SCORE,
 } from '../leaderboard';
 
 jest.mock('firebase-admin', () => ({
@@ -15,12 +18,13 @@ jest.mock('firebase-admin', () => ({
   },
 }));
 
-function createMockDocRef(set = jest.fn(() => Promise.resolve())) {
+function createMockDocRef(set = jest.fn(async (..._args: unknown[]) => undefined)) {
   return { set, id: 'mock-doc' };
 }
-function createMockDb() {
-  const flatSet = jest.fn(() => Promise.resolve());
-  const seasonSet = jest.fn(() => Promise.resolve());
+
+function createMockDb(opts?: { existingScore?: number }) {
+  const flatSet = jest.fn(async (..._args: unknown[]) => undefined);
+  const seasonSet = jest.fn(async (..._args: unknown[]) => undefined);
   const flatDocRef = createMockDocRef(flatSet);
   const seasonEntryRef = createMockDocRef(seasonSet);
   const seasonDocRef = {
@@ -79,10 +83,28 @@ function createMockDb() {
   const savesWhere = jest.fn(() => ({ limit: savesLimit }));
   const collectionGroup = jest.fn(() => ({ where: savesWhere }));
 
+  const runTransaction = jest.fn(async (fn: (tx: {
+    get: (ref: unknown) => Promise<{ exists: boolean; data: () => { score?: number } | undefined }>;
+    set: (ref: unknown, data: unknown, opts?: unknown) => void;
+  }) => Promise<{ updated: boolean }>) => {
+    const tx = {
+      get: async (_ref: unknown) => ({
+        exists: opts?.existingScore != null,
+        data: () => (opts?.existingScore != null ? { score: opts.existingScore } : undefined),
+      }),
+      set: (ref: unknown, data: unknown, _mergeOpts?: unknown) => {
+        if (ref === seasonEntryRef) seasonSet(data);
+        if (ref === flatDocRef) flatSet(data);
+      },
+    };
+    return fn(tx);
+  });
+
   const db = {
     collection,
     collectionGroup,
     batch,
+    runTransaction,
     __flatSet: flatSet,
     __seasonSet: seasonSet,
     __setFlatGetResult: (result: typeof flatGetResult) => { flatGetResult = result; },
@@ -105,6 +127,29 @@ function createMockDb() {
   };
 }
 
+describe('sanitizeLeaderboardPayload', () => {
+  it('rejects Infinity / NaN scores', () => {
+    expect(() => sanitizeLeaderboardPayload({ score: Infinity, lifeAge: 40 }))
+      .toThrow(LeaderboardValidationError);
+    expect(() => sanitizeLeaderboardPayload({ score: NaN, lifeAge: 40 }))
+      .toThrow(LeaderboardValidationError);
+  });
+
+  it('rejects scores above MAX_SCORE', () => {
+    expect(() => sanitizeLeaderboardPayload({ score: MAX_SCORE + 1, lifeAge: 40 }))
+      .toThrow(LeaderboardValidationError);
+  });
+
+  it('strips control characters from displayName', () => {
+    const result = sanitizeLeaderboardPayload({
+      score: 10,
+      lifeAge: 20,
+      displayName: 'Hi\u0000there',
+    });
+    expect(result.displayName).toBe('Hithere');
+  });
+});
+
 describe('buildLeaderboardEntry', () => {
   it('fills defaults and maps display fields', () => {
     const entry = buildLeaderboardEntry('uid_1', { score: 9000, lifeAge: 72 });
@@ -124,7 +169,7 @@ describe('buildLeaderboardEntry', () => {
 });
 
 describe('updateLeaderboardEntry', () => {
-  it('dual-writes flat and season entry documents', async () => {
+  it('atomically writes season entry and legacy flat doc', async () => {
     const db = createMockDb();
     const result = await updateLeaderboardEntry(db, 'user_1', {
       score: 5000,
@@ -133,7 +178,7 @@ describe('updateLeaderboardEntry', () => {
       seasonId: 'season_2',
     });
 
-    expect(result).toEqual({ ok: true, seasonId: 'season_2' });
+    expect(result).toEqual({ ok: true, seasonId: 'season_2', updated: true });
     expect(db.__flatSet).toHaveBeenCalledTimes(1);
     expect(db.__seasonSet).toHaveBeenCalledTimes(1);
     expect(db.__flatSet.mock.calls[0][0]).toMatchObject({
@@ -142,6 +187,16 @@ describe('updateLeaderboardEntry', () => {
       displayName: 'Alex',
     });
     expect(db.__seasonSet.mock.calls[0][0]).toEqual(db.__flatSet.mock.calls[0][0]);
+  });
+
+  it('skips update when existing score is higher', async () => {
+    const db = createMockDb({ existingScore: 9000 });
+    const result = await updateLeaderboardEntry(db, 'user_1', {
+      score: 100,
+      lifeAge: 30,
+    });
+    expect(result.updated).toBe(false);
+    expect(db.__seasonSet).not.toHaveBeenCalled();
   });
 
   it('defaults season id when omitted', async () => {

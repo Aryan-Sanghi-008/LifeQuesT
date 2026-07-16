@@ -1,4 +1,5 @@
 import type { InsuranceLine, InsurancePolicy } from '../types';
+import { makeId } from '@engine/ids';
 import { scaleCountryAmount } from '../engine/countryScaleEngine';
 import { buildInsurancePerks } from './assetPerks';
 
@@ -111,7 +112,7 @@ export function createPolicy(
   countryCode: string,
 ): InsurancePolicy {
   return {
-    id: `pol_${product.id}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    id: makeId(`pol_${product.id}`),
     line: product.line,
     annualPremium: scalePremium(product.premiumUsd, countryCode),
     coveragePct: product.coveragePct,

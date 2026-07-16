@@ -11,7 +11,7 @@ describe('housingEngine property hooks', () => {
         name: 'Test Home',
         value: 200000,
         purchasedAge: 25,
-        propertyDefId: 'prop_basic_1',
+        propertyDefId: 'prop_basic_1bhk',
       }],
     });
     const next = applyPropertyHappinessBonus(character);

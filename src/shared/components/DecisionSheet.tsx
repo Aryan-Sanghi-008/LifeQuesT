@@ -9,6 +9,8 @@ import Svg, { Path } from "react-native-svg";
 import { hapticDecision, hapticButtonPress } from "@services/haptics";
 import { playSound } from "@services/audio";
 import { useGameStore } from "@store/gameStore";
+import { useShallow } from "zustand/react/shallow";
+import { selectCharacterDecisionContext } from "@store/selectors";
 import { ConfirmSpendModal } from "./ConfirmSpendModal";
 import { scaleEventBankEffect } from "@engine/countryScaleEngine";
 import { formatCurrency } from "@utils/currency";
@@ -356,7 +358,7 @@ export default function DecisionSheet({
 }: DecisionSheetProps) {
   const { colors, fonts, spacing, scaledFonts } = useTheme();
   const eventSkin = useEquippedEventSkin();
-  const character = useGameStore((s) => s.character);
+  const character = useGameStore(useShallow(selectCharacterDecisionContext));
   const [displayEvent, setDisplayEvent] = useState<LifeEvent | null>(null);
   const [pendingChoiceId, setPendingChoiceId] = useState<string | null>(null);
 
@@ -539,7 +541,7 @@ export default function DecisionSheet({
             choice={choice}
             index={i}
             accentColor={accentColor}
-            character={character}
+            character={character as Character | null}
             eventSkin={eventSkin}
             onPress={() => handleChoicePress(choice.id)}
           />

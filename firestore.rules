@@ -3,8 +3,22 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    // users/{uid}: profile, settings, entitlements (server), grants
+    // users/{uid}/purchases/{transactionId}: server-only IAP records
+    // saves/{uid}/slots/{slotId}: character blob + metadata
+    // leaderboard/{seasonId}/entries/{uid}: server-written scores
+    // liveops/*, liveops_history/*: server-written config
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
     function isOwner(uid) {
-      return request.auth != null && request.auth.uid == uid;
+      return isAuthenticated() && request.auth.uid == uid;
     }
 
     function clientAllowedUserKeys() {
@@ -12,6 +26,14 @@ service cloud.firestore {
         'activeSlotId', 'displayName', 'updatedAt', 'profile', 'settings',
         'coinsGrant', 'gemsGrant', 'luckBoostGrant', 'reincarnationScroll',
       ];
+    }
+
+    function validOptionalEquippedId(settings, key) {
+      return !(key in settings)
+        || settings[key] == null
+        || (settings[key] is string
+          && settings[key].size() >= 1
+          && settings[key].size() <= 64);
     }
 
     function validProfile() {
@@ -34,11 +56,16 @@ service cloud.firestore {
           'colorScheme', 'appThemeId', 'notificationsEnabled',
           'soundEnabled', 'musicEnabled', 'hapticsEnabled',
           'masterVolume', 'musicVolume',
+          'equippedEventSkinId', 'equippedNameFontId', 'equippedSoundPackId',
+          'equippedProfileFrameId', 'equippedTombstoneId',
         ])
         && (!('colorScheme' in request.resource.data.settings)
           || request.resource.data.settings.colorScheme in ['light', 'dark', 'system'])
         && (!('appThemeId' in request.resource.data.settings)
-          || request.resource.data.settings.appThemeId in ['default', 'dark_slate', 'midnight', 'sunrise'])
+          || request.resource.data.settings.appThemeId in [
+            'default', 'porcelain', 'ivory_dawn', 'coastal_mist',
+            'obsidian', 'noir_harbor', 'ember_night',
+          ])
         && (!('notificationsEnabled' in request.resource.data.settings)
           || request.resource.data.settings.notificationsEnabled is bool)
         && (!('soundEnabled' in request.resource.data.settings)
@@ -54,7 +81,12 @@ service cloud.firestore {
         && (!('musicVolume' in request.resource.data.settings)
           || (request.resource.data.settings.musicVolume is number
             && request.resource.data.settings.musicVolume >= 0
-            && request.resource.data.settings.musicVolume <= 1));
+            && request.resource.data.settings.musicVolume <= 1))
+        && validOptionalEquippedId(request.resource.data.settings, 'equippedEventSkinId')
+        && validOptionalEquippedId(request.resource.data.settings, 'equippedNameFontId')
+        && validOptionalEquippedId(request.resource.data.settings, 'equippedSoundPackId')
+        && validOptionalEquippedId(request.resource.data.settings, 'equippedProfileFrameId')
+        && validOptionalEquippedId(request.resource.data.settings, 'equippedTombstoneId');
     }
 
     function profileCreatedAtImmutable() {
@@ -130,6 +162,33 @@ service cloud.firestore {
       );
     }
 
+    function validSaveSlot() {
+      return request.resource.data.keys().hasOnly([
+          'character', 'updatedAt', 'updatedAtServer', 'lastSaved',
+          'version', 'checksum', 'name', 'age', 'isAlive',
+        ])
+        && request.resource.data.character is map
+        && (!('name' in request.resource.data)
+          || (request.resource.data.name is string
+            && request.resource.data.name.size() <= 64))
+        && (!('age' in request.resource.data)
+          || (request.resource.data.age is number
+            && request.resource.data.age >= 0
+            && request.resource.data.age <= 200))
+        && (!('isAlive' in request.resource.data)
+          || request.resource.data.isAlive is bool)
+        && (!('checksum' in request.resource.data)
+          || (request.resource.data.checksum is string
+            && request.resource.data.checksum.size() <= 128))
+        && (!('version' in request.resource.data)
+          || (request.resource.data.version is number
+            && request.resource.data.version >= 0
+            && request.resource.data.version <= 1000))
+        && (!('updatedAt' in request.resource.data)
+          || (request.resource.data.updatedAt is number
+            && request.resource.data.updatedAt >= 0));
+    }
+
     match /users/{uid} {
       allow read: if isOwner(uid);
       allow create: if isOwner(uid) && safeUserCreate();
@@ -143,26 +202,28 @@ service cloud.firestore {
     }
 
     match /saves/{uid}/slots/{slotId} {
-      allow read, write: if isOwner(uid);
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid) && validSaveSlot();
+      allow delete: if isOwner(uid);
     }
 
     match /leaderboard/{docId} {
-      allow read: if request.auth != null;
+      allow read: if isAuthenticated();
       allow write: if false;
 
       match /entries/{entryUid} {
-        allow read: if request.auth != null;
+        allow read: if isAuthenticated();
         allow write: if false;
       }
     }
 
     match /liveops/{docId} {
-      allow read: if request.auth != null;
+      allow read: if isAuthenticated();
       allow write: if false;
     }
 
     match /liveops_history/{seasonId} {
-      allow read: if request.auth != null;
+      allow read: if isAuthenticated();
       allow write: if false;
     }
 

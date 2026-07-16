@@ -2,6 +2,7 @@ import { AD_UNITS } from '../config/ads';
 import { isAdsNativeAvailable } from '@utils/nativeAvailability';
 import { useGameStore } from '@store/gameStore';
 import { getInterstitialEveryNLives } from '@services/remoteConfig';
+import { logger } from '@services/logger';
 
 type RewardedAd = import('react-native-google-mobile-ads').RewardedAd;
 type InterstitialAd = import('react-native-google-mobile-ads').InterstitialAd;
@@ -31,7 +32,7 @@ export async function initAds(): Promise<void> {
 
   const ads = getAdsModule();
   if (!ads) {
-    console.warn('[ads] AdMob unavailable in this build — ads disabled.');
+    logger.warn('[ads] AdMob unavailable in this build — ads disabled.');
     return;
   }
 
@@ -41,7 +42,7 @@ export async function initAds(): Promise<void> {
     preloadInterstitial();
     initialized = true;
   } catch (e) {
-    console.warn('[ads] init failed', e);
+    logger.warn('[ads] init failed', e);
   }
 }
 
@@ -52,7 +53,7 @@ function preloadRewarded() {
     rewarded = ads.RewardedAd.createForAdRequest(rewardedUnit(ads));
     rewarded.load();
   } catch (e) {
-    console.warn('[ads] rewarded preload failed', e);
+    logger.warn('[ads] rewarded preload failed', e);
   }
 }
 
@@ -63,7 +64,7 @@ function preloadInterstitial() {
     interstitial = ads.InterstitialAd.createForAdRequest(interstitialUnit(ads));
     interstitial.load();
   } catch (e) {
-    console.warn('[ads] interstitial preload failed', e);
+    logger.warn('[ads] interstitial preload failed', e);
   }
 }
 

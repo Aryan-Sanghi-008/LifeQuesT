@@ -12,10 +12,7 @@ import {
   resolveChoiceMemoryTags,
 } from './memoryEngine';
 import { getKarmaTraitBonus, getLuckRollBonusPercent, getResilientHealthEventMultiplier } from './traitEngine';
-
-function generateId(): string {
-  return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-}
+import { makeId } from './ids';
 
 function applyJobUpdate(
   jobTitle: string,
@@ -102,7 +99,7 @@ export function runResolveDecision(
       updatedChildren += 1;
       const childName = character.name.split(' ')[0] + ' Jr.';
       updatedPeople.push({
-        id: generateId(), name: childName, age: 0,
+        id: makeId(), name: childName, age: 0,
         gender: Math.random() > 0.5 ? 'male' : 'female',
         relationType: 'child', relationshipScore: 80,
         avatarSeed: childName, isAlive: true,

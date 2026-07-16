@@ -1,5 +1,6 @@
 import type { Character, FinanceLedgerCategory, FinanceLedgerEntry } from '../types';
 import { applyCashDelta, clamp, computeNetWorth } from './economyEngine';
+import { makeId } from './ids';
 
 export type { FinanceLedgerCategory, FinanceLedgerEntry };
 
@@ -14,9 +15,6 @@ export interface YearFinanceSummary {
 
 export const MAX_FINANCE_LEDGER = 300;
 
-export function makeLedgerId(prefix: string): string {
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-}
 
 export function trimFinanceLedger(
   entries: FinanceLedgerEntry[],
@@ -47,7 +45,7 @@ export function createLedgerEntry(params: {
   timestamp?: number;
 }): FinanceLedgerEntry {
   return {
-    id: params.id ?? makeLedgerId('fin'),
+    id: params.id ?? makeId('fin'),
     age: params.age,
     timestamp: params.timestamp ?? Date.now(),
     category: params.category,

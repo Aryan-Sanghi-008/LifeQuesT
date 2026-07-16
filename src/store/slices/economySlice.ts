@@ -29,10 +29,7 @@ import {
 import { hireLawyer, resolveTrial, applyVerdictToRecord } from "../../engine/legalEngine";
 import { tickCreditScore } from "../../engine/creditScoreEngine";
 import { generateAngelOpportunities } from "../../engine/marketEngine";
-
-function generateId(): string {
-  return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-}
+import { makeId } from "@engine/ids";
 
 export interface EconomySlice {
   investInStocks: (amount: number, options?: { useMargin?: boolean; catalogId?: string }) => { ok: boolean; message: string };
@@ -230,7 +227,7 @@ export const createEconomySlice: StateCreator<
       s.character.assets.push({
         ...assetData,
         debt: terms.loan > 0 ? terms.loan : undefined,
-        id: generateId(),
+        id: makeId(),
         purchasedAge: s.character.age,
       });
       const cash = applyCashDelta(

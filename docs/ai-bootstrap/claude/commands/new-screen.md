@@ -1,7 +1,5 @@
 ---
-description: Scaffold a new LifeQuesT screen with NativeWind and nav types
+description: Scaffold a new LifeQuesT screen with themed StyleSheet and nav types
 ---
 
 Read and follow `.claude/skills/frontend/new-screen/SKILL.md`.
-
-User request: $ARGUMENTS

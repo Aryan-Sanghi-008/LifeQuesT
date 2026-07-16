@@ -1,4 +1,5 @@
 import { Person, FamilyBackground, ScenarioId } from '@/types';
+import { makeId } from '@engine/ids';
 import { generateRandomDNA, generateRandomPersonality } from './genetics';
 import { SCENARIO_PARENT_OCCUPATIONS } from '@/data/scenarioNPCs';
 
@@ -38,10 +39,6 @@ function seededRandom(seed: string, offset = 0): number {
 
 function pick<T>(arr: T[], seed: string, offset = 0): T {
   return arr[Math.floor(seededRandom(seed, offset) * arr.length)];
-}
-
-function generateId(): string {
-  return `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
 // ─── Name generation ──────────────────────────────────────────────────────────
@@ -97,7 +94,7 @@ export function generateParents(
   const occupations = getOccupations(background, scenarioId);
 
   const father: Person = {
-    id: generateId(),
+    id: makeId(),
     name: fatherName,
     age: 25 + Math.floor(seededRandom(seed, 3) * 15),
     gender: 'male',
@@ -111,7 +108,7 @@ export function generateParents(
   };
 
   const mother: Person = {
-    id: generateId(),
+    id: makeId(),
     name: motherName,
     age: 23 + Math.floor(seededRandom(seed, 6) * 15),
     gender: 'female',
@@ -134,7 +131,7 @@ export function generateClassmate(characterName: string, index: number): Person 
   const gender = seededRandom(seed, 0) > 0.5 ? 'male' : 'female';
   const name = generateName(gender as 'male' | 'female', 'US', seed, index);
   return {
-    id: generateId(),
+    id: makeId(),
     name,
     age: 0,
     gender,
@@ -156,7 +153,7 @@ export function generateCoworker(
   const gender = seededRandom(seed, 0) > 0.5 ? 'male' : 'female';
   const name = generateName(gender as 'male' | 'female', 'US', seed, index);
   return {
-    id: generateId(),
+    id: makeId(),
     name,
     age: 22 + Math.floor(seededRandom(seed, 1) * 20),
     gender,
@@ -173,7 +170,7 @@ export function generateCoworker(
 export function generatePet(type: 'dog' | 'cat' | 'bird'): Person {
   const name = PET_NAMES[Math.floor(Math.random() * PET_NAMES.length)];
   return {
-    id: generateId(),
+    id: makeId(),
     name: `${name} (${type})`,
     age: 0,
     gender: 'animal',   // Required for NpcAvatar to use bottts style
@@ -191,7 +188,7 @@ export function generatePartner(characterName: string, characterAge: number): Pe
   const gender = Math.random() > 0.5 ? 'male' : 'female';
   const name = generateName(gender as 'male' | 'female', 'US', characterName + 'partner' + characterAge, 0);
   return {
-    id: generateId(),
+    id: makeId(),
     name,
     age: characterAge - 3 + Math.floor(Math.random() * 8),
     gender,

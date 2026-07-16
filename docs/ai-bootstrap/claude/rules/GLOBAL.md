@@ -37,6 +37,6 @@ Edit `docs/ai-bootstrap/` only; run `setup.sh` + `validate-ai-config.sh`.
 | Tests, lint, jest | `.claude/rules/QA.md` |
 | Ads, IAP, shop | `.claude/rules/MONETIZATION.md` |
 | Types, nav params | `.claude/rules/TYPES.md` |
-| Theme, tailwind | `.claude/rules/THEME.md` |
+| Theme, design tokens | `.claude/rules/THEME.md` |
 | App entry, boot order | `.claude/rules/APP_BOOT.md` |
 | Rules, skills, hooks, AI templates | `.claude/rules/META_AI_CONFIG.md` |

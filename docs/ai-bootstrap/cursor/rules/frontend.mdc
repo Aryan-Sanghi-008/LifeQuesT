@@ -1,35 +1,32 @@
 ---
-description: React Native screens, components, navigation — NativeWind UI
-globs: src/screens/**/*.tsx,src/components/**/*.tsx,src/navigation/**/*.tsx,App.tsx
+description: React Native screens, components, navigation — StyleSheet + theme tokens
+globs: src/screens/**/*.tsx,src/features/**/*.tsx,src/shared/components/**/*.tsx,src/navigation/**/*.tsx,App.tsx
 alwaysApply: false
 ---
 
 # Frontend
 
-## Styling — NativeWind target
-- **New files:** `className` for layout, color, spacing, typography.
-- **Legacy (current codebase):** most UI still uses `StyleSheet` + `COLORS`/`SPACING`. When touching a file, migrate via `migrate-nativewind` skill.
-- **Project-wide pass:** `frontend/bulk-nativewind-migration` skill.
-- `StyleSheet.create` **only** for shadows/elevation (`SHADOWS` from theme).
-- Tokens: `bg-bg`, `text-t-1`, `text-gold`, `p-4`, `rounded-md` — see `tailwind.config.js`.
+## Styling — StyleSheet + `@theme`
+- Layout, color, spacing, typography via `useTheme()` / `useThemedStyles()` + `StyleSheet`.
+- Tokens: `colors`, `fonts`, `spacing`, `radii`, `shadows` from `@theme`.
+- Never hardcode brand hex when a token exists; use `withAlpha` for translucent overlays.
+- Shadows/elevation: `shadows` from theme (iOS + Android elevation).
 
 ## Screens
-- Root wrapper: `SafeAreaView` with `className="flex-1 bg-bg"` (after migration).
+- Root wrapper: `SafeAreaView` with themed `backgroundColor: colors.bg`.
 - Granular Zustand selectors — never `useGameStore(s => s.character)` whole object.
 - No game logic in screens — call store actions only.
-- Nav types from `RootStackParamList` / `MainTabParamList` in `src/types/index.ts`.
+- Nav types from `RootStackParamList` / `MainTabParamList` via `@/types`.
 
 ## Components
-- Props-driven; no direct store access.
-- Export shared primitives via `src/components/index.tsx` barrel.
+- Props-driven; no direct store access (exceptions: toast/feedback shells).
+- Export shared primitives via `@components` barrel.
 - `accessibilityLabel` on all `Pressable` / interactive elements.
 
 ## Lists & performance
-- `FlatList` or `SectionList` for lists > 10 items.
+- `FlatList`, `SectionList`, or `FlashList` for lists > 10 items.
 - Haptic feedback on state-changing buttons.
 
 ## Skill shortcuts
 - New screen → `frontend/new-screen`
-- Single-file migration → `frontend/migrate-nativewind`
-- Bulk migration → `frontend/bulk-nativewind-migration`
 - New route → `frontend/add-navigation-route`

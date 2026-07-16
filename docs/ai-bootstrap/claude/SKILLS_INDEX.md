@@ -5,8 +5,6 @@
 | Keywords | Skill | Workflow doc |
 |----------|-------|--------------|
 | new screen, tab, route | `frontend/new-screen` | `docs/workflows/FRONTEND_WORKFLOW.md` |
-| NativeWind, className, migrate StyleSheet | `frontend/migrate-nativewind` | `docs/workflows/FRONTEND_WORKFLOW.md` |
-| bulk NativeWind, migrate all UI, styling pass | `frontend/bulk-nativewind-migration` | `docs/workflows/FRONTEND_WORKFLOW.md` |
 | new component, UI primitive | `frontend/new-component` | `docs/workflows/FRONTEND_WORKFLOW.md` |
 | navigation route, stack screen, tab | `frontend/add-navigation-route` | `docs/workflows/FRONTEND_WORKFLOW.md` |
 | life event, gameData, event | `engine/new-life-event` | `docs/workflows/ENGINE_WORKFLOW.md` |

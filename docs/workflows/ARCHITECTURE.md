@@ -38,7 +38,7 @@ LifeQuesT/
 │   │   └── gameData.ts        # Static data: JOBS, TRAITS, EVENTS, COUNTRIES
 │   ├── constants/             # Non-game constants (colors, sizes)
 │   ├── config/                # Firebase config, env references
-│   ├── theme/                 # NativeWind theme tokens
+│   ├── shared/theme/          # StyleSheet theme tokens + skins
 │   └── utils/                 # Pure utility functions
 ├── functions/                 # Firebase Cloud Functions (Node.js)
 └── docs/workflows/            # AI workflow docs (this folder)

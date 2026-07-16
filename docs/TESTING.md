@@ -10,12 +10,13 @@ Automated confidence layer for launch. Run `npm run validate` before every PR; r
 | `npm run qa:prep` | Validate + age-up perf regression gate |
 | `npm test -- path/to/test` | Single suite |
 | `npm test -- ageUp.perf.test.ts` | Engine perf baseline (p95 < 50ms in CI) |
+| `npm run test:rules` | Firestore rules unit tests (emulator; requires **JDK 21+**, e.g. `JAVA_HOME` → Homebrew `openjdk`) |
 
 ## RNTL v14 (React Native Testing Library)
 
 - Use **async** render: `const { getByText } = await renderWithProviders(<Screen />);`
 - Use **async** press: `await fireEvent.press(getByLabelText('…'));`
-- Renderer: `test-renderer@1.2` (matches React 19.2). Do **not** map to deprecated `react-test-renderer`.
+- Renderer peer for RNTL v14: `test-renderer@^1.x` (Callstack’s React 19 test renderer). Keep `react-test-renderer@19.2.x` if other tooling still references it.
 
 ## Test harness
 

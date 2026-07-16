@@ -1,5 +1,5 @@
 import type { LifeEvent } from '../../types';
-import { CORE_LIFE_EVENTS } from '../gameData';
+import { CORE_LIFE_EVENTS } from './coreLifeEvents';
 
 type PackDef = {
   id: string;

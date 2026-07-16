@@ -1,19 +1,22 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import {
   View,
   Text,
+  SectionList,
   ScrollView,
   Pressable,
   StyleSheet,
   Dimensions,
 } from "react-native";
 import { useToastStore } from "@store/toastStore";
+import { useShallow } from "zustand/react/shallow";
 
 const { height: SCREEN_HEIGHT } = Dimensions.get("window");
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme } from "@theme";
-import { useGameStore } from "../../store/gameStore";
+import { useGameStore } from "@store/gameStore";
+import { selectCharacterPeopleContext } from "@store/selectors";
 import { NpcAvatar } from "@components/Avatars";
 import { Card, SectionLabel, ScreenShell, TabScreenHeader } from "@components/index";
 import { ContextualTutorial } from "@shared/components/ContextualTutorial";
@@ -530,7 +533,7 @@ export function PeopleScreen() {
 
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const character = useGameStore((s) => s.character);
+  const peopleContext = useGameStore(useShallow(selectCharacterPeopleContext));
   const interactWithPerson = useGameStore((s) => s.interactWithPerson);
   const [selected, setSelected] = useState<Person | null>(null);
 
@@ -543,9 +546,44 @@ export function PeopleScreen() {
     setSelected(person);
   };
 
-  if (!character) return null;
+  const sections = useMemo(() => {
+    if (!peopleContext) return [];
+    const grouped = peopleContext.people.reduce<Record<string, Person[]>>((acc, p) => {
+      const key = getGroup(p.relationType);
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(p);
+      return acc;
+    }, {});
+    return Object.entries(grouped).map(([group, persons]) => ({
+      title: GROUP_LABELS[group] ?? group,
+      data: [{ key: group, persons }],
+    }));
+  }, [peopleContext?.people]);
 
-  const { people } = character;
+  const renderSectionHeader = useCallback(
+    ({ section }: { section: { title: string } }) => (
+      <SectionLabel label={section.title} />
+    ),
+    [],
+  );
+
+  const renderItem = useCallback(
+    ({ item }: { item: { key: string; persons: Person[] } }) => (
+      <Card style={{ gap: 0 }}>
+        {item.persons.map((person, i) => (
+          <View key={person.id}>
+            {i > 0 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
+            <PersonRow person={person} onPress={() => handlePersonPress(person)} />
+          </View>
+        ))}
+      </Card>
+    ),
+    [colors.border, handlePersonPress, styles.divider],
+  );
+
+  if (!peopleContext) return null;
+
+  const { people, age: characterAge, countryCode, bankBalance } = peopleContext;
 
   if (people.length === 0) {
     return (
@@ -586,13 +624,6 @@ export function PeopleScreen() {
     );
   }
 
-  const grouped = people.reduce<Record<string, Person[]>>((acc, p) => {
-    const key = getGroup(p.relationType);
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(p);
-    return acc;
-  }, {});
-
   const handleInteract = (interactionId: string) => {
     if (!selected) return;
     const result = interactWithPerson(selected.id, interactionId);
@@ -608,28 +639,17 @@ export function PeopleScreen() {
         accent={colors.catRelationship}
       />
 
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          showsVerticalScrollIndicator={false}
-        >
-          {Object.entries(grouped).map(([group, persons]) => (
-            <View key={group} style={styles.section}>
-              <SectionLabel label={GROUP_LABELS[group] ?? group} />
-              <Card style={{ gap: 0 }}>
-                {persons.map((person, i) => (
-                  <View key={person.id}>
-                    {i > 0 && <View style={[styles.divider, { backgroundColor: colors.border }]} />}
-                    <PersonRow
-                      person={person}
-                      onPress={() => handlePersonPress(person)}
-                    />
-                  </View>
-                ))}
-              </Card>
-            </View>
-          ))}
-          <View style={{ height: spacing.xxxl }} />
-        </ScrollView>
+      <SectionList
+        sections={sections}
+        keyExtractor={(item) => item.key}
+        renderItem={renderItem}
+        renderSectionHeader={renderSectionHeader}
+        contentContainerStyle={styles.scroll}
+        stickySectionHeadersEnabled={false}
+        showsVerticalScrollIndicator={false}
+        SectionSeparatorComponent={() => <View style={{ height: spacing.md }} />}
+        ListFooterComponent={<View style={{ height: spacing.xxxl }} />}
+      />
 
       {selected && (() => {
         const livePerson =
@@ -637,9 +657,9 @@ export function PeopleScreen() {
         return (
           <InteractionSheet
             person={livePerson}
-            characterAge={character.age}
-            countryCode={character.countryCode}
-            bankBalance={character.bankBalance}
+            characterAge={characterAge}
+            countryCode={countryCode}
+            bankBalance={bankBalance}
             onInteract={handleInteract}
             onClose={() => setSelected(null)}
           />

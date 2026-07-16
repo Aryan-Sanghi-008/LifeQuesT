@@ -2,9 +2,7 @@ import type { Character, LegalCase, LegalStage } from '../types';
 import { getCrimeDef } from '../data/crimes';
 import { scaleFineAmount } from './countryScaleEngine';
 
-function clampRange(v: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, v));
-}
+import { clampRange } from './economyEngine';
 
 export const HEAT_INVESTIGATION_THRESHOLD = 70;
 export const MAX_HEAT = 100;

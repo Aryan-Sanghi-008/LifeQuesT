@@ -1,25 +1,22 @@
 ---
-description: Design tokens, Tailwind, NativeWind wiring
-globs: src/theme/**,src/constants/**,tailwind.config.js,global.css,nativewind-env.d.ts
+description: Design tokens and StyleSheet theming
+globs: src/shared/theme/**,src/constants/**
 alwaysApply: false
 ---
 
 # Theme
 
 ## Source of truth
-- Design tokens: `src/theme/themes.ts` (`COLORS`, `FONTS`, `SPACING`, `RADII`, `SHADOWS`).
-- `src/constants/theme.ts` re-exports for backward compat.
-- `tailwind.config.js` must mirror token names (`bg`, `gold`, `t-1`, etc.).
-
-## NativeWind v4
-- Entry: `global.css` imported in `App.tsx` or `index.ts`.
-- Metro: `metro.config.js` wraps with NativeWind.
-- Components use Tailwind classes, not raw hex.
+- Design tokens: `src/shared/theme/themes.ts` (`COLORS`, `DARK_COLORS`, `FONTS`, `SPACING`, `RADII`, `SHADOWS`).
+- Premium skins: `src/shared/theme/themeSkins.ts` (`ThemeSkinId`, `LEGACY_THEME_ID_MAP`).
+- Runtime: `useTheme()` / `useThemedStyles()` from `@theme`.
+- Helpers: `withAlpha` from `@theme`.
 
 ## Adding a token
-1. Add to `src/theme/themes.ts`
-2. Extend `tailwind.config.js` `theme.extend`
-3. Use as `className` in UI — never duplicate hex in components
+1. Add to `themes.ts` (and dark counterpart if needed)
+2. Extend skin overlays in `themeSkins.ts` when skins should override it
+3. Consume via `useTheme()` — never duplicate hex in components
 
-## Shadows exception
-Shadows stay in `StyleSheet` using `SHADOWS` from theme — NativeWind shadow support is limited on Android.
+## Color scheme
+- Settings `colorScheme`: `light` | `dark` | `system`
+- App config `userInterfaceStyle: 'automatic'`

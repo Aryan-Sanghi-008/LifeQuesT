@@ -8,7 +8,7 @@ A mobile life-simulation RPG (React Native / Expo SDK 56) where players live vir
 - **Language**: TypeScript ~6.0 (strict)
 - **State**: Zustand + Immer middleware (`useGameStore`)
 - **Storage**: MMKV (primary, native) → AsyncStorage (fallback/web)
-- **Styling**: NativeWind v4 (TailwindCSS v3 classes on RN)
+- **Styling**: StyleSheet + `@theme` tokens (`useTheme` / `useThemedStyles`)
 - **Navigation**: React Navigation v6 (native stack + bottom tabs)
 - **Backend**: Firebase (Auth, Firestore cloud save), Firebase Cloud Functions
 - **Monetization**: react-native-iap (IAP), react-native-google-mobile-ads (Ads)

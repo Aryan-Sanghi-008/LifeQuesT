@@ -45,6 +45,6 @@ Read `meta-ai-config.mdc` when editing bootstrap, workflows, or AI templates.
 | Tests, lint, jest | `qa.mdc` |
 | Ads, IAP, shop | `monetization.mdc` |
 | Types, nav params | `types.mdc` |
-| Theme, tailwind | `theme.mdc` |
+| Theme, design tokens | `theme.mdc` |
 | App entry, boot order | `app-boot.mdc` |
 | Rules, skills, hooks, AI templates | `meta-ai-config.mdc` |

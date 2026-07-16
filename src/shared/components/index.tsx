@@ -4,7 +4,6 @@ export { ScreenShell } from "./ScreenShell";
 export { GlassCard } from "./GlassCard";
 export { TabScreenHeader } from "./TabScreenHeader";
 export { YearReviewBanner } from "./YearReviewBanner";
-export { AvatarById } from "./Avatars";
 export { FocusPhaseSheet } from "./FocusPhaseSheet";
 export { YearReviewCard } from "./YearReviewCard";
 export { NPCProfileSheet } from "./NPCProfileSheet";

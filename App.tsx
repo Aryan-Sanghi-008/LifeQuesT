@@ -53,6 +53,49 @@ void SplashScreen.preventAutoHideAsync().catch(() => {
   /* splash plugin unavailable in some builds */
 });
 
+const FOREGROUND_SYNC_DEBOUNCE_MS = 5 * 60 * 1000;
+let lastForegroundSyncAt = 0;
+let notificationSyncModule: typeof import("@services/notificationSync") | null = null;
+let liveOpsConfigModule: typeof import("@services/liveOpsConfig") | null = null;
+
+async function loadNotificationSyncModule() {
+  if (!notificationSyncModule) {
+    notificationSyncModule = await import("@services/notificationSync");
+  }
+  return notificationSyncModule;
+}
+
+async function loadLiveOpsConfigModule() {
+  if (!liveOpsConfigModule) {
+    liveOpsConfigModule = await import("@services/liveOpsConfig");
+  }
+  return liveOpsConfigModule;
+}
+
+async function syncRetentionNotifications() {
+  const state = useGameStore.getState();
+  const module = await loadNotificationSyncModule();
+  void module.syncGameRetentionNotifications({
+    character: state.character,
+    dailyQuests: state.dailyQuests,
+  });
+}
+
+async function syncLiveOpsConfig() {
+  const module = await loadLiveOpsConfigModule();
+  void module.fetchLiveOpsConfig();
+}
+
+async function runForegroundSync(options?: { force?: boolean }) {
+  const now = Date.now();
+  if (!options?.force && now - lastForegroundSyncAt < FOREGROUND_SYNC_DEBOUNCE_MS) {
+    return;
+  }
+  lastForegroundSyncAt = now;
+  void syncLiveOpsConfig();
+  void syncRetentionNotifications();
+}
+
 if (
   Platform.OS === "android" &&
   UIManager.setLayoutAnimationEnabledExperimental
@@ -99,13 +142,7 @@ export default function App() {
 
   useEffect(() => {
     if (!isHydrated) return;
-    const state = useGameStore.getState();
-    void import("@services/notificationSync").then((m) =>
-      m.syncGameRetentionNotifications({
-        character: state.character,
-        dailyQuests: state.dailyQuests,
-      }),
-    );
+    void syncRetentionNotifications();
   }, [isHydrated, characterId]);
 
   useEffect(() => {
@@ -123,7 +160,6 @@ export default function App() {
       if (state === "active") {
         const game = useGameStore.getState();
         game.checkAbsenceBonus();
-        void import('@services/liveOpsConfig').then((m) => m.fetchLiveOpsConfig());
         if (game.character?.isPremium) {
           game.ensurePlusMonthlyState();
           game.grantPlusMonthlyCosmetic();
@@ -131,12 +167,7 @@ export default function App() {
             void game._persist();
           }
         }
-        void import("@services/notificationSync").then((m) =>
-          m.syncGameRetentionNotifications({
-            character: game.character,
-            dailyQuests: game.dailyQuests,
-          }),
-        );
+        void runForegroundSync();
       }
     });
     return () => sub.remove();
@@ -182,11 +213,10 @@ export default function App() {
 
         const postStart = performance.now();
         const { initRemoteConfig } = await import("@services/remoteConfig");
-        const { fetchLiveOpsConfig } = await import("@services/liveOpsConfig");
         await Promise.all([
           initAudio(),
           initRemoteConfig(),
-          fetchLiveOpsConfig(),
+          syncLiveOpsConfig(),
         ]);
         if (__DEV__) {
           console.log(

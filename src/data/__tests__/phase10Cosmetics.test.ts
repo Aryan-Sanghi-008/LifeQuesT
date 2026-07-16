@@ -1,12 +1,12 @@
 import { resolveEventSkinId, EVENT_SKIN_STYLES } from '../eventSkinStyles';
-import { resolveNameFontId, getNameFontTextStyle } from '../nameFonts';
+import { resolveNameFontId, getNameFontTextStyle } from '../fontPacks';
 import { resolveSoundPackId } from '../soundPacks';
 import { COSMETIC_IAP_TO_ID } from '../cosmeticCatalog';
 
 describe('eventSkinStyles', () => {
   it('maps cosmetic ids to skin styles', () => {
     expect(resolveEventSkinId('event_skin_neon')).toBe('neon');
-    expect(EVENT_SKIN_STYLES.neon.cardBorder).toBe('#06B6D4');
+    expect(EVENT_SKIN_STYLES.neon.cardBorder).toBe('#22D3EE');
   });
 });
 

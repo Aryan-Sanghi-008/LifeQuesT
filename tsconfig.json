@@ -25,6 +25,6 @@
       "@test/*": ["./src/test/*"]
     }
   },
-  "include": ["src", "App.tsx", "index.ts", "nativewind-env.d.ts"],
+  "include": ["src", "App.tsx", "index.ts"],
   "exclude": ["node_modules", "**/__tests__/**"]
 }

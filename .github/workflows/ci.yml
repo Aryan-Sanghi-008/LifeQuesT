@@ -25,8 +25,41 @@ jobs:
       - name: Test
         run: npm test -- --coverage --watchman=false
 
+      - name: Install functions deps
+        run: npm ci
+        working-directory: functions
+
       - name: Functions test
-        run: cd functions && npm test
+        run: npm test
+        working-directory: functions
+
+      - name: Functions build
+        run: npm run build
+        working-directory: functions
 
       - name: Lint
         run: npm run lint
+
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+        continue-on-error: true
+
+  firestore-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Firestore rules tests
+        run: npm run test:rules

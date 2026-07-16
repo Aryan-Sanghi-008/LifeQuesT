@@ -4,14 +4,11 @@ import { getFranchiseById, type FranchiseDef } from '../data/franchises';
 import { getDegreeById } from '../data/educationDegrees';
 import { scaleCountryAmount } from './countryScaleEngine';
 import { getFinancedPurchaseTerms } from './financingEngine';
-
-function generateId(prefix: string): string {
-  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-}
+import { makeId } from './ids';
 
 function defaultFounder(): BusinessEmployee {
   return {
-    id: generateId('emp'),
+    id: makeId('emp'),
     name: 'Founder',
     role: 'CEO',
     salary: 0,
@@ -26,7 +23,7 @@ export function normalizeBusinessEmployees(
   if (typeof employees === 'number') {
     const count = Math.max(1, employees);
     return Array.from({ length: count }, (_, i) => ({
-      id: generateId('emp'),
+      id: makeId('emp'),
       name: i === 0 ? 'Founder' : `Employee ${i}`,
       role: i === 0 ? 'CEO' : 'Staff',
       salary: i === 0 ? 0 : 30000,
@@ -36,14 +33,31 @@ export function normalizeBusinessEmployees(
   return [defaultFounder()];
 }
 
-function isEntrepreneurCareer(character: Character): boolean {
+type FranchiseCharacter = Pick<
+  Character,
+  | 'job'
+  | 'career'
+  | 'eventHistory'
+  | 'educationBranch'
+  | 'degreeIds'
+  | 'age'
+  | 'creditScore'
+  | 'countryCode'
+  | 'bankBalance'
+  | 'debt'
+  | 'assets'
+>;
+
+function isEntrepreneurCareer(character: Pick<Character, 'job' | 'career'>): boolean {
   const entrepreneurPath = getCareerById('entrepreneur');
   if (!entrepreneurPath) return false;
   return character.job === entrepreneurPath.label
     || character.career?.title === entrepreneurPath.label;
 }
 
-function hasBusinessEducation(character: Character): boolean {
+function hasBusinessEducation(
+  character: Pick<Character, 'educationBranch' | 'degreeIds'>,
+): boolean {
   const branch = character.educationBranch;
   if (branch === 'business' || branch === 'commerce') return true;
   return (character.degreeIds ?? []).some((id) => {
@@ -53,7 +67,7 @@ function hasBusinessEducation(character: Character): boolean {
 }
 
 /** Soft boost: entrepreneur or business education — not a hard gate. */
-export function hasFranchiseSoftBoost(character: Character): boolean {
+export function hasFranchiseSoftBoost(character: FranchiseCharacter): boolean {
   return isEntrepreneurCareer(character)
     || character.eventHistory.some((e) => e.id === 'startup')
     || hasBusinessEducation(character);
@@ -67,7 +81,7 @@ export function canFoundBusiness(character: Character): boolean {
 
 export function getFranchiseEntryCost(
   franchise: FranchiseDef,
-  character: Character,
+  character: FranchiseCharacter,
 ): number {
   const cc = character.countryCode ?? 'US';
   let cost = scaleCountryAmount(franchise.entryCostUsd, cc, 'cost');
@@ -78,7 +92,7 @@ export function getFranchiseEntryCost(
 }
 
 export function canFoundFranchise(
-  character: Character,
+  character: FranchiseCharacter,
   franchiseId: string,
 ): { ok: boolean; message: string; entryCost: number; terms?: ReturnType<typeof getFinancedPurchaseTerms> } {
   const franchise = getFranchiseById(franchiseId);
@@ -116,7 +130,7 @@ export function foundFranchise(
   return {
     terms: check.terms,
     business: {
-      id: generateId('biz'),
+      id: makeId('biz'),
       name: franchise.name,
       revenue: baseRevenue,
       expenses,
@@ -139,7 +153,7 @@ export function foundBusiness(character: Character, name: string): Business | nu
   const baseRevenue = scaleCountryAmount(baseRevenueUsd, cc, 'salary');
   const employees = [defaultFounder()];
   return {
-    id: generateId('biz'),
+    id: makeId('biz'),
     name,
     revenue: baseRevenue,
     expenses: Math.round(baseRevenue * 0.6),
@@ -156,7 +170,7 @@ export function hireEmployee(business: Business, role: string, countryCode = 'US
   const salaryUsd = 25000 + Math.floor(Math.random() * 20000);
   const salary = scaleCountryAmount(salaryUsd, countryCode, 'salary');
   const employee: BusinessEmployee = {
-    id: generateId('emp'),
+    id: makeId('emp'),
     name: `New ${role}`,
     role,
     salary,

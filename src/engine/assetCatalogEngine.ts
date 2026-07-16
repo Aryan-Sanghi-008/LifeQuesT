@@ -1,7 +1,7 @@
 import type { Asset } from '../types';
 import { scaleCountryAmount } from './countryScaleEngine';
 import { getVehicleById, type VehicleDef } from '../data/vehicles';
-import { getInvestmentById, type InvestmentDef } from '../data/investments';
+import { getInvestmentById, type InvestmentDef } from '../data/marketInstruments';
 import { getCollectibleById } from '../data/collectibles';
 import { getInstrumentById } from '../data/marketInstruments';
 import { PROPERTY_MAP } from '../data/properties';
@@ -15,8 +15,6 @@ export function scaleInvestmentSuggestedBuy(def: InvestmentDef, countryCode: str
   return scaleCountryAmount(def.suggestedBuyUsd, countryCode, 'cost');
 }
 
-/** @deprecated Use scaleInvestmentSuggestedBuy */
-export const scaleInvestmentMinBuy = scaleInvestmentSuggestedBuy;
 
 export function createVehicleAsset(
   vehicleId: string,

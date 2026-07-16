@@ -8,20 +8,17 @@ alwaysApply: false
 
 ## Init order (`App.tsx` — do not reorder without reason)
 1. `initAuth()` — Firebase / guest auth
-2. `void initAds()` — AdMob (non-blocking)
-3. `subscribeAuth(user => setUser(user))` — sync `AppUser` to store
-4. `void loadGame()` — hydrate save slots from MMKV/AsyncStorage
-5. `initIAP()` + `setupPurchaseListeners` — purchase flow
+2. `subscribeAuth` → `onUserChanged`
+3. `void loadGame()` — hydrate save slots
+4. After fonts: defer ads/IAP/audio/RC via `InteractionManager`
 
 ## IAP purchase handler
 ```
 verifyPurchaseOnServer → applyPurchaseToStore → logEvent → _persist
 ```
-Guest purchases: `local_guest` uid skips strict server verify in dev.
 
 ## Imports
-- Prefer `@navigation/*`, `@store/*` over `./src/...` mixed paths.
-- `global.css` must load first (NativeWind).
+- Prefer `@navigation/*`, `@store/*`, `@services/*` aliases.
 
 ## Cleanup
 `useEffect` return must unsubscribe auth + tear down IAP listeners.

@@ -52,7 +52,8 @@ function canUseMmkvStorage(): boolean {
   } catch (e) {
     mmkvDisabled = true;
     mmkvStorage = null;
-    console.warn("[persistence] MMKV init failed — using AsyncStorage", e);
+    const { logger } = require('@services/logger') as typeof import('@services/logger');
+    logger.warn("[persistence] MMKV init failed — using AsyncStorage", e);
     return false;
   }
 }

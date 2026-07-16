@@ -7,3 +7,4 @@ export { applyColorBlindMode, simulateHexColor } from "./colorBlind";
 export type { ColorBlindMode } from "./colorBlind";
 export { useTheme } from "./useTheme";
 export { useThemedStyles } from "./useThemedStyles";
+export { withAlpha } from './colorUtils';

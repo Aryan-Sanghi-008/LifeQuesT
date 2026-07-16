@@ -6,12 +6,13 @@ alwaysApply: false
 
 # Types
 
-## Single barrel
-- All domain types live in `src/types/index.ts`.
-- Extend existing interfaces — do not create parallel type files.
+## Barrel + modules
+- Public API: `src/types/index.ts` re-exports domain modules.
+- Split large domains into `src/types/*.ts` files — **do not duplicate interfaces**.
+- Callers import from `@/types` or `@types/*` via the barrel.
 
 ## Navigation
-- `RootStackParamList` and `MainTabParamList` co-located with domain types.
+- `RootStackParamList` and `MainTabParamList` live with domain types.
 - When adding a screen, update param list **and** `RootNavigator` in same PR.
 
 ## Game domain

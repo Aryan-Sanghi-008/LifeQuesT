@@ -13,7 +13,7 @@ Expo SDK **56** — https://docs.expo.dev/versions/v56.0.0/
 1. Read Expo upgrade guide for target SDK.
 2. `npx expo install --fix` to align peer deps.
 3. Update `babel-preset-expo`, `jest-expo`, `expo-*` packages together.
-4. Check breaking changes: Reanimated, RN New Architecture, NativeWind.
+4. Check breaking changes: Reanimated, RN New Architecture.
 5. `npx expo prebuild --clean` if native dirs regenerated.
 6. `npm run validate` + manual smoke on iOS/Android.
 

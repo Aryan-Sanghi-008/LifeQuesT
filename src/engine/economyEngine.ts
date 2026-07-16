@@ -1,3 +1,4 @@
+import { makeId } from './ids';
 import { Character, CharacterStats, StatEffect } from "../types";
 import {
   getAnnualCostOfLiving,
@@ -12,6 +13,11 @@ import {
 } from "./financingEngine";
 
 export const clamp = (v: number) => Math.max(0, Math.min(100, Math.round(v)));
+
+/** Clamp a numeric value into [min, max] (inclusive). */
+export function clampRange(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
 
 export function applyCashDelta(
   bankBalance: number,
@@ -228,7 +234,7 @@ export function investInMarket(
   // Cost basis equals amount; mark-to-market happens on age-up via marketEngine
   const value = Math.round(amount);
   const asset: Character["assets"][number] = {
-    id: `invest_${Date.now()}`,
+    id: makeId('invest'),
     type: "investment",
     name: options?.name ?? "Stock Portfolio",
     value,

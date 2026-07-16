@@ -3,10 +3,7 @@ import { generateName } from '@utils/npcGenerator';
 import { generateRandomDNA, generateRandomPersonality } from '@utils/genetics';
 import { enrichPersonProfile } from './peopleEngine';
 import { NPCArchetype, SCENARIO_NPC_ARCHETYPES } from '../data/scenarioNPCs';
-
-function generateId(): string {
-  return `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-}
+import { makeId } from './ids';
 
 function archetypesForScenario(scenarioId: ScenarioId): NPCArchetype[] {
   return SCENARIO_NPC_ARCHETYPES.filter((a) => a.scenarioIds.includes(scenarioId));
@@ -25,7 +22,7 @@ function spawnFromArchetype(
     : (archetype.spawnAge ?? 18) + index;
 
   return enrichPersonProfile({
-    id: generateId(),
+    id: makeId(),
     name,
     age: npcAge,
     gender,
