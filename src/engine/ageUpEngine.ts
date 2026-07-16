@@ -86,17 +86,14 @@ import {
   getPropertyMaintenanceCost,
   getAnnualRentalIncome,
   tickPropertyYear,
-  applyPropertyHappinessBonus,
   rollPropertyDisaster,
 } from "./housingEngine";
 import {
   tickVehicleYear,
   tickCatalogInvestment,
   tickCollectibleYear,
-  getVehicleHappinessBonus,
-  getCollectibleHappinessBonus,
-  getEquippedPropertyHappinessBonus,
 } from "./assetCatalogEngine";
+import { resolveEquippedPerks, applyEquippedStatPerks } from "./equippedPerksEngine";
 import { tickMarketHoldings, tickAngelStake, generateAngelOpportunities } from "./marketEngine";
 import { tickCreditScore } from "./creditScoreEngine";
 import {
@@ -105,7 +102,7 @@ import {
   lifeInsuranceEstatePayout,
 } from "../data/insurancePolicies";
 import { tickAllPets } from "./petEngine";
-import { tickSocialYear } from "./socialMediaEngine";
+import { SOCIAL_PLATFORMS, tickSocialYear } from "./socialMediaEngine";
 import { tickHobbyDecay, tickHobbyCompetitions, hobbyAnnualFinanceBonus } from "./hobbyEngine";
 import { getPersonalityMods } from "./personalityModifiers";
 import { advanceToTrial } from "./legalEngine";
@@ -371,19 +368,34 @@ export function runAgeUp(
   });
 
   let businesses = character.businesses ?? [];
+  const equippedEffects = resolveEquippedPerks(character);
+
   if (businesses.length > 0) {
     const bizTick = tickAllBusinesses(businesses);
     businesses = bizTick.businesses;
-    if (bizTick.totalProfit !== 0) {
+    let totalProfit = bizTick.totalProfit;
+    if (equippedEffects.incomeBonusPct > 0 && totalProfit > 0) {
+      totalProfit = Math.round(totalProfit * (1 + equippedEffects.incomeBonusPct));
+    }
+    if (totalProfit !== 0) {
       pushCash(
-        bizTick.totalProfit,
+        totalProfit,
         "business",
-        bizTick.totalProfit >= 0 ? "Business profit" : "Business loss",
+        totalProfit >= 0 ? "Business profit" : "Business loss",
       );
     }
   }
 
   let career = character.career ? incrementCareerYear(character.career) : null;
+  if (career && equippedEffects.careerPerfBonus > 0) {
+    career = {
+      ...career,
+      performance: Math.min(
+        100,
+        career.performance + Math.round(equippedEffects.careerPerfBonus * 100),
+      ),
+    };
+  }
   let totalCareerYears = character.totalCareerYears ?? 0;
   if (character.career) totalCareerYears += 1;
 
@@ -404,7 +416,12 @@ export function runAgeUp(
     pushCash(economy.salaryNet, "salary", "Net salary");
   }
   if (economy.livingExpenses > 0) {
-    pushCash(-economy.livingExpenses, "living", "Living expenses");
+    let living = economy.livingExpenses;
+    if (equippedEffects.expenseReducePct > 0) {
+      living = Math.round(living * (1 - equippedEffects.expenseReducePct));
+    }
+    pushCash(-living, "living", "Living expenses");
+    economy.livingExpenses = living;
   }
   // Sync result object for downstream records / live ops adjustment base
   economy.bankBalance = bankBalance;
@@ -570,10 +587,17 @@ export function runAgeUp(
   );
   const housingCosts = mortgagePayments + adjustedMaintenance;
   if (housingCosts > 0) {
-    pushCash(-housingCosts, "housing", "Housing (mortgage + maintenance)");
+    let housing = housingCosts;
+    if (equippedEffects.expenseReducePct > 0) {
+      housing = Math.round(housing * (1 - equippedEffects.expenseReducePct * 0.5));
+    }
+    pushCash(-housing, "housing", "Housing (mortgage + maintenance)");
   }
 
-  const rentalIncome = getAnnualRentalIncome(assets);
+  let rentalIncome = getAnnualRentalIncome(assets);
+  if (rentalIncome > 0 && equippedEffects.incomeBonusPct > 0) {
+    rentalIncome = Math.round(rentalIncome * (1 + equippedEffects.incomeBonusPct));
+  }
   if (rentalIncome > 0) {
     pushCash(rentalIncome, "other", "Rental income");
   }
@@ -594,14 +618,14 @@ export function runAgeUp(
   });
   const statsBeforeFocus = { ...stats };
   stats = applyFocusStatModifiers(stats, focusAllocation, character.traits ?? []);
+  // Equipped asset perks (stats) — replaces happiness-only catalog bonuses
+  stats = applyEquippedStatPerks(
+    stats,
+    { ...character, assets, businesses },
+    clamp,
+  );
   stats = {
     ...stats,
-    happiness: clamp(
-      applyPropertyHappinessBonus({ ...character, assets, stats })
-      + getVehicleHappinessBonus(assets)
-      + getCollectibleHappinessBonus(assets)
-      + getEquippedPropertyHappinessBonus(assets),
-    ),
     wealth: clamp(computeNetWorth({ bankBalance, assets, debt }) / 10000),
   };
 
@@ -905,11 +929,27 @@ export function runAgeUp(
   let socialPosts = socialTick.posts;
   let socialFollowers = socialTick.socialFollowers;
   const socialMediaState = socialTick.socialMedia;
-  if (socialTick.followerIncome > 0) {
-    pushCash(socialTick.followerIncome, "social", "Follower income");
+  if (equippedEffects.fameDelta > 0) {
+    socialFollowers += Math.round(equippedEffects.fameDelta * 8);
   }
-  if (socialTick.staffCost > 0) {
-    pushCash(-socialTick.staffCost, "social", "Social media staff payroll");
+  if (socialTick.followerIncome > 0) {
+    if (socialTick.followerIncomeByPlatform.length > 0) {
+      for (const line of socialTick.followerIncomeByPlatform) {
+        const label =
+          SOCIAL_PLATFORMS.find((p) => p.id === line.platformId)?.label ??
+          line.platformId;
+        pushCash(line.amount, "social", `${label} · Follower income`);
+      }
+    } else {
+      pushCash(socialTick.followerIncome, "social", "Follower income");
+    }
+  }
+  for (const line of socialTick.payrollLines) {
+    pushCash(
+      -line.amount,
+      "social",
+      `${line.platformLabel} · Staff payroll (${line.staffLabel})`,
+    );
   }
 
   const hobbyProgress = tickHobbyDecay({
@@ -1230,6 +1270,12 @@ export function runAgeUp(
     socialFollowers,
     socialPosts,
     socialMedia: socialMediaState,
+    unlockTags: [
+      ...new Set([
+        ...(character.unlockTags ?? []),
+        ...equippedEffects.unlockTags,
+      ]),
+    ],
     gpa,
     heatLevel,
     hobbyProgress: mergedHobbyProgress,

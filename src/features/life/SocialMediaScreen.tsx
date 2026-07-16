@@ -1,76 +1,117 @@
 import { useMemo, useState } from 'react';
-import {
-  View, Text, TextInput, Pressable, ScrollView, StyleSheet, Alert,
-} from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useThemedStyles, useTheme } from '@theme';
 import { ScreenHeader } from '@components/ScreenHeader';
 import { useGameStore } from '@store/gameStore';
+import { SOCIAL_PLATFORMS } from '@data/socialPlatforms';
 import {
-  SOCIAL_PLATFORMS,
-  STAFF_DEFS,
   ensureSocialMedia,
   getMaxEnergy,
   getNextFollowerMilestone,
   getFollowerAnnualIncome,
+  getGlobalFame,
   FOLLOWER_MILESTONES,
-} from '../../engine/socialMediaEngine';
+  canUnlockPlatform,
+} from '@engine/socialMediaEngine';
 import { formatCurrency } from '@utils/currency';
-import type { SocialContentType, SocialPlatformId, SocialStaffRole } from '@/types';
+import type { RootStackParamList, SocialPlatformId } from '@/types';
+import { LockedPlatformSheet } from './social/components/LockedPlatformSheet';
 
-const CONTENT_TYPES: SocialContentType[] = ['text', 'photo', 'video', 'short', 'live'];
+/** Append 2-digit hex alpha to a #RRGGBB (or #RGB) color. Falls back to input if parse fails. */
+function withAlpha(hex: string, alpha01: number): string {
+  const a = Math.round(Math.max(0, Math.min(1, alpha01)) * 255)
+    .toString(16)
+    .padStart(2, '0');
+  const raw = hex.replace('#', '');
+  if (raw.length === 3) {
+    const expanded = raw
+      .split('')
+      .map((c) => c + c)
+      .join('');
+    return `#${expanded}${a}`;
+  }
+  if (raw.length === 6) return `#${raw}${a}`;
+  return hex;
+}
 
 export function SocialMediaScreen() {
   const { colors, fonts } = useTheme();
   const styles = useThemedStyles(createStyles);
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const character = useGameStore((s) => s.character);
-  const createSocialPost = useGameStore((s) => s.createSocialPost);
-  const hireSocialStaff = useGameStore((s) => s.hireSocialStaff);
-  const runSocialMonetization = useGameStore((s) => s.runSocialMonetization);
+  const unlockSocialPlatform = useGameStore((s) => s.unlockSocialPlatform);
 
-  const [platformId, setPlatformId] = useState<SocialPlatformId>('lifefeed');
-  const [contentType, setContentType] = useState<SocialContentType>('text');
-  const [content, setContent] = useState('');
-  const [marketingSpend, setMarketingSpend] = useState('0');
+  const [previewId, setPreviewId] = useState<SocialPlatformId | null>(null);
 
   const social = useMemo(
     () => (character ? ensureSocialMedia(character) : null),
     [character],
   );
-  const account = social?.platforms[platformId];
-  const followers = account?.followers ?? character?.socialFollowers ?? 0;
+
   const countryCode = character?.countryCode ?? 'US';
-  const nextMilestone = getNextFollowerMilestone(followers);
-  const annualIncome = getFollowerAnnualIncome(followers, countryCode);
   const maxEnergy = character ? getMaxEnergy(character) : 4;
   const energyLeft = Math.max(0, maxEnergy - (social?.energySpentThisAge ?? 0));
+  const totalFollowers = character?.socialFollowers ?? 0;
+  const globalFame = social ? getGlobalFame(social) : 0;
+  const nextMilestone = getNextFollowerMilestone(totalFollowers);
+  const annualIncome = getFollowerAnnualIncome(totalFollowers, countryCode, character?.traits ?? []);
+
+  const empireYtd = useMemo(() => {
+    let earn = 0;
+    let spend = 0;
+    if (!social) return { earn, spend };
+    for (const acc of Object.values(social.platforms)) {
+      if (!acc) continue;
+      earn += acc.earningsYtd;
+      spend += acc.expensesYtd;
+    }
+    return { earn, spend };
+  }, [social]);
 
   const currentTier = useMemo(() => {
     let tier = 'Newcomer';
     for (const m of FOLLOWER_MILESTONES) {
-      if (followers >= m.followers) tier = m.label;
+      if (totalFollowers >= m.followers) tier = m.label;
     }
     return tier;
-  }, [followers]);
+  }, [totalFollowers]);
+
+  const previewPlatform = previewId
+    ? SOCIAL_PLATFORMS.find((p) => p.id === previewId) ?? null
+    : null;
 
   if (!character || !social) return null;
 
-  const posts = [...(account?.posts ?? [])].reverse();
-  const fmt = (n: number) => formatCurrency(n, countryCode);
+  const openPlatform = (platformId: SocialPlatformId) => {
+    const ageOk = canUnlockPlatform(character, platformId);
+    const acc = social.platforms[platformId];
 
-  const handlePost = () => {
-    const trimmed = content.trim();
-    if (!trimmed) {
-      Alert.alert('Empty Post', 'Write something to share.');
+    if (!ageOk) {
+      setPreviewId(platformId);
       return;
     }
-    const result = createSocialPost(trimmed, {
-      platformId,
-      contentType,
-      marketingSpend: Number(marketingSpend) || 0,
-    });
-    Alert.alert(result.ok ? 'Posted!' : 'Failed', result.message);
-    if (result.ok) setContent('');
+
+    if (!acc?.unlocked) {
+      setPreviewId(platformId);
+      return;
+    }
+
+    navigation.navigate('SocialPlatform', { platformId });
+  };
+
+  const handleOpenFromSheet = () => {
+    if (!previewId) return;
+    const result = unlockSocialPlatform(previewId);
+    if (!result.ok) {
+      Alert.alert('Locked', result.message);
+      return;
+    }
+    setPreviewId(null);
+    navigation.navigate('SocialPlatform', { platformId: previewId });
   };
 
   return (
@@ -83,149 +124,165 @@ export function SocialMediaScreen() {
           />
         </View>
 
-        <ScrollView contentContainerStyle={styles.scroll} horizontal={false}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {SOCIAL_PLATFORMS.map((p) => {
-                const unlocked = character.age >= p.unlockAge;
-                const active = platformId === p.id;
-                return (
-                  <Pressable
-                    key={p.id}
-                    disabled={!unlocked}
-                    onPress={() => setPlatformId(p.id)}
-                    style={[
-                      styles.chip,
-                      {
-                        borderColor: active ? colors.orchid : colors.border,
-                        backgroundColor: active ? `${colors.orchid}22` : colors.bgCard,
-                        opacity: unlocked ? 1 : 0.4,
-                      },
-                    ]}
-                  >
-                    <Text style={{ color: active ? colors.orchid : colors.t3, fontFamily: fonts.bodySemiBold, fontSize: 12 }}>
-                      {p.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </ScrollView>
-
-          <View style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
-            <Text style={{ color: colors.t1, fontFamily: fonts.bodyBold, fontSize: 16 }}>
-              {SOCIAL_PLATFORMS.find((p) => p.id === platformId)?.label} account
+        <ScrollView contentContainerStyle={styles.scroll}>
+          <View style={[styles.summary, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+            <Text style={{ color: colors.t1, fontFamily: fonts.bodyBold, fontSize: 18 }}>
+              {totalFollowers.toLocaleString()} followers
             </Text>
-            <Text style={{ color: colors.t3, fontFamily: fonts.body, fontSize: 12, marginTop: 4 }}>
-              {followers.toLocaleString()} followers
-              {account?.subscribers ? ` · ${account.subscribers.toLocaleString()} subs` : ''}
+            <Text style={{ color: colors.t3, fontFamily: fonts.body, fontSize: 13, marginTop: 4 }}>
+              Global fame {globalFame} · {currentTier}
             </Text>
-            <Text style={{ color: colors.t4, fontFamily: fonts.body, fontSize: 11, marginTop: 6 }}>
-              Likes {(account?.totalLikes ?? 0).toLocaleString()} · Views {(account?.totalViews ?? 0).toLocaleString()} · Comments {(account?.totalComments ?? 0).toLocaleString()}
-            </Text>
-            <Text style={{ color: colors.emerald, fontFamily: fonts.body, fontSize: 12, marginTop: 6 }}>
-              YTD earn {fmt(account?.earningsYtd ?? 0)} · spend {fmt(account?.expensesYtd ?? 0)}
-              {annualIncome > 0 ? ` · passive ~${fmt(annualIncome)}/yr` : ''}
+            <Text style={{ color: colors.emerald, fontFamily: fonts.body, fontSize: 12, marginTop: 8 }}>
+              YTD earn {formatCurrency(empireYtd.earn, countryCode)} · spend{' '}
+              {formatCurrency(empireYtd.spend, countryCode)}
+              {annualIncome > 0 ? ` · passive ~${formatCurrency(annualIncome, countryCode)}/yr` : ''}
             </Text>
             {nextMilestone ? (
-              <Text style={{ color: colors.t4, fontFamily: fonts.body, fontSize: 11, marginTop: 4 }}>
+              <Text style={{ color: colors.t4, fontFamily: fonts.body, fontSize: 11, marginTop: 6 }}>
                 Next: {nextMilestone.label} at {nextMilestone.followers.toLocaleString()}
               </Text>
             ) : null}
           </View>
 
-          <Text style={[styles.section, { color: colors.t4, fontFamily: fonts.bodySemiBold }]}>COMPOSE</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
-              {CONTENT_TYPES.map((t) => (
+          <Text style={[styles.section, { color: colors.t4, fontFamily: fonts.bodySemiBold }]}>
+            PLATFORMS
+          </Text>
+          <View style={styles.grid}>
+            {SOCIAL_PLATFORMS.map((p) => {
+              const acc = social.platforms[p.id];
+              const ageOk = character.age >= p.unlockAge;
+              const unlocked = Boolean(acc?.unlocked);
+              const followers = acc?.followers ?? 0;
+              const fame = acc?.fameScore ?? 0;
+              const net = (acc?.earningsYtd ?? 0) - (acc?.expensesYtd ?? 0);
+              const staffCount = acc?.staff.length ?? 0;
+
+              return (
                 <Pressable
-                  key={t}
-                  onPress={() => setContentType(t)}
-                  style={[styles.chip, { borderColor: contentType === t ? colors.gold : colors.border }]}
+                  key={p.id}
+                  onPress={() => openPlatform(p.id)}
+                  accessibilityLabel={`${p.label}${ageOk ? '' : ' locked'}`}
+                  style={styles.gridItem}
                 >
-                  <Text style={{ color: contentType === t ? colors.gold : colors.t3, fontFamily: fonts.bodySemiBold, fontSize: 11 }}>
-                    {t}
-                  </Text>
+                  <LinearGradient
+                    colors={p.theme.gradient}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={[styles.platformCard, { opacity: ageOk ? 1 : 0.72 }]}
+                  >
+                    <View style={styles.cardTop}>
+                      <View
+                        style={[
+                          styles.glyph,
+                          { backgroundColor: withAlpha(p.theme.textOnAccent, 0.25) },
+                        ]}
+                      >
+                        <Text
+                          style={{
+                            color: p.theme.textOnAccent,
+                            fontFamily: fonts.bodyBold,
+                            fontSize: 12,
+                          }}
+                        >
+                          {p.theme.glyph}
+                        </Text>
+                      </View>
+                      {!ageOk ? (
+                        <View
+                          style={[
+                            styles.lockBadge,
+                            { backgroundColor: withAlpha(p.theme.textOnAccent, 0.45) },
+                          ]}
+                        >
+                          <Text
+                            style={{
+                              color: p.theme.textOnAccent,
+                              fontFamily: fonts.bodySemiBold,
+                              fontSize: 9,
+                            }}
+                          >
+                            AGE {p.unlockAge}
+                          </Text>
+                        </View>
+                      ) : !unlocked ? (
+                        <View
+                          style={[
+                            styles.lockBadge,
+                            { backgroundColor: withAlpha(p.theme.textOnAccent, 0.45) },
+                          ]}
+                        >
+                          <Text
+                            style={{
+                              color: p.theme.textOnAccent,
+                              fontFamily: fonts.bodySemiBold,
+                              fontSize: 9,
+                            }}
+                          >
+                            TAP TO OPEN
+                          </Text>
+                        </View>
+                      ) : null}
+                    </View>
+                    <Text
+                      style={{
+                        color: p.theme.textOnAccent,
+                        fontFamily: fonts.bodyBold,
+                        fontSize: 15,
+                        marginTop: 8,
+                      }}
+                    >
+                      {p.label}
+                    </Text>
+                    <Text
+                      style={{
+                        color: p.theme.textOnAccent,
+                        opacity: 0.85,
+                        fontFamily: fonts.body,
+                        fontSize: 11,
+                        marginTop: 2,
+                      }}
+                    >
+                      {p.niche}
+                    </Text>
+                    <Text
+                      style={{
+                        color: p.theme.textOnAccent,
+                        fontFamily: fonts.body,
+                        fontSize: 11,
+                        marginTop: 8,
+                      }}
+                    >
+                      {followers.toLocaleString()} · Fame {fame}
+                    </Text>
+                    <Text
+                      style={{
+                        color: p.theme.textOnAccent,
+                        opacity: 0.9,
+                        fontFamily: fonts.body,
+                        fontSize: 10,
+                        marginTop: 2,
+                      }}
+                    >
+                      Net {formatCurrency(net, countryCode)} · Staff {staffCount}
+                    </Text>
+                  </LinearGradient>
                 </Pressable>
-              ))}
-            </View>
-          </ScrollView>
-          <TextInput
-            value={content}
-            onChangeText={setContent}
-            placeholder="Caption / script..."
-            placeholderTextColor={colors.t4}
-            style={[styles.input, { color: colors.t1, borderColor: colors.border, backgroundColor: colors.bgCard, fontFamily: fonts.body }]}
-            multiline
-            maxLength={280}
-          />
-          <TextInput
-            value={marketingSpend}
-            onChangeText={setMarketingSpend}
-            keyboardType="number-pad"
-            placeholder="Marketing spend (cash)"
-            placeholderTextColor={colors.t4}
-            style={[styles.input, { color: colors.t1, borderColor: colors.border, backgroundColor: colors.bgCard, fontFamily: fonts.body, minHeight: 44 }]}
-          />
-          <Pressable onPress={handlePost} style={[styles.cta, { backgroundColor: colors.orchid }]}>
-            <Text style={{ color: '#FFF', fontFamily: fonts.displayBold }}>Publish {contentType}</Text>
-          </Pressable>
-
-          <Text style={[styles.section, { color: colors.t4, fontFamily: fonts.bodySemiBold }]}>STAFF</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {(Object.keys(STAFF_DEFS) as SocialStaffRole[]).map((role) => (
-              <Pressable
-                key={role}
-                onPress={() => {
-                  const r = hireSocialStaff(platformId, role);
-                  Alert.alert(r.ok ? 'Hired' : 'Failed', r.message);
-                }}
-                style={[styles.chip, { borderColor: colors.teal }]}
-              >
-                <Text style={{ color: colors.teal, fontFamily: fonts.bodySemiBold, fontSize: 11 }}>
-                  Hire {STAFF_DEFS[role].label}
-                </Text>
-              </Pressable>
-            ))}
+              );
+            })}
           </View>
-          {(account?.staff ?? []).map((s) => (
-            <Text key={s.id} style={{ color: colors.t3, fontFamily: fonts.body, fontSize: 12, marginTop: 4 }}>
-              · {STAFF_DEFS[s.role].label} — {fmt(s.monthlyCost)}/mo
-            </Text>
-          ))}
-
-          <Text style={[styles.section, { color: colors.t4, fontFamily: fonts.bodySemiBold }]}>MONETIZE</Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-            {(['ads', 'sponsorship', 'brand_deal', 'super_thanks'] as const).map((kind) => (
-              <Pressable
-                key={kind}
-                onPress={() => {
-                  const r = runSocialMonetization(platformId, kind);
-                  Alert.alert(r.ok ? 'Success' : 'Failed', r.message);
-                }}
-                style={[styles.chip, { borderColor: colors.gold }]}
-              >
-                <Text style={{ color: colors.gold, fontFamily: fonts.bodySemiBold, fontSize: 11 }}>
-                  {kind.replace('_', ' ')}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          <Text style={[styles.section, { color: colors.t4, fontFamily: fonts.bodySemiBold }]}>RECENT POSTS</Text>
-          {posts.length === 0 ? (
-            <Text style={{ color: colors.t4, fontFamily: fonts.body }}>No posts yet on this platform.</Text>
-          ) : (
-            posts.slice(0, 12).map((p) => (
-              <View key={p.id} style={[styles.postCard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
-                <Text style={{ color: colors.t1, fontFamily: fonts.body, fontSize: 13 }}>{p.content}</Text>
-                <Text style={{ color: colors.t4, fontFamily: fonts.body, fontSize: 11, marginTop: 6 }}>
-                  Age {p.age} · {p.contentType ?? 'text'} · ❤️ {p.metrics?.likes ?? p.virality} · 👁 {p.metrics?.views ?? '—'} · 💬 {p.metrics?.comments ?? 0} · +{p.followerDelta} followers
-                </Text>
-              </View>
-            ))
-          )}
         </ScrollView>
+
+        {previewPlatform ? (
+          <LockedPlatformSheet
+            platform={previewPlatform}
+            visible={Boolean(previewId)}
+            characterAge={character.age}
+            countryCode={countryCode}
+            canOpen={canUnlockPlatform(character, previewPlatform.id)}
+            onClose={() => setPreviewId(null)}
+            onOpen={handleOpenFromSheet}
+          />
+        ) : null}
       </SafeAreaView>
     </View>
   );
@@ -236,18 +293,27 @@ const createStyles = ({ colors, spacing, radii }: ReturnType<typeof useTheme>) =
     root: { flex: 1, backgroundColor: colors.bg },
     safe: { flex: 1 },
     headerWrap: { paddingHorizontal: spacing.lg },
-    scroll: { padding: spacing.lg, gap: 8, paddingBottom: 48 },
-    card: { borderWidth: 1, borderRadius: radii.md, padding: spacing.md },
-    chip: { borderWidth: 1, borderRadius: radii.sm, paddingHorizontal: 10, paddingVertical: 8 },
-    section: { fontSize: 10, letterSpacing: 1.2, marginTop: spacing.md, marginBottom: 4 },
-    input: {
-      borderWidth: 1,
+    scroll: { padding: spacing.lg, paddingBottom: 48 },
+    summary: { borderWidth: 1, borderRadius: radii.md, padding: spacing.md, marginBottom: 12 },
+    section: { fontSize: 10, letterSpacing: 1.2, marginBottom: 10 },
+    grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+    gridItem: { width: '48%', marginBottom: 12 },
+    platformCard: {
       borderRadius: radii.md,
       padding: spacing.md,
-      minHeight: 80,
-      textAlignVertical: 'top',
-      marginBottom: 8,
+      minHeight: 140,
     },
-    cta: { borderRadius: radii.md, padding: 14, alignItems: 'center', marginBottom: 8 },
-    postCard: { borderWidth: 1, borderRadius: radii.md, padding: spacing.md, marginBottom: 8 },
+    cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    glyph: {
+      width: 28,
+      height: 28,
+      borderRadius: radii.sm,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    lockBadge: {
+      paddingHorizontal: 6,
+      paddingVertical: 3,
+      borderRadius: radii.xs,
+    },
   });

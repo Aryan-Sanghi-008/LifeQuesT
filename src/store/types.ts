@@ -17,6 +17,7 @@ import {
   GlobalPrestigeState,
   SyncConflict,
   ScenarioId,
+  SocialMonetizationKind,
 } from "../types";
 import { StudyQuestion, StudySessionResult } from "../engine/educationEngine";
 
@@ -195,10 +196,12 @@ export interface GameStore {
   practiceHobby: (hobbyId: string) => { ok: boolean; message: string };
   competeHobby: (hobbyId: string, competitionId: string) => { ok: boolean; message: string };
   hireSocialStaff: (platformId: string, role: string) => { ok: boolean; message: string };
+  fireSocialStaff: (platformId: string, staffId: string) => { ok: boolean; message: string };
   runSocialMonetization: (
     platformId: string,
-    kind: 'ads' | 'sponsorship' | 'brand_deal' | 'super_thanks',
+    kind: SocialMonetizationKind,
   ) => { ok: boolean; message: string };
+  unlockSocialPlatform: (platformId: string) => { ok: boolean; message: string };
   careForPet: (
     personId: string,
     action: "feed" | "train" | "vet" | "play",

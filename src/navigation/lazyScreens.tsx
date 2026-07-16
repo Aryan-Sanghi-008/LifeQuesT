@@ -61,6 +61,10 @@ export const LazySocialMediaScreen = lazyNamed(
   () => import('@features/life/SocialMediaScreen'),
   'SocialMediaScreen',
 );
+export const LazySocialPlatformScreen = lazyNamed(
+  () => import('@features/life/social/SocialPlatformScreen'),
+  'SocialPlatformScreen',
+);
 export const LazyPetCareScreen = lazyNamed(
   () => import('@features/people/PetCareScreen'),
   'PetCareScreen',

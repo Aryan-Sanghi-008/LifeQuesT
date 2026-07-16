@@ -32,6 +32,7 @@ export function AssetDetailSheet({
       <ScrollView style={{ maxHeight: 480 }} showsVerticalScrollIndicator={false}>
         <Text style={{ color: colors.t3, fontFamily: fonts.bodySemiBold, fontSize: 12, marginBottom: 4 }}>
           {model.subtitle} · {model.tierLabel} tier
+          {model.roleTag ? ` · ${model.roleTag}` : ''}
         </Text>
         <Text style={{ color: colors.t2, fontFamily: fonts.body, fontSize: 13, lineHeight: 18, marginBottom: spacing.md }}>
           {model.description}
@@ -41,6 +42,12 @@ export function AssetDetailSheet({
           <Text style={{ color: colors.t4, fontFamily: fonts.body, fontSize: 12 }}>{model.priceLabel}</Text>
           <Text style={{ color: colors.teal, fontFamily: fonts.displayBold, fontSize: 20 }}>{fmt(model.priceValue)}</Text>
         </View>
+
+        {model.stackingHint ? (
+          <Text style={{ color: colors.gold, fontFamily: fonts.body, fontSize: 12, marginTop: spacing.sm }}>
+            {model.stackingHint}
+          </Text>
+        ) : null}
 
         {model.extraLines.length > 0 && (
           <View style={{ marginTop: spacing.md, gap: 4 }}>
@@ -77,7 +84,7 @@ export function AssetDetailSheet({
               accessibilityRole="button"
               accessibilityLabel={`Buy ${model.title}`}
             >
-              <Text style={{ color: '#FFF', fontFamily: fonts.displayBold, fontSize: 15 }}>Buy</Text>
+              <Text style={{ color: colors.textOnInverse, fontFamily: fonts.displayBold, fontSize: 15 }}>Buy</Text>
             </Pressable>
           ) : null}
           {model.canEquip && onEquipToggle ? (
@@ -87,7 +94,7 @@ export function AssetDetailSheet({
               accessibilityRole="button"
               accessibilityLabel={model.equipped ? 'Unequip' : 'Equip'}
             >
-              <Text style={{ color: model.equipped ? colors.teal : '#FFF', fontFamily: fonts.displayBold, fontSize: 15 }}>
+              <Text style={{ color: model.equipped ? colors.teal : colors.textOnInverse, fontFamily: fonts.displayBold, fontSize: 15 }}>
                 {model.equipped ? 'Unequip' : 'Equip'}
               </Text>
             </Pressable>

@@ -80,6 +80,10 @@ export const COLORS = {
   t2: "#374151",           // Dark secondary text
   t3: "#6B7280",           // Muted text
   t4: "#9CA3AF",           // Placeholder / label text
+  /** CTA / label text on saturated accent buttons and promo gradients */
+  textOnInverse: "#FFFFFF",
+  /** Secondary copy on dark/vivid promo art */
+  textOnInverseMuted: "rgba(255,255,255,0.80)",
 
   // ─── Borders ────────────────────────────────────────────────────────────────
   border:  "#E5E7EB",      // Standard card border
@@ -176,6 +180,10 @@ export const DARK_COLORS = {
   t2: "#B1BAC4",           // Secondary text
   t3: "#8B949E",           // Muted text
   t4: "#6E7681",           // Placeholder / label text (raised from #484F58 for contrast)
+  /** CTA / label text on saturated accent buttons and promo gradients */
+  textOnInverse: "#FFFFFF",
+  /** Secondary copy on dark/vivid promo art */
+  textOnInverseMuted: "rgba(255,255,255,0.80)",
 
   // ─── Borders ────────────────────────────────────────────────────────────────
   border:  "#30363D",      // Dark border

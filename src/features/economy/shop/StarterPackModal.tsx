@@ -29,9 +29,9 @@ export function StarterPackModal({
             end={{ x: 1, y: 1 }}
             style={[styles.hero, { borderRadius: radii.md }]}
           >
-            <Text style={[styles.badge, { fontFamily: fonts.bodyBold }]}>LIMITED TIME</Text>
-            <Text style={[styles.title, { fontFamily: fonts.displayBold }]}>Starter Pack</Text>
-            <Text style={[styles.subtitle, { fontFamily: fonts.body }]}>
+            <Text style={[styles.badge, { fontFamily: fonts.bodyBold, color: colors.textOnInverseMuted }]}>LIMITED TIME</Text>
+            <Text style={[styles.title, { fontFamily: fonts.displayBold, color: colors.textOnInverse }]}>Starter Pack</Text>
+            <Text style={[styles.subtitle, { fontFamily: fonts.body, color: colors.textOnInverseMuted }]}>
               Jump-start your next life with premium perks.
             </Text>
           </LinearGradient>
@@ -51,9 +51,9 @@ export function StarterPackModal({
             style={[styles.buyBtn, { backgroundColor: colors.gold, borderRadius: radii.md, marginTop: spacing.lg }]}
           >
             {loading ? (
-              <ActivityIndicator color="#FFF" />
+              <ActivityIndicator color={colors.textOnInverse} />
             ) : (
-              <Text style={{ color: '#FFF', fontFamily: fonts.bodyBold, fontSize: 15 }}>
+              <Text style={{ color: colors.textOnInverse, fontFamily: fonts.bodyBold, fontSize: 15 }}>
                 Get Starter Pack · {priceLabel}
               </Text>
             )}
@@ -83,16 +83,13 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   badge: {
-    color: '#FFFFFFCC',
     fontSize: 10,
     letterSpacing: 2,
   },
   title: {
-    color: '#FFF',
     fontSize: 24,
   },
   subtitle: {
-    color: '#FFFFFFCC',
     fontSize: 13,
     lineHeight: 18,
   },

@@ -13,15 +13,53 @@ import {
   createPost,
   applyPostToCharacter,
   hireStaff,
+  fireStaff,
   runMonetization,
+  unlockPlatform,
 } from "../../engine/socialMediaEngine";
+import { getSocialPlatform as getPlatformDef } from "@data/socialPlatforms";
 import {
   practiceHobby as runPracticeHobby,
   competeHobby as runCompeteHobby,
 } from "../../engine/hobbyEngine";
 import { careForPet, initPetStats } from "../../engine/petEngine";
 import { applyEffect } from "../../engine/economyEngine";
-import type { SocialPlatformId, SocialStaffRole } from "../../types";
+import {
+  appendFinanceLedger,
+  createLedgerEntry,
+} from "../../engine/financeLedgerEngine";
+import type {
+  SocialMonetizationKind,
+  SocialPlatformId,
+  SocialStaffRole,
+} from "../../types";
+
+function mirrorSocialFinance(
+  character: {
+    age: number;
+    bankBalance: number;
+    debt?: number;
+    financeLedger?: import("../../types").FinanceLedgerEntry[];
+  },
+  label: string,
+  amount: number,
+  bankAfter: number,
+): import("../../types").FinanceLedgerEntry[] {
+  if (amount === 0) return character.financeLedger ?? [];
+  const debt = character.debt ?? 0;
+  return appendFinanceLedger(
+    character.financeLedger,
+    createLedgerEntry({
+      age: character.age,
+      category: "social",
+      label,
+      amount,
+      bankAfter,
+      debtAfter: debt,
+      debtBefore: debt,
+    }),
+  );
+}
 
 export interface SocialSlice {
   getClassmates: () => Person[];
@@ -32,10 +70,12 @@ export interface SocialSlice {
   practiceHobby: (hobbyId: string) => { ok: boolean; message: string };
   competeHobby: (hobbyId: string, competitionId: string) => { ok: boolean; message: string };
   hireSocialStaff: (platformId: string, role: string) => { ok: boolean; message: string };
+  fireSocialStaff: (platformId: string, staffId: string) => { ok: boolean; message: string };
   runSocialMonetization: (
     platformId: string,
-    kind: 'ads' | 'sponsorship' | 'brand_deal' | 'super_thanks',
+    kind: SocialMonetizationKind,
   ) => { ok: boolean; message: string };
+  unlockSocialPlatform: (platformId: string) => { ok: boolean; message: string };
   careForPet: (
     personId: string,
     action: "feed" | "train" | "vet" | "play",
@@ -66,10 +106,28 @@ export const createSocialSlice: StateCreator<
       return { ok: false, message: result.error ?? "Could not post." };
     }
     const post = result.post;
+    const platformId = (post.platform as SocialPlatformId) || "lifefeed";
+    const platformLabel =
+      getPlatformDef(platformId)?.label ?? String(platformId);
+
     set((s) => {
       if (!s.character) return;
       const patch = applyPostToCharacter(s.character, post);
       Object.assign(s.character, patch);
+      const cost = post.cost ?? 0;
+      if (cost > 0 && patch.bankBalance !== undefined) {
+        s.character.financeLedger = mirrorSocialFinance(
+          {
+            age: s.character.age,
+            bankBalance: patch.bankBalance,
+            debt: s.character.debt,
+            financeLedger: s.character.financeLedger,
+          },
+          `${platformLabel} · Post (${post.contentType ?? "post"})`,
+          -cost,
+          patch.bankBalance,
+        );
+      }
     });
     void get()._persist();
     const likes = post.metrics?.likes ?? post.virality;
@@ -143,15 +201,59 @@ export const createSocialSlice: StateCreator<
     return { ok: true, message: result.message };
   },
 
+  fireSocialStaff: (platformId, staffId) => {
+    const { character } = get();
+    if (!character) return { ok: false, message: "No character." };
+    const result = fireStaff(character, platformId as SocialPlatformId, staffId);
+    if (!result.ok) return { ok: false, message: result.message };
+    set((s) => {
+      if (!s.character || !result.state) return;
+      s.character.socialMedia = result.state;
+    });
+    void get()._persist();
+    return { ok: true, message: result.message };
+  },
+
   runSocialMonetization: (platformId, kind) => {
     const { character } = get();
     if (!character) return { ok: false, message: "No character." };
     const result = runMonetization(character, platformId as SocialPlatformId, kind);
     if (!result.ok) return { ok: false, message: result.message };
+    const platformLabel =
+      getPlatformDef(platformId as SocialPlatformId)?.label ?? platformId;
     set((s) => {
       if (!s.character || !result.state) return;
       s.character.socialMedia = result.state;
-      if (result.bankBalance !== undefined) s.character.bankBalance = result.bankBalance;
+      if (result.bankBalance !== undefined) {
+        s.character.bankBalance = result.bankBalance;
+        const payout = result.payout ?? 0;
+        if (payout > 0) {
+          s.character.financeLedger = mirrorSocialFinance(
+            {
+              age: s.character.age,
+              bankBalance: result.bankBalance,
+              debt: s.character.debt,
+              financeLedger: s.character.financeLedger,
+            },
+            `${platformLabel} · ${result.message.split(":")[0] ?? "Monetization"}`,
+            payout,
+            result.bankBalance,
+          );
+        }
+      }
+    });
+    void get()._persist();
+    return { ok: true, message: result.message };
+  },
+
+  unlockSocialPlatform: (platformId) => {
+    const { character } = get();
+    if (!character) return { ok: false, message: "No character." };
+    const result = unlockPlatform(character, platformId as SocialPlatformId);
+    if (!result.ok) return { ok: false, message: result.message };
+    set((s) => {
+      if (!s.character || !result.state) return;
+      s.character.socialMedia = result.state;
     });
     void get()._persist();
     return { ok: true, message: result.message };

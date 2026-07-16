@@ -196,6 +196,15 @@ export interface CrimeDef {
 
 export type PropertyTier = 'shelter' | 'basic' | 'mid' | 'upper' | 'luxury';
 
+/** Role of a catalog asset within its price tier (differentiates same-tier items). */
+export type AssetRoleTag =
+  | 'status'
+  | 'utility'
+  | 'income'
+  | 'collector'
+  | 'lifestyle'
+  | 'business';
+
 export interface PropertyDef {
   id: string;
   name: string;
@@ -209,6 +218,9 @@ export interface PropertyDef {
   minAge: number;
   happinessBonus?: number;
   rentalYieldPct?: number;
+  /** Role within tier — drives unique perk identity */
+  roleTag?: AssetRoleTag;
+  description?: string;
 }
 
 export interface BusinessEmployee {
@@ -275,6 +287,22 @@ export type SocialContentType = 'text' | 'photo' | 'video' | 'short' | 'live';
 
 export type SocialStaffRole = 'editor' | 'manager' | 'marketer';
 
+export type SocialMonetizationKind =
+  | 'ads'
+  | 'sponsorship'
+  | 'brand_deal'
+  | 'super_thanks'
+  | 'consulting';
+
+export type SocialLedgerKind =
+  | 'post_production'
+  | 'marketing'
+  | 'staff_hire'
+  | 'staff_payroll'
+  | 'monetization'
+  | 'follower_income'
+  | 'platform_unlock';
+
 export interface SocialStaffMember {
   id: string;
   role: SocialStaffRole;
@@ -298,7 +326,30 @@ export interface SocialPost {
   virality: number;
   followerDelta: number;
   cost?: number;
+  /** Local-currency production cost (excludes marketing). */
+  productionCost?: number;
+  /** Local-currency marketing spend. */
+  marketingCost?: number;
   metrics?: SocialPostMetrics;
+}
+
+export interface SocialLedgerEntry {
+  id: string;
+  age: number;
+  platformId: SocialPlatformId;
+  kind: SocialLedgerKind;
+  label: string;
+  /** Signed: positive = income, negative = expense. */
+  amount: number;
+  breakdown?: {
+    production?: number;
+    marketing?: number;
+    payroll?: number;
+  };
+  postId?: string;
+  staffRole?: SocialStaffRole;
+  monetizationKind?: SocialMonetizationKind;
+  timestamp?: number;
 }
 
 export interface SocialPlatformAccount {
@@ -314,6 +365,14 @@ export interface SocialPlatformAccount {
   posts: SocialPost[];
   staff: SocialStaffMember[];
   marketingBudgetMonthly: number;
+  /** Cap ~80; newest last. */
+  ledger: SocialLedgerEntry[];
+  /** 0–100 platform-local influence. */
+  fameScore: number;
+  /** Likes / views style engagement (0–1). */
+  engagementRate: number;
+  /** Age when each monetization kind was last used. */
+  monetizationCooldowns?: Partial<Record<SocialMonetizationKind, number>>;
 }
 
 export interface SocialMediaState {
@@ -353,6 +412,8 @@ export interface Business {
   risk?: number;
   /** Featured business for fame/perk application */
   equipped?: boolean;
+  /** Stack order when featured (shared with asset equip stack). */
+  equippedOrder?: number;
 }
 
 // ─── Career ───────────────────────────────────────────────────────────────────
@@ -401,6 +462,8 @@ export interface Asset {
   instrumentKind?: string;
   /** Equipped for annual perks (vehicle, collectible, featured property, etc.) */
   equipped?: boolean;
+  /** Lower = earlier in stack (1st = 100%, 2nd = 90%, …). Set when equipping. */
+  equippedOrder?: number;
 }
 
 export type InsuranceLine = 'health' | 'auto' | 'home' | 'life';
@@ -555,6 +618,8 @@ export interface Character {
   hasReincarnationScroll: boolean;
   criminalRecord?: CriminalRecord;
   businesses: Business[];
+  /** Soft unlock tags from equipped asset perks (e.g. luxury_vehicle_network). */
+  unlockTags?: string[];
   socialFollowers: number;
   /** Multi-platform social media state (preferred). Legacy socialPosts still migrated. */
   socialMedia?: SocialMediaState;
@@ -856,6 +921,7 @@ export type RootStackParamList = {
   CollegeMajorPicker: undefined;
   Court: undefined;
   SocialMedia: undefined;
+  SocialPlatform: { platformId: SocialPlatformId };
   PetCare: { personId: string };
   HobbyDetail: { hobbyId: string };
   Mortgage: { propertyDefId: string };

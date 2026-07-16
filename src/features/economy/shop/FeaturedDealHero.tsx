@@ -25,11 +25,18 @@ export function FeaturedDealHero({
         start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
         style={{ padding: spacing.xl, gap: spacing.sm }}
       >
-        <Text style={{ color: owned ? colors.emerald : '#000', fontFamily: fonts.bodyBold, fontSize: 10, letterSpacing: 2 }}>
+        <Text style={{ color: owned ? colors.emerald : colors.t1, fontFamily: fonts.bodyBold, fontSize: 10, letterSpacing: 2 }}>
           {owned ? 'ACTIVE SUBSCRIPTION' : "TODAY'S DEAL"}
         </Text>
-        <Text style={{ color: owned ? colors.t1 : '#000', fontFamily: fonts.displayBlack, fontSize: 26 }}>Season Pass</Text>
-        <Text style={{ color: owned ? colors.t3 : '#0008', fontFamily: fonts.body, fontSize: 13, lineHeight: 20 }}>
+        <Text style={{ color: colors.t1, fontFamily: fonts.displayBlack, fontSize: 26 }}>Season Pass</Text>
+        <Text
+          style={{
+            color: owned ? colors.t3 : 'rgba(0,0,0,0.55)',
+            fontFamily: fonts.body,
+            fontSize: 13,
+            lineHeight: 20,
+          }}
+        >
           Unlock exclusive XP rewards, cosmetic items, and bonus events every season.
         </Text>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
@@ -39,9 +46,9 @@ export function FeaturedDealHero({
             </View>
           ) : (
             <>
-              <Text style={{ color: '#000', fontFamily: fonts.displayBold, fontSize: 22 }}>{priceLabel ?? '$4.99'}</Text>
-              <View style={{ backgroundColor: '#000', borderRadius: radii.sm, paddingHorizontal: 16, paddingVertical: 10 }}>
-                <Text style={{ color: '#FFF', fontFamily: fonts.bodyBold, fontSize: 14 }}>Get It Now</Text>
+              <Text style={{ color: colors.t1, fontFamily: fonts.displayBold, fontSize: 22 }}>{priceLabel ?? '$4.99'}</Text>
+              <View style={{ backgroundColor: colors.t1, borderRadius: radii.sm, paddingHorizontal: 16, paddingVertical: 10 }}>
+                <Text style={{ color: colors.textOnInverse, fontFamily: fonts.bodyBold, fontSize: 14 }}>Get It Now</Text>
               </View>
             </>
           )}

@@ -324,19 +324,35 @@ export const createEconomySlice: StateCreator<
     if (!character) return { ok: false, message: "No character." };
     const asset = character.assets.find((a) => a.id === assetId);
     if (!asset) return { ok: false, message: "Asset not found." };
+
+    const LUXURY_TYPES = new Set(['vehicle', 'collectible', 'property']);
+    if (equipped && LUXURY_TYPES.has(asset.type)) {
+      const equippedLuxury = character.assets.filter(
+        (a) => a.equipped && LUXURY_TYPES.has(a.type) && a.id !== assetId,
+      ).length;
+      if (equippedLuxury >= 5) {
+        return {
+          ok: false,
+          message: "Max 5 equipped vehicles/collectibles/properties. Unequip one first.",
+        };
+      }
+    }
+
     set((s) => {
       if (!s.character) return;
+      const nextOrder =
+        Math.max(
+          0,
+          ...s.character.assets.map((a) => a.equippedOrder ?? 0),
+          ...(s.character.businesses ?? []).map((b) => b.equippedOrder ?? 0),
+        ) + 1;
+
       s.character.assets = s.character.assets.map((a) => {
-        if (a.id === assetId) return { ...a, equipped };
-        // One daily driver / display piece / primary home of same type
-        if (
-          equipped &&
-          a.type === asset.type &&
-          (a.type === 'vehicle' || a.type === 'collectible' || a.type === 'property')
-        ) {
-          return { ...a, equipped: false };
+        if (a.id !== assetId) return a;
+        if (!equipped) {
+          return { ...a, equipped: false, equippedOrder: undefined };
         }
-        return a;
+        return { ...a, equipped: true, equippedOrder: nextOrder };
       });
     });
     void get()._persist();
@@ -351,10 +367,21 @@ export const createEconomySlice: StateCreator<
     }
     set((s) => {
       if (!s.character) return;
-      s.character.businesses = s.character.businesses.map((b) => ({
-        ...b,
-        equipped: b.id === businessId ? equipped : equipped ? false : b.equipped,
-      }));
+      const nextOrder =
+        Math.max(
+          0,
+          ...s.character.assets.map((a) => a.equippedOrder ?? 0),
+          ...s.character.businesses.map((b) => b.equippedOrder ?? 0),
+        ) + 1;
+      s.character.businesses = s.character.businesses.map((b) => {
+        if (b.id !== businessId) {
+          return equipped ? { ...b, equipped: false } : b;
+        }
+        if (!equipped) {
+          return { ...b, equipped: false, equippedOrder: undefined };
+        }
+        return { ...b, equipped: true, equippedOrder: nextOrder };
+      });
     });
     void get()._persist();
     return { ok: true, message: equipped ? "Business featured." : "Business unfeatured." };

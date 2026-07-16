@@ -362,7 +362,7 @@ function InteractionSheet({
   return (
     <View style={is.overlay}>
       <Pressable
-        style={[is.backdrop, { backgroundColor: "rgba(15,23,42,0.60)" }]}
+        style={[is.backdrop, { backgroundColor: colors.overlayScrim }]}
         onPress={onClose}
       />
       {/* Fixed height container so ScrollView can use flex:1 */}

@@ -81,7 +81,7 @@ export function CosmeticPreviewSheet({
               Sample card text stays readable.
             </Text>
             <View style={[styles.phoneBtn, { backgroundColor: tokens.gold }]}>
-              <Text style={{ color: '#FFF', fontFamily: fonts.bodyBold, fontSize: 12 }}>Age Up</Text>
+              <Text style={{ color: colors.textOnInverse, fontFamily: fonts.bodyBold, fontSize: 12 }}>Age Up</Text>
             </View>
           </View>
         </View>
@@ -198,7 +198,7 @@ export function CosmeticPreviewSheet({
               opacity: modeMismatch ? 0.5 : 1,
             }]}
           >
-            <Text style={{ color: '#FFF', fontFamily: fonts.displayBold, fontSize: 15 }}>Equip</Text>
+            <Text style={{ color: colors.textOnInverse, fontFamily: fonts.displayBold, fontSize: 15 }}>Equip</Text>
           </Pressable>
         ) : (
           <Pressable
@@ -209,9 +209,9 @@ export function CosmeticPreviewSheet({
             style={[styles.cta, { backgroundColor: colors.gold }]}
           >
             {purchasing ? (
-              <ActivityIndicator color="#FFF" />
+              <ActivityIndicator color={colors.textOnInverse} />
             ) : (
-              <Text style={{ color: '#FFF', fontFamily: fonts.displayBold, fontSize: 15 }}>
+              <Text style={{ color: colors.textOnInverse, fontFamily: fonts.displayBold, fontSize: 15 }}>
                 Buy{priceLabel ? ` · ${priceLabel}` : ''}
               </Text>
             )}

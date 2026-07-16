@@ -56,7 +56,8 @@ describe('Phase B socialMediaEngine', () => {
   it('creates post with follower delta', () => {
     const char = createTestCharacter({ age: 20, socialFollowers: 100 });
     const { post, followerDelta } = createPost(char, 'Hello world');
-    expect(post.content).toBe('Hello world');
+    expect(post).toBeDefined();
+    expect(post!.content).toBe('Hello world');
     expect(followerDelta).toBeGreaterThanOrEqual(0);
   });
 });

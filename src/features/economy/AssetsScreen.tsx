@@ -7,7 +7,7 @@ import { PieChart, LineChart } from 'react-native-gifted-charts';
 import { useTheme } from '@theme';
 import { useGameStore } from '../../store/gameStore';
 import { Asset, PropertyTier, RootStackParamList } from '../../types';
-import { Card, SectionLabel, ScreenShell, TabScreenHeader, CurrencyChip } from '@components/index';
+import { Card, SectionLabel, ScreenShell, TabScreenHeader, CurrencyChip, HorizontalChipTabBar } from '@components/index';
 import { ContextualTutorial } from '@shared/components/ContextualTutorial';
 import { formatCurrency } from '@utils/currency';
 import { getFinanceSummary } from '@utils/financeSummary';
@@ -37,6 +37,7 @@ import { canFoundFranchise, hasFranchiseSoftBoost, EMPLOYEE_ROLES } from '../../
 import { portfolioAllocation, performanceSeries } from '../../engine/marketEngine';
 import { InvestAmountModal } from './InvestAmountModal';
 import { AssetDetailSheet } from './AssetDetailSheet';
+import { CatalogItemCard } from './components/CatalogItemCard';
 import {
   detailFromVehicleCatalog,
   detailFromCollectibleCatalog,
@@ -44,9 +45,13 @@ import {
   detailFromOwnedAsset,
   detailFromOwnedPolicy,
   detailFromBusiness,
+  detailFromPropertyCatalog,
   type AssetDetailModel,
 } from '@data/assetDetail';
 import { scalePremium } from '../../data/insurancePolicies';
+import { tierFromUsdPrice } from '@data/assetPerks';
+import { getPropertyCatalogEntry } from '@data/properties';
+import { getEquippedPerkSummary } from '@engine/equippedPerksEngine';
 
 type MainTab = 'overview' | 'market' | 'property' | 'business' | 'portfolio';
 type MarketChip = InstrumentKind | 'angel' | 'collectible' | 'insurance' | 'vehicle';
@@ -310,61 +315,46 @@ export function AssetsScreen() {
 
       <View
         style={{
-          height: 52,
           borderBottomWidth: 1,
           borderBottomColor: colors.border,
           backgroundColor: colors.bgCard,
         }}
       >
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{
-            flexGrow: 1,
-            alignItems: 'stretch',
-            paddingHorizontal: 4,
-            minHeight: 52,
+        <HorizontalChipTabBar
+          tabs={tabs}
+          activeId={tab}
+          onSelect={setTab}
+          activeColors={{
+            border: colors.teal,
+            background: `${colors.teal}18`,
+            text: colors.teal,
           }}
-        >
-          {tabs.map((t) => (
-            <Pressable
-              key={t.id}
-              onPress={() => setTab(t.id)}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: tab === t.id }}
-              hitSlop={8}
-              style={[
-                styles.tab,
-                {
-                  minWidth: 88,
-                  justifyContent: 'center',
-                  borderBottomWidth: 2,
-                  borderBottomColor: tab === t.id ? colors.teal : 'transparent',
-                },
-              ]}
-            >
-              <Text
-                numberOfLines={1}
-                style={[
-                  styles.tabText,
-                  {
-                    color: tab === t.id ? colors.teal : colors.t3,
-                    fontFamily: tab === t.id ? fonts.bodyBold : fonts.bodySemiBold,
-                    fontSize: 13,
-                  },
-                ]}
-              >
-                {t.label}
-              </Text>
-            </Pressable>
-          ))}
-        </ScrollView>
+          inactiveColors={{
+            border: colors.border,
+            background: colors.bg2,
+            text: colors.t3,
+          }}
+        />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {tab === 'overview' && (
           <>
             <BalanceHero />
+            {(() => {
+              const summary = getEquippedPerkSummary(character);
+              if (summary.length === 0) return null;
+              return (
+                <Card style={[styles.card, { borderColor: colors.gold, backgroundColor: colors.bgCard, marginBottom: 8 }]}>
+                  <Text style={{ color: colors.gold, fontFamily: fonts.bodySemiBold, fontSize: 12 }}>Active equipped perks</Text>
+                  {summary.map((line) => (
+                    <Text key={line} style={{ color: colors.t2, fontFamily: fonts.body, fontSize: 12, marginTop: 4 }}>
+                      · {line}
+                    </Text>
+                  ))}
+                </Card>
+              );
+            })()}
             <SectionLabel label="Credit" />
             <CreditFactorsCard />
             <SectionLabel label="Holdings snapshot" />
@@ -418,32 +408,20 @@ export function AssetsScreen() {
             {(marketChip === 'stock' || marketChip === 'crypto' || marketChip === 'mutual_fund' || marketChip === 'bond' || marketChip === 'commodity' || marketChip === 'reit' || marketChip === 'venture') && (
               <>
                 <SectionLabel label={`${marketChip.replace('_', ' ')} · cash max ${fmt(maxInvest)}`} />
-                {MARKET_INSTRUMENTS.filter((i) => i.kind === marketChip).slice(0, 40).map((inst) => {
+                {MARKET_INSTRUMENTS.filter((i) => i.kind === marketChip).map((inst) => {
                   const suggested = scaleCountryAmount(inst.suggestedBuyUsd, cc, 'cost');
                   return (
-                    <Pressable
+                    <CatalogItemCard
                       key={inst.id}
+                      title={inst.name}
+                      subtitle={inst.description}
+                      tier={tierFromUsdPrice(inst.suggestedBuyUsd)}
+                      roleTag={inst.roleTag}
+                      perks={inst.holdingPerks}
+                      metaLine={`~${(inst.annualReturnBase * 100).toFixed(0)}% · vol ${(inst.volatility * 100).toFixed(0)}%${inst.dividendYield > 0 ? ` · div ${(inst.dividendYield * 100).toFixed(1)}%` : ''}`}
+                      priceLabel={`Suggested ${fmt(suggested)}`}
                       onPress={() => setInvestTarget({ catalogId: inst.id })}
-                    >
-                      <Card style={[styles.card, { borderColor: colors.border, backgroundColor: colors.bgCard }]}>
-                        <View style={styles.rowBetween}>
-                          <View style={{ flex: 1 }}>
-                            <Text style={[styles.title, { color: colors.t1, fontFamily: fonts.bodySemiBold }]}>{inst.name}</Text>
-                            <Text style={[styles.sub, { color: colors.t4, fontFamily: fonts.body }]}>
-                              ~{(inst.annualReturnBase * 100).toFixed(0)}% · vol {(inst.volatility * 100).toFixed(0)}%
-                              {inst.dividendYield > 0 ? ` · div ${(inst.dividendYield * 100).toFixed(1)}%` : ''}
-                            </Text>
-                            <Text style={[styles.meta, { color: colors.t3, fontFamily: fonts.body, marginTop: 4 }]} numberOfLines={2}>
-                              {inst.description}
-                            </Text>
-                          </View>
-                          <View style={[styles.chip, { borderColor: colors.emerald }]}>
-                            <Text style={[styles.chipText, { color: colors.emerald, fontFamily: fonts.bodySemiBold }]}>Details</Text>
-                          </View>
-                        </View>
-                        <Text style={[styles.meta, { color: colors.t4, fontFamily: fonts.body }]}>Suggested {fmt(suggested)}</Text>
-                      </Card>
-                    </Pressable>
+                    />
                   );
                 })}
               </>
@@ -453,22 +431,17 @@ export function AssetsScreen() {
               <>
                 <SectionLabel label="Vehicles · max 50% loan" />
                 {VEHICLES.map((v) => (
-                  <Pressable
+                  <CatalogItemCard
                     key={v.id}
+                    title={v.name}
+                    subtitle={v.description}
+                    tier={tierFromUsdPrice(v.baseValueUsd)}
+                    roleTag={v.roleTag}
+                    perks={v.perks}
+                    metaLine={`${(v.depreciationPct * 100).toFixed(0)}% dep/yr · loan ≤50%`}
+                    priceLabel={fmt(scaleVehiclePrice(v, cc))}
                     onPress={() => setDetail(detailFromVehicleCatalog(v.id, scaleVehiclePrice(v, cc)))}
-                  >
-                    <Card style={[styles.card, { borderColor: colors.border, backgroundColor: colors.bgCard }]}>
-                      <View style={styles.rowBetween}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.title, { color: colors.t1, fontFamily: fonts.bodySemiBold }]}>{v.name}</Text>
-                          <Text style={[styles.sub, { color: colors.t4, fontFamily: fonts.body }]}>+{v.happinessBonus} happiness · {(v.depreciationPct * 100).toFixed(0)}% dep/yr</Text>
-                        </View>
-                        <View style={[styles.chip, { borderColor: colors.teal }]}>
-                          <Text style={[styles.chipText, { color: colors.teal, fontFamily: fonts.bodySemiBold }]}>{fmt(scaleVehiclePrice(v, cc))}</Text>
-                        </View>
-                      </View>
-                    </Card>
-                  </Pressable>
+                  />
                 ))}
               </>
             )}
@@ -477,24 +450,24 @@ export function AssetsScreen() {
               <>
                 <SectionLabel label="Collectibles" />
                 {COLLECTIBLES.map((c) => (
-                  <Pressable
+                  <CatalogItemCard
                     key={c.id}
-                    onPress={() => setDetail(detailFromCollectibleCatalog(c.id, scaleCountryAmount(c.baseValueUsd, cc, 'cost')))}
-                  >
-                    <Card style={[styles.card, { borderColor: colors.border, backgroundColor: colors.bgCard }]}>
-                      <View style={styles.rowBetween}>
-                        <View style={{ flex: 1 }}>
-                          <Text style={[styles.title, { color: colors.t1, fontFamily: fonts.bodySemiBold }]}>{c.name}</Text>
-                          <Text style={[styles.sub, { color: colors.t4, fontFamily: fonts.body }]}>{c.category} · +{c.happinessBonus} happy</Text>
-                        </View>
-                        <View style={[styles.chip, { borderColor: colors.orchid }]}>
-                          <Text style={[styles.chipText, { color: colors.orchid, fontFamily: fonts.bodySemiBold }]}>
-                            {fmt(scaleCountryAmount(c.baseValueUsd, cc, 'cost'))}
-                          </Text>
-                        </View>
-                      </View>
-                    </Card>
-                  </Pressable>
+                    title={c.name}
+                    subtitle={c.description}
+                    tier={tierFromUsdPrice(c.baseValueUsd)}
+                    roleTag={c.roleTag}
+                    perks={c.perks}
+                    metaLine={`${c.category} · ~${(c.appreciationPct * 100).toFixed(1)}% appr`}
+                    priceLabel={fmt(scaleCountryAmount(c.baseValueUsd, cc, 'cost'))}
+                    onPress={() =>
+                      setDetail(
+                        detailFromCollectibleCatalog(
+                          c.id,
+                          scaleCountryAmount(c.baseValueUsd, cc, 'cost'),
+                        ),
+                      )
+                    }
+                  />
                 ))}
               </>
             )}
@@ -618,53 +591,56 @@ export function AssetsScreen() {
               />
             ))}
             {(['shelter', 'basic', 'mid', 'upper', 'luxury'] as PropertyTier[]).map((tier) => {
-              const entries = getPropertiesByTier(tier).slice(0, 6);
+              const entries = getPropertiesByTier(tier);
               return (
                 <View key={tier} style={{ gap: 8, marginBottom: spacing.lg }}>
                   <SectionLabel label={TIER_LABELS[tier]} />
                   {entries.map((prop) => {
                     const scaledValue = scalePropertyValue(prop.value, cc);
                     const terms = getFinancedPurchaseTerms(scaledValue, character);
+                    const entry = getPropertyCatalogEntry(prop.id);
                     return (
-                      <Card key={prop.id} style={[styles.card, { borderColor: colors.border, backgroundColor: colors.bgCard }]}>
-                        <View style={styles.rowBetween}>
-                          <View style={{ flex: 1 }}>
-                            <Text style={[styles.title, { color: colors.t1, fontFamily: fonts.bodySemiBold }]}>{prop.name}</Text>
-                            <Text style={[styles.sub, { color: colors.t4, fontFamily: fonts.body }]}>
-                              Down ≥50% · rent yield {((prop.rentalYieldPct ?? 0.04) * 100).toFixed(1)}% · +{prop.happinessBonus ?? 0} happy
-                            </Text>
+                      <CatalogItemCard
+                        key={prop.id}
+                        title={prop.name}
+                        subtitle={entry?.description}
+                        tier={tierFromUsdPrice(prop.value)}
+                        roleTag={entry?.roleTag}
+                        perks={entry?.perks}
+                        metaLine={`Down ≥50% · rent yield ${((prop.rentalYieldPct ?? 0.04) * 100).toFixed(1)}%`}
+                        priceLabel={fmt(scaledValue)}
+                        onPress={() => setDetail(detailFromPropertyCatalog(prop.id, scaledValue))}
+                        actions={
+                          <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                            <Pressable
+                              onPress={() => navigation.navigate('Mortgage', { propertyDefId: prop.id })}
+                              style={[styles.chip, { borderColor: colors.teal }]}
+                            >
+                              <Text style={[styles.chipText, { color: colors.teal, fontFamily: fonts.bodySemiBold }]}>Mortgage</Text>
+                            </Pressable>
+                            <Pressable
+                              disabled={!terms.approved}
+                              onPress={() => {
+                                const r = purchaseProperty(prop.id, 'primary');
+                                Alert.alert(r.ok ? 'Purchased' : 'Failed', r.message);
+                              }}
+                              style={[styles.chip, { borderColor: terms.approved ? colors.emerald : colors.t4 }]}
+                            >
+                              <Text style={[styles.chipText, { color: terms.approved ? colors.emerald : colors.t4, fontFamily: fonts.bodySemiBold }]}>Buy primary</Text>
+                            </Pressable>
+                            <Pressable
+                              disabled={!terms.approved}
+                              onPress={() => {
+                                const r = purchaseProperty(prop.id, 'rental');
+                                Alert.alert(r.ok ? 'Purchased' : 'Failed', r.message);
+                              }}
+                              style={[styles.chip, { borderColor: terms.approved ? colors.gold : colors.t4 }]}
+                            >
+                              <Text style={[styles.chipText, { color: terms.approved ? colors.gold : colors.t4, fontFamily: fonts.bodySemiBold }]}>Buy rental</Text>
+                            </Pressable>
                           </View>
-                          <Text style={[styles.meta, { color: colors.teal, fontFamily: fonts.monoSemiBold }]}>{fmt(scaledValue)}</Text>
-                        </View>
-                        <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-                          <Pressable
-                            onPress={() => navigation.navigate('Mortgage', { propertyDefId: prop.id })}
-                            style={[styles.chip, { borderColor: colors.teal }]}
-                          >
-                            <Text style={[styles.chipText, { color: colors.teal, fontFamily: fonts.bodySemiBold }]}>Details</Text>
-                          </Pressable>
-                          <Pressable
-                            disabled={!terms.approved}
-                            onPress={() => {
-                              const r = purchaseProperty(prop.id, 'primary');
-                              Alert.alert(r.ok ? 'Purchased' : 'Failed', r.message);
-                            }}
-                            style={[styles.chip, { borderColor: terms.approved ? colors.emerald : colors.t4 }]}
-                          >
-                            <Text style={[styles.chipText, { color: terms.approved ? colors.emerald : colors.t4, fontFamily: fonts.bodySemiBold }]}>Buy primary</Text>
-                          </Pressable>
-                          <Pressable
-                            disabled={!terms.approved}
-                            onPress={() => {
-                              const r = purchaseProperty(prop.id, 'rental');
-                              Alert.alert(r.ok ? 'Purchased' : 'Failed', r.message);
-                            }}
-                            style={[styles.chip, { borderColor: terms.approved ? colors.gold : colors.t4 }]}
-                          >
-                            <Text style={[styles.chipText, { color: terms.approved ? colors.gold : colors.t4, fontFamily: fonts.bodySemiBold }]}>Buy rental</Text>
-                          </Pressable>
-                        </View>
-                      </Card>
+                        }
+                      />
                     );
                   })}
                 </View>
@@ -739,32 +715,32 @@ export function AssetsScreen() {
             {FRANCHISES.map((f) => {
               const check = canFoundFranchise(character, f.id);
               return (
-                <Card key={f.id} style={[styles.card, { borderColor: colors.border, backgroundColor: colors.bgCard }]}>
-                  <View style={styles.rowBetween}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.title, { color: colors.t1, fontFamily: fonts.bodySemiBold }]}>{f.name}</Text>
-                      <Text style={[styles.sub, { color: colors.t4, fontFamily: fonts.body }]}>
-                        {f.industry} · credit {f.minCredit}+ · age {f.minAge}+
-                      </Text>
-                      <Text style={[styles.meta, { color: colors.t3, fontFamily: fonts.body }]}>{f.description}</Text>
+                <CatalogItemCard
+                  key={f.id}
+                  title={f.name}
+                  subtitle={f.description}
+                  tier={tierFromUsdPrice(f.entryCostUsd)}
+                  roleTag={f.roleTag}
+                  perks={f.industryPerks}
+                  metaLine={`${f.industry} · credit ${f.minCredit}+ · age ${f.minAge}+ · risk ${(f.risk * 100).toFixed(0)}%`}
+                  priceLabel={fmt(check.entryCost || scaleCountryAmount(f.entryCostUsd, cc, 'cost'))}
+                  actions={
+                    <View style={{ marginTop: 8 }}>
+                      <Pressable
+                        disabled={!check.ok}
+                        onPress={() => {
+                          const r = foundFranchise(f.id);
+                          Alert.alert(r.ok ? 'Opened' : 'Failed', r.message);
+                        }}
+                        style={[styles.chip, { borderColor: check.ok ? colors.emerald : colors.t4, alignSelf: 'flex-start' }]}
+                      >
+                        <Text style={[styles.chipText, { color: check.ok ? colors.emerald : colors.t4, fontFamily: fonts.bodySemiBold }]}>
+                          {check.ok ? 'Found franchise' : check.message}
+                        </Text>
+                      </Pressable>
                     </View>
-                    <Pressable
-                      disabled={!check.ok}
-                      onPress={() => {
-                        const r = foundFranchise(f.id);
-                        Alert.alert(r.ok ? 'Opened' : 'Failed', r.message);
-                      }}
-                      style={[styles.chip, { borderColor: check.ok ? colors.emerald : colors.t4 }]}
-                    >
-                      <Text style={[styles.chipText, { color: check.ok ? colors.emerald : colors.t4, fontFamily: fonts.bodySemiBold }]}>
-                        {fmt(check.entryCost || scaleCountryAmount(f.entryCostUsd, cc, 'cost'))}
-                      </Text>
-                    </Pressable>
-                  </View>
-                  {!check.ok ? (
-                    <Text style={[styles.meta, { color: colors.crimson, fontFamily: fonts.body }]}>{check.message}</Text>
-                  ) : null}
-                </Card>
+                  }
+                />
               );
             })}
           </>
@@ -911,9 +887,6 @@ export function AssetsScreen() {
 }
 
 const styles = StyleSheet.create({
-  tabs: { flexDirection: 'row', borderBottomWidth: 1 },
-  tab: { alignItems: 'center', paddingVertical: 12, paddingHorizontal: 14, borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  tabText: { fontSize: 13 },
   scroll: { padding: 20, gap: 16 },
   hero: { padding: 20, alignItems: 'center', gap: 8, borderRadius: 16 },
   heroLabel: { fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase' },

@@ -629,19 +629,19 @@ export function ShopScreen() {
                       start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                       style={{ padding: spacing.xl, gap: spacing.sm }}
                     >
-                      <Text style={{ color: '#FFFFFFCC', fontFamily: fonts.bodyBold, fontSize: 10, letterSpacing: 2 }}>
+                      <Text style={{ color: colors.textOnInverseMuted, fontFamily: fonts.bodyBold, fontSize: 10, letterSpacing: 2 }}>
                         LIMITED OFFER
                       </Text>
-                      <Text style={{ color: '#FFF', fontFamily: fonts.displayBlack, fontSize: 24 }}>Starter Pack</Text>
-                      <Text style={{ color: '#FFFFFFCC', fontFamily: fonts.body, fontSize: 13, lineHeight: 20 }}>
+                      <Text style={{ color: colors.textOnInverse, fontFamily: fonts.displayBlack, fontSize: 24 }}>Starter Pack</Text>
+                      <Text style={{ color: colors.textOnInverseMuted, fontFamily: fonts.body, fontSize: 13, lineHeight: 20 }}>
                         50 gems · No ads · Silver Spoon scenario
                       </Text>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                        <Text style={{ color: '#FFF', fontFamily: fonts.displayBold, fontSize: 22 }}>
+                        <Text style={{ color: colors.textOnInverse, fontFamily: fonts.displayBold, fontSize: 22 }}>
                           {getCatalogPriceLabel('starter_pack', storeProducts, STARTER_PACK_FALLBACK_PRICE)}
                         </Text>
-                        <View style={{ backgroundColor: '#00000055', borderRadius: radii.sm, paddingHorizontal: 16, paddingVertical: 10 }}>
-                          <Text style={{ color: '#FFF', fontFamily: fonts.bodyBold, fontSize: 14 }}>Get It Now</Text>
+                        <View style={{ backgroundColor: colors.shadowStrong, borderRadius: radii.sm, paddingHorizontal: 16, paddingVertical: 10 }}>
+                          <Text style={{ color: colors.textOnInverse, fontFamily: fonts.bodyBold, fontSize: 14 }}>Get It Now</Text>
                         </View>
                       </View>
                     </LinearGradient>
@@ -659,12 +659,12 @@ export function ShopScreen() {
                       start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
                       style={{ padding: spacing.lg, gap: spacing.xs }}
                     >
-                      <Text style={{ color: '#FFFFFFCC', fontFamily: fonts.bodyBold, fontSize: 10, letterSpacing: 2 }}>
+                      <Text style={{ color: colors.textOnInverseMuted, fontFamily: fonts.bodyBold, fontSize: 10, letterSpacing: 2 }}>
                         LIMITED TIME
                       </Text>
-                      <Text style={{ color: '#FFF', fontFamily: fonts.displayBold, fontSize: 20 }}>{offer.title}</Text>
+                      <Text style={{ color: colors.textOnInverse, fontFamily: fonts.displayBold, fontSize: 20 }}>{offer.title}</Text>
                       {offer.subtitle ? (
-                        <Text style={{ color: '#FFFFFFCC', fontFamily: fonts.body, fontSize: 13 }}>{offer.subtitle}</Text>
+                        <Text style={{ color: colors.textOnInverseMuted, fontFamily: fonts.body, fontSize: 13 }}>{offer.subtitle}</Text>
                       ) : null}
                     </LinearGradient>
                   </Pressable>
@@ -834,7 +834,7 @@ export function ShopScreen() {
                     }
                     style={{ borderRadius: radii.xl, overflow: 'hidden', marginBottom: spacing.md, borderWidth: 1.5, borderColor: 'rgba(245,158,11,0.35)' }}
                   >
-                    <View style={{ height: 148, overflow: 'hidden' }}>
+                    <View style={{ minHeight: 148, overflow: 'hidden' }}>
                       <LinearGradient
                         colors={scenarioBundle.owned
                           ? [`${colors.emerald}40`, `${colors.emerald}18`, colors.bgCard]
@@ -852,16 +852,16 @@ export function ShopScreen() {
                         ))}
                       </View>
                       <LinearGradient
-                        colors={['transparent', 'rgba(0,0,0,0.75)']}
+                        colors={['transparent', colors.shadowStrong]}
                         style={{ ...StyleSheet.absoluteFill, justifyContent: 'flex-end', padding: spacing.xl }}
                       >
                         <Text style={{ color: scenarioBundle.owned ? colors.emerald : colors.gold, fontFamily: fonts.bodyBold, fontSize: 10, letterSpacing: 2 }}>
                           {scenarioBundle.owned ? 'ALL SCENARIOS UNLOCKED' : 'BEST VALUE'}
                         </Text>
-                        <Text style={{ color: '#FFF', fontFamily: fonts.displayBlack, fontSize: 24, marginTop: 4 }}>
+                        <Text style={{ color: colors.textOnInverse, fontFamily: fonts.displayBlack, fontSize: 24, marginTop: 4 }}>
                           {scenarioBundle.title}
                         </Text>
-                        <Text style={{ color: '#FFFFFFCC', fontFamily: fonts.body, fontSize: 13, lineHeight: 20, marginTop: 4 }}>
+                        <Text style={{ color: colors.textOnInverseMuted, fontFamily: fonts.body, fontSize: 13, lineHeight: 20, marginTop: 4 }}>
                           {scenarioBundle.description}
                         </Text>
                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
@@ -869,9 +869,9 @@ export function ShopScreen() {
                             <Text style={{ color: colors.emerald, fontFamily: fonts.bodyBold, fontSize: 14 }}>Browse Scenarios</Text>
                           ) : (
                             <>
-                              <Text style={{ color: '#FFF', fontFamily: fonts.displayBold, fontSize: 22 }}>{scenarioBundle.price}</Text>
-                              <View style={{ backgroundColor: '#00000066', borderRadius: radii.sm, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: `${colors.gold}50` }}>
-                                <Text style={{ color: '#FFF', fontFamily: fonts.bodyBold, fontSize: 14 }}>Unlock All</Text>
+                              <Text style={{ color: colors.textOnInverse, fontFamily: fonts.displayBold, fontSize: 22 }}>{scenarioBundle.price}</Text>
+                              <View style={{ backgroundColor: colors.shadowStrong, borderRadius: radii.sm, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: `${colors.gold}50` }}>
+                                <Text style={{ color: colors.textOnInverse, fontFamily: fonts.bodyBold, fontSize: 14 }}>Unlock All</Text>
                               </View>
                             </>
                           )}
@@ -1054,7 +1054,7 @@ const createStyles = ({ colors, fonts, spacing, radii }: ReturnType<typeof useTh
     backgroundColor: colors.bgCard,
     borderRadius: radii.md,
     borderWidth: 1.5,
-    borderColor: "#4B5563",
+    borderColor: colors.border,
     padding: spacing.md,
     gap: spacing.sm,
     marginBottom: spacing.lg,
@@ -1067,11 +1067,11 @@ const createStyles = ({ colors, fonts, spacing, radii }: ReturnType<typeof useTh
   expansionTitle: {
     fontFamily: fonts.displayBold,
     fontSize: 15,
-    color: "#F9FAFC",
+    color: colors.t1,
   },
   unlockedBadge: {
-    backgroundColor: "rgba(52, 211, 153, 0.15)",
-    borderColor: "#34D399",
+    backgroundColor: `${colors.emerald}26`,
+    borderColor: colors.emerald,
     borderWidth: 1,
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -1080,11 +1080,11 @@ const createStyles = ({ colors, fonts, spacing, radii }: ReturnType<typeof useTh
   unlockedBadgeText: {
     fontFamily: fonts.monoSemiBold,
     fontSize: 9,
-    color: "#34D399",
+    color: colors.emerald,
   },
   lockedBadge: {
-    backgroundColor: "rgba(156, 163, 175, 0.15)",
-    borderColor: "#9CA3AF",
+    backgroundColor: `${colors.t4}26`,
+    borderColor: colors.t4,
     borderWidth: 1,
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -1093,7 +1093,7 @@ const createStyles = ({ colors, fonts, spacing, radii }: ReturnType<typeof useTh
   lockedBadgeText: {
     fontFamily: fonts.monoSemiBold,
     fontSize: 9,
-    color: "#9CA3AF",
+    color: colors.t4,
   },
   expansionDesc: {
     fontFamily: fonts.body,
@@ -1104,7 +1104,7 @@ const createStyles = ({ colors, fonts, spacing, radii }: ReturnType<typeof useTh
   expansionActiveText: {
     fontFamily: fonts.bodySemiBold,
     fontSize: 12,
-    color: "#34D399",
+    color: colors.emerald,
     marginTop: 4,
   },
   unlockButtonsRow: {

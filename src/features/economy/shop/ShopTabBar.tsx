@@ -1,5 +1,5 @@
-import { ScrollView, Text, Pressable } from 'react-native';
-import { useTheme, MIN_TAP_TARGET } from '@theme';
+import { useTheme } from '@theme';
+import { HorizontalChipTabBar } from '@components/HorizontalChipTabBar';
 
 export type ShopTab = 'bundles' | 'premium' | 'cosmetics' | 'scenarios';
 
@@ -11,49 +11,22 @@ const SHOP_TABS: Array<{ id: ShopTab; label: string }> = [
 ];
 
 export function ShopTabBar({ active, onSelect }: { active: ShopTab; onSelect: (t: ShopTab) => void }) {
-  const { colors, fonts, radii, spacing } = useTheme();
+  const { colors } = useTheme();
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: spacing.lg,
-        paddingVertical: spacing.sm,
+    <HorizontalChipTabBar
+      tabs={SHOP_TABS}
+      activeId={active}
+      onSelect={onSelect}
+      activeColors={{
+        border: colors.sapphire,
+        background: colors.sapphire,
+        text: colors.textOnInverse,
       }}
-    >
-      {SHOP_TABS.map((tab, idx) => {
-        const isActive = tab.id === active;
-        return (
-          <Pressable
-            key={tab.id}
-            onPress={() => onSelect(tab.id)}
-            style={{
-              flexShrink: 0,
-              minHeight: MIN_TAP_TARGET,
-              justifyContent: 'center',
-              paddingHorizontal: 16,
-              borderRadius: radii.full,
-              backgroundColor: isActive ? colors.sapphire : colors.bg2,
-              borderWidth: 1.5,
-              borderColor: isActive ? colors.sapphire : colors.border,
-              marginRight: idx < SHOP_TABS.length - 1 ? spacing.sm : 0,
-            }}
-          >
-            <Text
-              style={{
-                color: isActive ? '#FFFFFF' : colors.t1,
-                fontFamily: isActive ? fonts.bodySemiBold : fonts.body,
-                fontSize: 13,
-              }}
-              numberOfLines={1}
-            >
-              {tab.label}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </ScrollView>
+      inactiveColors={{
+        border: colors.border,
+        background: colors.bg2,
+        text: colors.t1,
+      }}
+    />
   );
 }

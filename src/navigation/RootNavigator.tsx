@@ -19,6 +19,7 @@ import {
   LazyCourtScreen as Court,
   LazyMortgageScreen as Mortgage,
   LazySocialMediaScreen as SocialMedia,
+  LazySocialPlatformScreen as SocialPlatform,
   LazyPetCareScreen as PetCare,
   LazyHobbyDetailScreen as HobbyDetail,
   LazyFamilyTreeScreen as FamilyTree,
@@ -103,6 +104,7 @@ export default function RootNavigator() {
         <Stack.Screen name="Court" component={Court} options={{ animation: 'slide_from_bottom', presentation: 'modal', gestureEnabled: false }} />
         <Stack.Screen name="Mortgage" component={Mortgage} options={{ animation: 'slide_from_bottom', presentation: 'modal' }} />
         <Stack.Screen name="SocialMedia" component={SocialMedia} options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="SocialPlatform" component={SocialPlatform} options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="PetCare" component={PetCare} options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="HobbyDetail" component={HobbyDetail} options={{ animation: 'slide_from_right' }} />
         <Stack.Screen name="FamilyTree" component={FamilyTree} options={{ animation: 'slide_from_right' }} />

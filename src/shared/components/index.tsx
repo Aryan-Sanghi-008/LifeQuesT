@@ -31,6 +31,8 @@ export { FadeInView } from "./FadeInView";
 export { ScaleInView } from "./ScaleInView";
 export { ShimmerButton } from "./ShimmerButton";
 export { Chip } from "./Chip";
+export { HorizontalChipTabBar } from "./HorizontalChipTabBar";
+export type { ChipTabItem, ChipTabColors } from "./HorizontalChipTabBar";
 export { Divider } from "./Divider";
 export { HydrationLoader } from "./HydrationLoader";
 export { default as EventCard } from "./EventCard";

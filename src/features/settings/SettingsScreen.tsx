@@ -49,7 +49,7 @@ function SettingRow({
   onChange: (v: boolean) => void;
   iconBg?: string;
 }) {
-  const { colors, fonts } = useTheme();
+  const { colors, fonts, scaledFonts } = useTheme();
   return (
     <View style={rowStyles.row}>
       <View style={[rowStyles.iconWrap, iconBg ? { backgroundColor: iconBg } : undefined]}>
@@ -57,13 +57,13 @@ function SettingRow({
       </View>
       <View style={rowStyles.textWrap}>
         <Text style={[rowStyles.label, { color: colors.t1, fontFamily: fonts.bodySemiBold }]}>{label}</Text>
-        <Text style={[rowStyles.desc, { color: colors.t3, fontFamily: fonts.body }]}>{desc}</Text>
+        <Text style={[rowStyles.desc, { color: colors.t3, fontFamily: fonts.body, fontSize: scaledFonts.sm, lineHeight: Math.round(scaledFonts.sm * 1.35) }]}>{desc}</Text>
       </View>
       <Switch
         value={value}
         onValueChange={onChange}
         trackColor={{ true: colors.emerald, false: colors.bg2 }}
-        thumbColor="#FFFFFF"
+        thumbColor={colors.textOnInverse}
         accessibilityLabel={label}
         accessibilityHint={desc}
       />
@@ -76,7 +76,7 @@ const rowStyles = StyleSheet.create({
   iconWrap: { width: 32, height: 32, borderRadius: 8, alignItems: "center", justifyContent: "center" },
   textWrap: { flex: 1, gap: 2 },
   label: { fontSize: 14 },
-  desc: { fontSize: 11, lineHeight: 15 },
+  desc: {},
 });
 
 // ─── Nav Row ──────────────────────────────────────────────────────────────────

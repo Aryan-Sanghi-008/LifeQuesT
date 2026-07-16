@@ -59,12 +59,15 @@ describe('creditScoreEngine', () => {
 });
 
 describe('market catalogs', () => {
-  it('has large diversified catalogs', () => {
-    expect(MARKET_INSTRUMENTS.length).toBeGreaterThan(100);
-    expect(getInstrumentsByKind('crypto').length).toBeGreaterThanOrEqual(20);
-    expect(getInstrumentsByKind('stock').length).toBeGreaterThanOrEqual(40);
-    expect(FRANCHISES.length).toBeGreaterThanOrEqual(20);
-    expect(COLLECTIBLES.length).toBeGreaterThanOrEqual(25);
+  it('has curated diversified catalogs with unique roles', () => {
+    expect(MARKET_INSTRUMENTS.length).toBeGreaterThanOrEqual(40);
+    expect(MARKET_INSTRUMENTS.length).toBeLessThanOrEqual(80);
+    expect(getInstrumentsByKind('crypto').length).toBeGreaterThanOrEqual(5);
+    expect(getInstrumentsByKind('stock').length).toBeGreaterThanOrEqual(6);
+    expect(FRANCHISES.length).toBeGreaterThanOrEqual(10);
+    expect(FRANCHISES.length).toBeLessThanOrEqual(16);
+    expect(COLLECTIBLES.length).toBeGreaterThanOrEqual(12);
+    expect(COLLECTIBLES.every((c) => c.perks.length > 0 && c.roleTag)).toBe(true);
     expect(INSURANCE_PRODUCTS.length).toBeGreaterThanOrEqual(4);
   });
 

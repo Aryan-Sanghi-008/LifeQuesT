@@ -11,6 +11,7 @@ import { getFollowerPromotionBonus } from './socialMediaEngine';
 import { getBestHobbyLevelInCategory } from './hobbyEngine';
 import { getPersonalityMods } from './personalityModifiers';
 import { getCareerScoreTraitBonus, getCareerPerformanceTraitBonus } from './traitEngine';
+import { resolveEquippedPerks } from './equippedPerksEngine';
 
 // ─── Eligibility System ───────────────────────────────────────────────────────
 
@@ -217,6 +218,9 @@ export function computeHireProbability(
   character: Pick<Character, 'stats' | 'educationLevel' | 'traits' | 'gpa' | 'creditScore'> & {
     socialFollowers?: number;
     personality?: Character['personality'];
+    assets?: Character['assets'];
+    businesses?: Character['businesses'];
+    insurancePolicies?: Character['insurancePolicies'];
   },
   career: CareerPath,
 ): number {
@@ -230,6 +234,13 @@ export function computeHireProbability(
   const ambitionBonus = Math.min(5, (character.stats.ambition / 100) * 5);
   const luckyBonus = getCareerScoreTraitBonus(character.traits ?? []);
   const fameBonus = Math.round(getFollowerPromotionBonus(character.socialFollowers ?? 0) * 100);
+  const equippedCareerBonus = Math.round(
+    resolveEquippedPerks({
+      assets: character.assets ?? [],
+      businesses: character.businesses ?? [],
+      insurancePolicies: character.insurancePolicies,
+    } as Character).careerPerfBonus * 100,
+  );
   const seniorityPenalty = (career.seniorityLevel - 1) * 5;
   const gpaBonus = character.gpa ? Math.min(10, (character.gpa / 4) * 10) : 0;
   const creditBonus = character.creditScore
@@ -239,7 +250,7 @@ export function computeHireProbability(
     ? Math.round(getPersonalityMods(character.personality).careerFitDelta * 100)
     : 0;
 
-  const raw = intScore + eduBonus + socialBonus + ambitionBonus + luckyBonus + fameBonus + gpaBonus + creditBonus + personalityBonus - seniorityPenalty;
+  const raw = intScore + eduBonus + socialBonus + ambitionBonus + luckyBonus + fameBonus + gpaBonus + creditBonus + personalityBonus + equippedCareerBonus - seniorityPenalty;
   return Math.round(Math.max(5, Math.min(95, raw)));
 }
 

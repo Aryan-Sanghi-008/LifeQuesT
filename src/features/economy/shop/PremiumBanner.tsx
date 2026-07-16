@@ -146,7 +146,7 @@ export function PremiumBanner({
               style={({ pressed }) => [styles.ctaBtn, styles.ctaMonthly, pressed && { opacity: 0.9 }]}
             >
               {loadingMonthly ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator size="small" color={colors.textOnInverse} />
               ) : (
                 <>
                   <Text style={styles.ctaPrice}>{monthlyPriceLabel ?? "$0.49"}</Text>
@@ -160,7 +160,7 @@ export function PremiumBanner({
               style={({ pressed }) => [styles.ctaBtn, styles.ctaYearly, pressed && { opacity: 0.9 }]}
             >
               {loadingYearly ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
+                <ActivityIndicator size="small" color={colors.textOnInverse} />
               ) : (
                 <>
                   <Text style={styles.ctaPrice}>{yearlyPriceLabel ?? "$2.99"}</Text>
@@ -221,7 +221,7 @@ const createStyles = ({ colors, fonts, spacing, radii }: ReturnType<typeof useTh
   premiumTitle: {
     fontFamily: fonts.displayBold,
     fontSize: 17,
-    color: "#FFFFFF",
+    color: colors.textOnInverse,
   },
   activeBadge: {
     backgroundColor: "rgba(255,255,255,0.20)",
@@ -234,13 +234,13 @@ const createStyles = ({ colors, fonts, spacing, radii }: ReturnType<typeof useTh
   activeBadgeText: {
     fontFamily: fonts.monoSemiBold,
     fontSize: 8,
-    color: "#FFFFFF",
+    color: colors.textOnInverse,
     letterSpacing: 1,
   },
   premiumSub: {
     fontFamily: fonts.body,
     fontSize: 12,
-    color: "rgba(255,255,255,0.75)",
+    color: colors.textOnInverseMuted,
     marginTop: 4,
   },
   perks: {
@@ -250,11 +250,11 @@ const createStyles = ({ colors, fonts, spacing, radii }: ReturnType<typeof useTh
     paddingTop: spacing.md,
   },
   perkRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-  perkDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "#FCD34D" },
+  perkDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.gold2 },
   perkText: {
     fontFamily: fonts.body,
     fontSize: 13,
-    color: "rgba(255,255,255,0.90)",
+    color: colors.textOnInverseMuted,
   },
   ctaRow: {
     flexDirection: "row",
@@ -281,11 +281,11 @@ const createStyles = ({ colors, fonts, spacing, radii }: ReturnType<typeof useTh
   ctaPrice: {
     fontFamily: fonts.displayBold,
     fontSize: 16,
-    color: "#FFFFFF",
+    color: colors.textOnInverse,
   },
   ctaPeriod: {
     fontFamily: fonts.body,
     fontSize: 10,
-    color: "rgba(255,255,255,0.85)",
+    color: colors.textOnInverseMuted,
   },
 });

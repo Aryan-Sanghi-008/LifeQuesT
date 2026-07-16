@@ -1036,7 +1036,7 @@ export function LifeScreen() {
             { backgroundColor: colors.crimson, borderRadius: radii.sm },
           ]}
         >
-          <Text style={[styles.jailBannerText, { fontFamily: fonts.bodySemiBold }]}>
+          <Text style={[styles.jailBannerText, { color: colors.textOnInverse, fontFamily: fonts.bodySemiBold }]}>
             {jailBannerText}
           </Text>
         </Pressable>
@@ -1047,7 +1047,7 @@ export function LifeScreen() {
             { backgroundColor: colors.gold, borderRadius: radii.sm },
           ]}
         >
-          <Text style={[styles.probationBannerText, { fontFamily: fonts.bodySemiBold }]}>
+          <Text style={[styles.probationBannerText, { color: colors.textOnInverse, fontFamily: fonts.bodySemiBold }]}>
             {probationBannerText}
           </Text>
         </View>
@@ -1320,7 +1320,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  jailBannerText: { color: "#FFFFFF", fontSize: 13 },
+  jailBannerText: { fontSize: 13 },
   probationBanner: {
     marginHorizontal: 16,
     marginVertical: 6,
@@ -1328,7 +1328,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  probationBannerText: { color: "#FFFFFF", fontSize: 13 },
+  probationBannerText: { fontSize: 13 },
   empty: { paddingVertical: 32, alignItems: "center", justifyContent: "center" },
   emptyText: { fontSize: 14, textAlign: "center" },
   footerMeta: { fontSize: 11, marginTop: 4 },
