@@ -1,3 +1,36 @@
+jest.mock('react-native-reanimated', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const AnimatedView = React.forwardRef((props: Record<string, unknown>, ref: unknown) =>
+    React.createElement(View, { ...props, ref }),
+  );
+  const noop = () => undefined;
+  const shared = (init: number) => ({ value: init });
+  return {
+    __esModule: true,
+    default: {
+      View: AnimatedView,
+      createAnimatedComponent: (C: unknown) => C,
+      call: noop,
+    },
+    View: AnimatedView,
+    createAnimatedComponent: (C: unknown) => C,
+    useSharedValue: shared,
+    useAnimatedStyle: () => ({}),
+    withTiming: (v: number) => v,
+    withSpring: (v: number) => v,
+    withSequence: (...vals: number[]) => vals[vals.length - 1],
+    Easing: { out: () => noop, inOut: () => noop, cubic: noop, quad: noop },
+    FadeInDown: {
+      delay: () => ({
+        duration: () => ({
+          springify: () => ({ damping: () => undefined }),
+        }),
+      }),
+    },
+  };
+});
+
 jest.mock('@d11/react-native-fast-image', () => ({
   __esModule: true,
   default: 'FastImage',

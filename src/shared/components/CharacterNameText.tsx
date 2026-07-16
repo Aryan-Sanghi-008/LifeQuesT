@@ -6,13 +6,15 @@ import { useTheme } from '@theme';
 interface Props extends TextProps {
   name: string;
   color?: string;
+  /** Preview override — ignore equipped font */
+  forceFontId?: string | null;
 }
 
 /** Renders the player character name with equipped name-font cosmetic. */
-export function CharacterNameText({ name, style, color, ...rest }: Props) {
+export function CharacterNameText({ name, style, color, forceFontId, ...rest }: Props) {
   const equippedNameFontId = useSettingsStore((s) => s.equippedNameFontId);
   const { colors, fonts } = useTheme();
-  const fontId = resolveNameFontId(equippedNameFontId);
+  const fontId = resolveNameFontId(forceFontId ?? equippedNameFontId);
   const fontStyle = getNameFontTextStyle(fontId);
 
   return (

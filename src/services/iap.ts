@@ -22,6 +22,13 @@ const PRODUCT_IDS: IAPProductId[] = [
   'avatar_pack_big_smile',
   'avatar_pack_wanderer',
   'avatar_bundle_all',
+  'cosmetic_theme_porcelain',
+  'cosmetic_theme_ivory_dawn',
+  'cosmetic_theme_coastal_mist',
+  'cosmetic_theme_obsidian',
+  'cosmetic_theme_noir_harbor',
+  'cosmetic_theme_ember_night',
+  // Legacy theme SKUs (still listed for restore of old purchases)
   'cosmetic_theme_dark_slate',
   'cosmetic_theme_midnight',
   'cosmetic_theme_sunrise',
@@ -172,6 +179,36 @@ export function applyPurchaseToStore(
   if (grants.unlockScenario) store.unlockScenario?.(grants.unlockScenario);
   if (grants.unlockAllScenarios) store.unlockAllPremiumScenarios?.();
   if (productId === 'starter_pack') setStarterOfferPurchased(true);
+
+  if (grants.premium || grants.noAds || grants.seasonPass || grants.avatarStyles?.length || grants.unlockAllAvatarStyles) {
+    try {
+      const { useGameStore } = require('@store/gameStore') as typeof import('@store/gameStore');
+      const { fanOutAccountEntitlementsToAllSlots } = require('@services/accountEntitlements') as typeof import('@services/accountEntitlements');
+      const state = useGameStore.getState();
+      const updated = fanOutAccountEntitlementsToAllSlots(
+        {
+          isPremium: grants.premium || undefined,
+          hasNoAds: grants.noAds || grants.premium || undefined,
+          hasSeasonPass: grants.seasonPass || undefined,
+          unlockedAvatarStyles: grants.avatarStyles,
+        },
+        state.activeSlotId,
+        state.character,
+      );
+      if (updated) {
+        useGameStore.setState((s) => {
+          s.character = updated;
+          if (grants.premium) s.accountIsPremium = true;
+        });
+      } else if (grants.premium) {
+        useGameStore.setState((s) => {
+          s.accountIsPremium = true;
+        });
+      }
+    } catch (e) {
+      if (__DEV__) console.warn('[IAP] fan-out entitlements failed', e);
+    }
+  }
 }
 
 export async function verifyPurchaseOnServer(

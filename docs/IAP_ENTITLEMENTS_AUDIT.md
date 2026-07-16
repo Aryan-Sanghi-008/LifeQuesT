@@ -13,7 +13,14 @@ Server grants: [`functions/src/entitlements.ts`](../functions/src/entitlements.t
 | Season pass, starter pack, luck boost | Yes | Yes | OK |
 | Scenario unlocks | Yes | Yes | OK |
 | Avatar packs | Yes | Yes | OK |
-| Cosmetic IAPs (`cosmetic_*`) | Yes (`IAP_CLIENT_GRANTS`) | **No** | **Gap** — server never writes `unlockedCosmeticIds` |
+| Cosmetic IAPs (`cosmetic_*`) | Yes (`IAP_CLIENT_GRANTS`) | Yes (`unlockedCosmeticIds`) | OK — dummy Play prices until Console live |
+
+## Notes
+
+- Fallback prices are **dummy Play-ready labels** until the Play Console account is connected.
+- Theme cosmetics: 3 light + 3 dark full-token skins; legacy `theme_dark_slate|midnight|sunrise` map to new IDs.
+- Account entitlements (Plus / season / scenarios / cosmetics) fan out across local save slots on purchase + bootstrap.
+
 | Mystery spins grant | Client apply | Server tracks | Bootstrap sync gap in `entitlementGrants.ts` |
 
 ## Risks

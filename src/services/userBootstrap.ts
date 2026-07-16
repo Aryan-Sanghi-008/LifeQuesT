@@ -2,6 +2,7 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { getFirestoreDb } from '@services/firebaseClient';
 import type { UserEntitlements } from '@utils/entitlementGrants';
 import type { CloudSettings } from '@services/settingsSync';
+import { migrateThemeSkinId } from '@theme/themeSkins';
 
 export interface UserBootstrapResult {
   entitlements: UserEntitlements | null;
@@ -31,6 +32,9 @@ function parseEntitlements(data: Record<string, unknown>): UserEntitlements {
   if (Array.isArray(data.unlockedScenarioIds)) {
     entitlements.unlockedScenarioIds = data.unlockedScenarioIds as UserEntitlements['unlockedScenarioIds'];
   }
+  if (Array.isArray(data.unlockedCosmeticIds)) {
+    entitlements.unlockedCosmeticIds = data.unlockedCosmeticIds as string[];
+  }
 
   return entitlements;
 }
@@ -42,9 +46,8 @@ function parseSettings(raw: unknown): Partial<CloudSettings> | null {
   if (s.colorScheme === 'light' || s.colorScheme === 'dark' || s.colorScheme === 'system') {
     settings.colorScheme = s.colorScheme;
   }
-  if (s.appThemeId === 'default' || s.appThemeId === 'dark_slate'
-    || s.appThemeId === 'midnight' || s.appThemeId === 'sunrise') {
-    settings.appThemeId = s.appThemeId;
+  if (typeof s.appThemeId === 'string') {
+    settings.appThemeId = migrateThemeSkinId(s.appThemeId);
   }
   if (typeof s.notificationsEnabled === 'boolean') settings.notificationsEnabled = s.notificationsEnabled;
   if (typeof s.soundEnabled === 'boolean') settings.soundEnabled = s.soundEnabled;
@@ -52,6 +55,21 @@ function parseSettings(raw: unknown): Partial<CloudSettings> | null {
   if (typeof s.hapticsEnabled === 'boolean') settings.hapticsEnabled = s.hapticsEnabled;
   if (typeof s.masterVolume === 'number') settings.masterVolume = s.masterVolume;
   if (typeof s.musicVolume === 'number') settings.musicVolume = s.musicVolume;
+  if (typeof s.equippedEventSkinId === 'string' || s.equippedEventSkinId === null) {
+    settings.equippedEventSkinId = s.equippedEventSkinId as string | null;
+  }
+  if (typeof s.equippedNameFontId === 'string' || s.equippedNameFontId === null) {
+    settings.equippedNameFontId = s.equippedNameFontId as string | null;
+  }
+  if (typeof s.equippedSoundPackId === 'string' || s.equippedSoundPackId === null) {
+    settings.equippedSoundPackId = s.equippedSoundPackId as string | null;
+  }
+  if (typeof s.equippedProfileFrameId === 'string' || s.equippedProfileFrameId === null) {
+    settings.equippedProfileFrameId = s.equippedProfileFrameId as string | null;
+  }
+  if (typeof s.equippedTombstoneId === 'string' || s.equippedTombstoneId === null) {
+    settings.equippedTombstoneId = s.equippedTombstoneId as string | null;
+  }
   return Object.keys(settings).length > 0 ? settings : null;
 }
 

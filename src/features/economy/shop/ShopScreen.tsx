@@ -14,6 +14,32 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useThemedStyles, useTheme, SPACING } from '@theme';
 import { useShopActions, getShopStoreState } from "./hooks/useShopActions";
 import { FadeInView, CurrencyChip, ScreenHeader } from "@components/index";
+import { ScenarioArt, ScenarioStorefrontCard } from "@components/scenario";
+import { SCENARIOS } from "@data/scenarios";
+import { CosmeticPreviewSheet } from "./CosmeticPreviewSheet";
+import {
+  migrateCosmeticIdList,
+  getThemeCosmeticsByMode,
+  getCosmeticsByCategory,
+  type CosmeticItem,
+} from "@data/cosmeticCatalog";
+import {
+  IAP_CATALOG,
+  AVATAR_PACK_CATALOG,
+  MYSTERY_SPIN_CATALOG,
+  SCENARIO_PACK_CATALOG,
+  IAP_CLIENT_GRANTS,
+  getCatalogPriceLabel,
+  STARTER_PACK_FALLBACK_PRICE,
+} from "@data/iapCatalog";
+import { shouldShowStarterOffer } from "@services/persistence";
+import { isDlcUnlocked } from "@data/dlcData";
+import { ShopTabBar, type ShopTab } from "./ShopTabBar";
+import { FeaturedDealHero } from "./FeaturedDealHero";
+import { GemValueCalculator } from "./GemValueCalculator";
+import { PremiumBanner } from "./PremiumBanner";
+import { ProductCard } from "./ProductCard";
+import { PreCharacterPremiumShop } from "./PreCharacterPremiumShop";
 import {
   purchaseProduct,
   restorePurchases,
@@ -28,23 +54,6 @@ import { getActiveLimitedTimeOffers } from "@services/liveOpsConfig";
 import { getPrivacyPolicyUrl, openLegalUrlSafe } from "@config/legal";
 import { IAPProductId, RootStackParamList, ScenarioId } from "@/types";
 import { SEASON_PASS_TIERS } from "@data/gameData";
-import {
-  IAP_CATALOG,
-  AVATAR_PACK_CATALOG,
-  MYSTERY_SPIN_CATALOG,
-  SCENARIO_PACK_CATALOG,
-  IAP_CLIENT_GRANTS,
-  getCatalogPriceLabel,
-} from "@data/iapCatalog";
-import { getCosmeticsByCategory, type CosmeticItem } from "@data/cosmeticCatalog";
-import { shouldShowStarterOffer } from "@services/persistence";
-import { isDlcUnlocked } from "@data/dlcData";
-import { ShopTabBar, type ShopTab } from "./ShopTabBar";
-import { FeaturedDealHero } from "./FeaturedDealHero";
-import { GemValueCalculator } from "./GemValueCalculator";
-import { PremiumBanner } from "./PremiumBanner";
-import { ProductCard } from "./ProductCard";
-import { PreCharacterPremiumShop } from "./PreCharacterPremiumShop";
 
 export function ShopScreen() {
   const styles = useThemedStyles(createStyles);
@@ -63,6 +72,7 @@ export function ShopScreen() {
     applyCosmetic,
   } = useShopActions();
   const [purchasing, setPurchasing] = useState<string | null>(null);
+  const [previewCosmetic, setPreviewCosmetic] = useState<{ item: CosmeticItem; owned: boolean } | null>(null);
   const [activeTab, setActiveTab] = useState<ShopTab>(
     route.params?.tab ?? (traitUpsell ? "premium" : "bundles"),
   );
@@ -234,14 +244,21 @@ export function ShopScreen() {
     owned: isAvatarPackOwned(entry.productId),
   }));
 
-  const unlockedCosmeticIds = globalPrestige.unlockedCosmeticIds ?? [];
+  const unlockedCosmeticIds = migrateCosmeticIdList(globalPrestige.unlockedCosmeticIds);
   const mapCosmetics = (category: import('@data/cosmeticCatalog').CosmeticCategory) =>
     getCosmeticsByCategory(category).map((item) => ({
       ...item,
       owned: unlockedCosmeticIds.includes(item.id),
     }));
 
-  const themeCosmetics = mapCosmetics('theme');
+  const lightThemes = getThemeCosmeticsByMode('light').map((item) => ({
+    ...item,
+    owned: unlockedCosmeticIds.includes(item.id),
+  }));
+  const darkThemes = getThemeCosmeticsByMode('dark').map((item) => ({
+    ...item,
+    owned: unlockedCosmeticIds.includes(item.id),
+  }));
   const tombstoneCosmetics = mapCosmetics('tombstone');
   const eventSkinCosmetics = mapCosmetics('event_skin');
   const nameFontCosmetics = mapCosmetics('name_font');
@@ -255,20 +272,31 @@ export function ShopScreen() {
     return item.gemCost ? `${item.gemCost} 💎` : 'Free';
   };
 
-  const handleCosmeticPress = (item: CosmeticItem, owned: boolean) => {
-    if (owned) {
-      const result = applyCosmetic(item.id);
-      showToast(result.message, result.ok ? 'success' : 'error');
-      return;
-    }
+  const openCosmeticPreview = (item: CosmeticItem, owned: boolean) => {
+    setPreviewCosmetic({ item, owned });
+  };
+
+  const handlePreviewEquip = () => {
+    if (!previewCosmetic) return;
+    const result = applyCosmetic(previewCosmetic.item.id);
+    showToast(result.message, result.ok ? 'success' : 'error');
+    if (result.ok) setPreviewCosmetic(null);
+  };
+
+  const handlePreviewBuy = async () => {
+    if (!previewCosmetic) return;
+    const item = previewCosmetic.item;
     if (item.iapProductId) {
-      void buy(item.iapProductId);
+      setPreviewCosmetic(null);
+      await buy(item.iapProductId);
+      applyCosmetic(item.id);
       return;
     }
     const result = purchaseCosmetic(item.id);
     showToast(result.message, result.ok ? 'success' : 'error');
     if (result.ok) {
       applyCosmetic(item.id);
+      setPreviewCosmetic(null);
     }
   };
 
@@ -521,7 +549,7 @@ export function ShopScreen() {
                       </Text>
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
                         <Text style={{ color: '#FFF', fontFamily: fonts.displayBold, fontSize: 22 }}>
-                          {getCatalogPriceLabel('starter_pack', storeProducts, '$2.99')}
+                          {getCatalogPriceLabel('starter_pack', storeProducts, STARTER_PACK_FALLBACK_PRICE)}
                         </Text>
                         <View style={{ backgroundColor: '#00000055', borderRadius: radii.sm, paddingHorizontal: 16, paddingVertical: 10 }}>
                           <Text style={{ color: '#FFF', fontFamily: fonts.bodyBold, fontSize: 14 }}>Get It Now</Text>
@@ -555,7 +583,7 @@ export function ShopScreen() {
               ))}
               <FeaturedDealHero
                 onPress={() => void buy("season_pass")}
-                priceLabel={getCatalogPriceLabel("season_pass", storeProducts, "$4.99/season")}
+                priceLabel={getCatalogPriceLabel("season_pass", storeProducts, "$0.99/season")}
                 owned={character.hasSeasonPass ?? false}
               />
               <GemValueCalculator
@@ -577,18 +605,34 @@ export function ShopScreen() {
 
           {activeTab === 'cosmetics' && (
             <>
-              <Text style={styles.gridLabel}>APP THEMES</Text>
+              <Text style={styles.gridLabel}>LIGHT THEMES</Text>
               <View style={styles.productGrid}>
-                {themeCosmetics.map((item, i) => (
+                {lightThemes.map((item, i) => (
                   <FadeInView key={item.id} delay={i * 60 + 60} style={{ width: "48%" }}>
                     <ProductCard
                       title={item.label}
                       desc={item.description}
-                      price={item.owned ? 'Owned' : formatCosmeticPrice(item)}
+                      price={item.owned ? 'View' : formatCosmeticPrice(item)}
                       color={item.previewColor ?? colors.sapphire}
                       owned={item.owned}
-                      onPress={() => handleCosmeticPress(item, item.owned)}
-                      onOwnedPress={() => handleCosmeticPress(item, true)}
+                      onPress={() => openCosmeticPreview(item, item.owned)}
+                      onOwnedPress={() => openCosmeticPreview(item, true)}
+                    />
+                  </FadeInView>
+                ))}
+              </View>
+              <Text style={styles.gridLabel}>DARK THEMES</Text>
+              <View style={styles.productGrid}>
+                {darkThemes.map((item, i) => (
+                  <FadeInView key={item.id} delay={i * 60 + 80} style={{ width: "48%" }}>
+                    <ProductCard
+                      title={item.label}
+                      desc={item.description}
+                      price={item.owned ? 'View' : formatCosmeticPrice(item)}
+                      color={item.previewColor ?? colors.sapphire}
+                      owned={item.owned}
+                      onPress={() => openCosmeticPreview(item, item.owned)}
+                      onOwnedPress={() => openCosmeticPreview(item, true)}
                     />
                   </FadeInView>
                 ))}
@@ -600,11 +644,11 @@ export function ShopScreen() {
                     <ProductCard
                       title={item.label}
                       desc={item.description}
-                      price={item.owned ? 'Owned' : formatCosmeticPrice(item)}
+                      price={item.owned ? 'View' : formatCosmeticPrice(item)}
                       color={item.previewColor ?? colors.orchid}
                       owned={item.owned}
-                      onPress={() => handleCosmeticPress(item, item.owned)}
-                      onOwnedPress={() => handleCosmeticPress(item, true)}
+                      onPress={() => openCosmeticPreview(item, item.owned)}
+                      onOwnedPress={() => openCosmeticPreview(item, true)}
                     />
                   </FadeInView>
                 ))}
@@ -616,11 +660,11 @@ export function ShopScreen() {
                     <ProductCard
                       title={item.label}
                       desc={item.description}
-                      price={item.owned ? 'Owned' : formatCosmeticPrice(item)}
+                      price={item.owned ? 'View' : formatCosmeticPrice(item)}
                       color={item.previewColor ?? colors.gold}
                       owned={item.owned}
-                      onPress={() => handleCosmeticPress(item, item.owned)}
-                      onOwnedPress={() => handleCosmeticPress(item, true)}
+                      onPress={() => openCosmeticPreview(item, item.owned)}
+                      onOwnedPress={() => openCosmeticPreview(item, true)}
                     />
                   </FadeInView>
                 ))}
@@ -632,11 +676,11 @@ export function ShopScreen() {
                     <ProductCard
                       title={item.label}
                       desc={item.description}
-                      price={item.owned ? 'Owned' : formatCosmeticPrice(item)}
+                      price={item.owned ? 'View' : formatCosmeticPrice(item)}
                       color={item.previewColor ?? colors.teal}
                       owned={item.owned}
-                      onPress={() => handleCosmeticPress(item, item.owned)}
-                      onOwnedPress={() => handleCosmeticPress(item, true)}
+                      onPress={() => openCosmeticPreview(item, item.owned)}
+                      onOwnedPress={() => openCosmeticPreview(item, true)}
                     />
                   </FadeInView>
                 ))}
@@ -648,11 +692,11 @@ export function ShopScreen() {
                     <ProductCard
                       title={item.label}
                       desc={item.description}
-                      price={item.owned ? 'Owned' : formatCosmeticPrice(item)}
+                      price={item.owned ? 'View' : formatCosmeticPrice(item)}
                       color={item.previewColor ?? colors.t3}
                       owned={item.owned}
-                      onPress={() => handleCosmeticPress(item, item.owned)}
-                      onOwnedPress={() => handleCosmeticPress(item, true)}
+                      onPress={() => openCosmeticPreview(item, item.owned)}
+                      onOwnedPress={() => openCosmeticPreview(item, true)}
                     />
                   </FadeInView>
                 ))}
@@ -682,62 +726,125 @@ export function ShopScreen() {
                 <FadeInView delay={60}>
                   <Pressable
                     onPress={scenarioBundle.owned ? () => navigation.navigate('ScenarioPicker') : () => void buy('scenario_pack_all')}
-                    style={{ borderRadius: radii.xl, overflow: 'hidden', marginBottom: spacing.md }}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      scenarioBundle.owned
+                        ? 'All scenarios unlocked. Browse scenarios'
+                        : `Buy ${scenarioBundle.title} for ${scenarioBundle.price}`
+                    }
+                    style={{ borderRadius: radii.xl, overflow: 'hidden', marginBottom: spacing.md, borderWidth: 1.5, borderColor: 'rgba(245,158,11,0.35)' }}
                   >
-                    <LinearGradient
-                      colors={scenarioBundle.owned
-                        ? [`${colors.emerald}30`, `${colors.emerald}18`]
-                        : ['#8B5CF6', '#6D28D9']}
-                      start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                      style={{ padding: spacing.xl, gap: spacing.sm }}
-                    >
-                      <Text style={{ color: scenarioBundle.owned ? colors.emerald : '#FFF', fontFamily: fonts.bodyBold, fontSize: 10, letterSpacing: 2 }}>
-                        {scenarioBundle.owned ? 'ALL SCENARIOS UNLOCKED' : 'BEST VALUE'}
-                      </Text>
-                      <Text style={{ color: scenarioBundle.owned ? colors.t1 : '#FFF', fontFamily: fonts.displayBlack, fontSize: 24 }}>
-                        {scenarioBundle.title}
-                      </Text>
-                      <Text style={{ color: scenarioBundle.owned ? colors.t3 : '#FFFFFFCC', fontFamily: fonts.body, fontSize: 13, lineHeight: 20 }}>
-                        {scenarioBundle.description}
-                      </Text>
-                      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 }}>
-                        {scenarioBundle.owned ? (
-                          <Text style={{ color: colors.emerald, fontFamily: fonts.bodyBold, fontSize: 14 }}>Browse Scenarios</Text>
-                        ) : (
-                          <>
-                            <Text style={{ color: '#FFF', fontFamily: fonts.displayBold, fontSize: 22 }}>{scenarioBundle.price}</Text>
-                            <View style={{ backgroundColor: '#00000055', borderRadius: radii.sm, paddingHorizontal: 16, paddingVertical: 10 }}>
-                              <Text style={{ color: '#FFF', fontFamily: fonts.bodyBold, fontSize: 14 }}>Unlock All</Text>
-                            </View>
-                          </>
-                        )}
+                    <View style={{ height: 148, overflow: 'hidden' }}>
+                      <LinearGradient
+                        colors={scenarioBundle.owned
+                          ? [`${colors.emerald}40`, `${colors.emerald}18`, colors.bgCard]
+                          : ['#1E293B', '#334155', '#0F172A']}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={StyleSheet.absoluteFill}
+                      />
+                      {/* Collage of premium motifs */}
+                      <View style={{ ...StyleSheet.absoluteFill, flexDirection: 'row', opacity: 0.55 }}>
+                        {(['royal', 'cyber', 'mars', 'fantasy'] as ScenarioId[]).map((id) => (
+                          <View key={id} style={{ flex: 1, overflow: 'hidden' }}>
+                            <ScenarioArt scenarioId={id} variant="compact" />
+                          </View>
+                        ))}
                       </View>
-                    </LinearGradient>
+                      <LinearGradient
+                        colors={['transparent', 'rgba(0,0,0,0.75)']}
+                        style={{ ...StyleSheet.absoluteFill, justifyContent: 'flex-end', padding: spacing.xl }}
+                      >
+                        <Text style={{ color: scenarioBundle.owned ? colors.emerald : colors.gold, fontFamily: fonts.bodyBold, fontSize: 10, letterSpacing: 2 }}>
+                          {scenarioBundle.owned ? 'ALL SCENARIOS UNLOCKED' : 'BEST VALUE'}
+                        </Text>
+                        <Text style={{ color: '#FFF', fontFamily: fonts.displayBlack, fontSize: 24, marginTop: 4 }}>
+                          {scenarioBundle.title}
+                        </Text>
+                        <Text style={{ color: '#FFFFFFCC', fontFamily: fonts.body, fontSize: 13, lineHeight: 20, marginTop: 4 }}>
+                          {scenarioBundle.description}
+                        </Text>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
+                          {scenarioBundle.owned ? (
+                            <Text style={{ color: colors.emerald, fontFamily: fonts.bodyBold, fontSize: 14 }}>Browse Scenarios</Text>
+                          ) : (
+                            <>
+                              <Text style={{ color: '#FFF', fontFamily: fonts.displayBold, fontSize: 22 }}>{scenarioBundle.price}</Text>
+                              <View style={{ backgroundColor: '#00000066', borderRadius: radii.sm, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: `${colors.gold}50` }}>
+                                <Text style={{ color: '#FFF', fontFamily: fonts.bodyBold, fontSize: 14 }}>Unlock All</Text>
+                              </View>
+                            </>
+                          )}
+                        </View>
+                      </LinearGradient>
+                    </View>
                   </Pressable>
                 </FadeInView>
               )}
               <Text style={styles.gridLabel}>SCENARIO PACKS</Text>
-              <View style={{ paddingHorizontal: 4, gap: 10, paddingBottom: 8 }}>
-                {individualScenarioPacks.map((pack, i) => (
-                  <FadeInView key={pack.productId} delay={i * 50 + 80} style={{ width: '100%' }}>
-                    <ProductCard
-                      title={pack.title}
-                      desc={pack.description}
-                      price={pack.price}
-                      color={pack.color}
+              <View style={{ paddingHorizontal: 4, gap: 12, paddingBottom: 8 }}>
+                {individualScenarioPacks.map((pack, i) => {
+                  const scenarioMeta = pack.scenarioId
+                    ? SCENARIOS.find((s) => s.id === pack.scenarioId)
+                    : undefined;
+                  if (!pack.scenarioId || !scenarioMeta) {
+                    return (
+                      <FadeInView key={pack.productId} delay={i * 50 + 80} style={{ width: '100%' }}>
+                        <ProductCard
+                          title={pack.title}
+                          desc={pack.description}
+                          price={pack.price}
+                          color={pack.color}
+                          owned={pack.owned}
+                          badge={pack.badge}
+                          onPress={() => void buy(pack.productId as IAPProductId)}
+                        />
+                      </FadeInView>
+                    );
+                  }
+                  return (
+                    <ScenarioStorefrontCard
+                      key={pack.productId}
+                      scenarioId={pack.scenarioId}
+                      name={scenarioMeta.name}
+                      tagline={scenarioMeta.tagline}
+                      description={pack.description}
                       owned={pack.owned}
-                      badge={pack.badge}
-                      onPress={() => void buy(pack.productId as IAPProductId)}
-                      onOwnedPress={pack.scenarioId ? () => navigateScenarioOwned(pack.scenarioId) : undefined}
+                      isPremium
+                      priceLabel={pack.price}
+                      badgeSubtitle={pack.owned ? undefined : pack.price}
+                      variant="editorial"
+                      enterDelay={i * 50 + 80}
+                      onPress={() => {
+                        if (pack.owned) {
+                          navigateScenarioOwned(pack.scenarioId!);
+                          return;
+                        }
+                        void buy(pack.productId as IAPProductId);
+                      }}
                     />
-                  </FadeInView>
-                ))}
+                  );
+                })}
               </View>
               {footer}
             </>
           )}
         </ScrollView>
       </SafeAreaView>
+      <CosmeticPreviewSheet
+        item={previewCosmetic?.item ?? null}
+        owned={previewCosmetic?.owned ?? false}
+        visible={!!previewCosmetic}
+        purchasing={!!purchasing}
+        priceLabel={
+          previewCosmetic
+            ? formatCosmeticPrice(previewCosmetic.item)
+            : undefined
+        }
+        onClose={() => setPreviewCosmetic(null)}
+        onEquip={handlePreviewEquip}
+        onBuy={() => void handlePreviewBuy()}
+      />
     </View>
   );
 }

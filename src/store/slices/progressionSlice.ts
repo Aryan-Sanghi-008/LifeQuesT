@@ -54,8 +54,9 @@ import {
   getMonthlyScenarioPool,
   PLUS_SCENARIO_CREDITS_PER_MONTH,
 } from "../../data/plusRotation";
-import { getCosmeticById } from "../../data/cosmeticCatalog";
+import { getCosmeticById, migrateCosmeticId, migrateCosmeticIdList } from "../../data/cosmeticCatalog";
 import { useSettingsStore } from "../settingsStore";
+import { themeSkinIdFromCosmetic } from "@theme/themeSkins";
 import {
   applyGameplayCoinGrant,
   applyGameplayTicketGrant,
@@ -1262,18 +1263,21 @@ export const createProgressionSlice: StateCreator<
   },
 
   applyCosmetic: (cosmeticId) => {
-    const item = getCosmeticById(cosmeticId);
+    const resolvedId = migrateCosmeticId(cosmeticId);
+    const item = getCosmeticById(resolvedId);
     const { globalPrestige } = get();
     if (!item) return { ok: false, message: 'Invalid cosmetic.' };
-    if (!(globalPrestige.unlockedCosmeticIds ?? []).includes(cosmeticId)) {
+    const unlocked = migrateCosmeticIdList(globalPrestige.unlockedCosmeticIds);
+    if (!unlocked.includes(resolvedId)) {
       return { ok: false, message: 'Cosmetic not owned.' };
     }
     if (item.category === 'theme') {
-      const themeId = cosmeticId.replace('theme_', '') as 'dark_slate' | 'midnight' | 'sunrise';
+      const themeId = themeSkinIdFromCosmetic(resolvedId);
       useSettingsStore.getState().setAppThemeId(themeId);
       return { ok: true, message: `${item.label} theme applied.` };
     }
     if (item.category === 'tombstone') {
+      useSettingsStore.getState().setEquippedTombstoneId(cosmeticId);
       set((s) => {
         if (s.character) {
           s.character.tombstoneStyleId = cosmeticId.replace('tombstone_', '');

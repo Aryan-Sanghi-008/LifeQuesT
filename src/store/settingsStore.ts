@@ -5,6 +5,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { isMmkvAvailable } from '@utils/nativeAvailability';
 import type { ColorBlindMode } from '@theme/colorBlind';
+import type { ThemeSkinId } from '@theme/themeSkins';
+import { migrateThemeSkinId } from '@theme/themeSkins';
 
 type SettingsStorage = {
   getString: (key: string) => string | undefined;
@@ -81,11 +83,12 @@ export async function hydrateSettingsStore(): Promise<void> {
     reducedMotion: load('reducedMotion', DEFAULTS.reducedMotion),
     colorBlindMode: load<ColorBlindMode>('colorBlindMode', DEFAULTS.colorBlindMode),
     colorScheme: load<'light' | 'dark' | 'system'>('colorScheme', DEFAULTS.colorScheme),
-    appThemeId: load('appThemeId', DEFAULTS.appThemeId),
+    appThemeId: migrateThemeSkinId(load('appThemeId', DEFAULTS.appThemeId)),
     equippedEventSkinId: load<string | null>('equippedEventSkinId', DEFAULTS.equippedEventSkinId),
     equippedNameFontId: load<string | null>('equippedNameFontId', DEFAULTS.equippedNameFontId),
     equippedSoundPackId: load<string | null>('equippedSoundPackId', DEFAULTS.equippedSoundPackId),
     equippedProfileFrameId: load<string | null>('equippedProfileFrameId', DEFAULTS.equippedProfileFrameId),
+    equippedTombstoneId: load<string | null>('equippedTombstoneId', DEFAULTS.equippedTombstoneId),
     onboardingComplete: load('onboardingComplete', DEFAULTS.onboardingComplete),
     ageGateVerified: load('ageGateVerified', DEFAULTS.ageGateVerified),
     verifiedAge: load<number | null>('verifiedAge', DEFAULTS.verifiedAge),
@@ -110,11 +113,12 @@ export interface SettingsState {
   reducedMotion: boolean;
   colorBlindMode: ColorBlindMode;
   colorScheme: 'light' | 'dark' | 'system';
-  appThemeId: 'default' | 'dark_slate' | 'midnight' | 'sunrise';
+  appThemeId: ThemeSkinId;
   equippedEventSkinId: string | null;
   equippedNameFontId: string | null;
   equippedSoundPackId: string | null;
   equippedProfileFrameId: string | null;
+  equippedTombstoneId: string | null;
 
   // Onboarding / legal
   onboardingComplete: boolean;
@@ -131,11 +135,12 @@ export interface SettingsState {
   setReducedMotion: (v: boolean) => void;
   setColorBlindMode: (v: ColorBlindMode) => void;
   setColorScheme: (v: 'light' | 'dark' | 'system') => void;
-  setAppThemeId: (v: 'default' | 'dark_slate' | 'midnight' | 'sunrise') => void;
+  setAppThemeId: (v: ThemeSkinId) => void;
   setEquippedEventSkinId: (v: string | null) => void;
   setEquippedNameFontId: (v: string | null) => void;
   setEquippedSoundPackId: (v: string | null) => void;
   setEquippedProfileFrameId: (v: string | null) => void;
+  setEquippedTombstoneId: (v: string | null) => void;
   setOnboardingComplete: (v: boolean) => void;
   setAgeGateVerified: (age: number) => void;
   resetToDefaults: () => void;
@@ -151,11 +156,12 @@ const DEFAULTS = {
   reducedMotion: false,
   colorBlindMode: 'none' as ColorBlindMode,
   colorScheme: 'system' as 'light' | 'dark' | 'system',
-  appThemeId: 'default' as 'default' | 'dark_slate' | 'midnight' | 'sunrise',
+  appThemeId: 'default' as ThemeSkinId,
   equippedEventSkinId: null as string | null,
   equippedNameFontId: null as string | null,
   equippedSoundPackId: null as string | null,
   equippedProfileFrameId: null as string | null,
+  equippedTombstoneId: null as string | null,
   onboardingComplete: false,
   ageGateVerified: false,
   verifiedAge: null as number | null,
@@ -223,11 +229,12 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
   reducedMotion: load('reducedMotion', DEFAULTS.reducedMotion),
   colorBlindMode: load<ColorBlindMode>('colorBlindMode', DEFAULTS.colorBlindMode),
   colorScheme: load<'light' | 'dark' | 'system'>('colorScheme', DEFAULTS.colorScheme),
-  appThemeId: load<'default' | 'dark_slate' | 'midnight' | 'sunrise'>('appThemeId', DEFAULTS.appThemeId),
+  appThemeId: migrateThemeSkinId(load('appThemeId', DEFAULTS.appThemeId)),
   equippedEventSkinId: load<string | null>('equippedEventSkinId', DEFAULTS.equippedEventSkinId),
   equippedNameFontId: load<string | null>('equippedNameFontId', DEFAULTS.equippedNameFontId),
   equippedSoundPackId: load<string | null>('equippedSoundPackId', DEFAULTS.equippedSoundPackId),
   equippedProfileFrameId: load<string | null>('equippedProfileFrameId', DEFAULTS.equippedProfileFrameId),
+  equippedTombstoneId: load<string | null>('equippedTombstoneId', DEFAULTS.equippedTombstoneId),
   onboardingComplete: load('onboardingComplete', DEFAULTS.onboardingComplete),
   ageGateVerified: load('ageGateVerified', DEFAULTS.ageGateVerified),
   verifiedAge: load<number | null>('verifiedAge', DEFAULTS.verifiedAge),
@@ -281,8 +288,9 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
     set({ colorScheme: v });
   },
   setAppThemeId: (v) => {
-    save('appThemeId', v);
-    set({ appThemeId: v });
+    const resolved = migrateThemeSkinId(v);
+    save('appThemeId', resolved);
+    set({ appThemeId: resolved });
   },
   setEquippedEventSkinId: (v) => {
     save('equippedEventSkinId', v ?? '');
@@ -299,6 +307,10 @@ export const useSettingsStore = create<SettingsState>()((set) => ({
   setEquippedProfileFrameId: (v) => {
     save('equippedProfileFrameId', v ?? '');
     set({ equippedProfileFrameId: v });
+  },
+  setEquippedTombstoneId: (v) => {
+    save('equippedTombstoneId', v ?? '');
+    set({ equippedTombstoneId: v });
   },
   setOnboardingComplete: (v) => {
     save('onboardingComplete', v);

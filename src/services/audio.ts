@@ -220,10 +220,29 @@ export async function playSound(effect: SoundEffect): Promise<void> {
     if (player.playing) {
       player.pause();
     }
-    player.seekTo(0);
+    await player.seekTo(0);
     player.play();
   } catch (e) {
     if (__DEV__) console.warn(`[Audio] play "${effect}" failed`, e);
+  }
+}
+
+/** Shop preview — plays a sample from a pack without permanently equipping it */
+export async function playSoundPackPreview(cosmeticId: string): Promise<void> {
+  const { soundEnabled, masterVolume } = useSettingsStore.getState();
+  if (!soundEnabled) return;
+  const packId = resolveSoundPackId(cosmeticId);
+  const profile = SOUND_PACK_PROFILES[packId] ?? SOUND_PACK_PROFILES.default;
+  await ensureSession();
+  try {
+    const player = await getOrCreateAsync('button_tap', packId);
+    player.volume = Math.max(0, Math.min(1, masterVolume * profile.volumeScale));
+    player.muted = false;
+    if (player.playing) player.pause();
+    await player.seekTo(0);
+    player.play();
+  } catch (e) {
+    if (__DEV__) console.warn('[Audio] pack preview failed', e);
   }
 }
 

@@ -7,6 +7,10 @@ export interface EventSkinStyle {
   titleColor?: string;
   bodyColor?: string;
   accentOverlay?: string;
+  accentBar?: string;
+  rarityFrame?: string;
+  iconBg?: string;
+  shadowColor?: string;
 }
 
 export const EVENT_SKIN_STYLES: Record<EventSkinId, EventSkinStyle> = {
@@ -17,23 +21,39 @@ export const EVENT_SKIN_STYLES: Record<EventSkinId, EventSkinStyle> = {
   },
   vintage: {
     id: 'vintage',
-    cardBg: '#FEF3C7',
-    cardBorder: '#D97706',
-    accentOverlay: 'rgba(217,119,6,0.08)',
+    cardBg: '#FFF8E7',
+    cardBorder: '#C4A574',
+    titleColor: '#5C3D1E',
+    bodyColor: '#7A5C3A',
+    accentOverlay: 'rgba(196,165,116,0.12)',
+    accentBar: '#B45309',
+    rarityFrame: 'rgba(180,83,9,0.35)',
+    iconBg: 'rgba(180,83,9,0.12)',
+    shadowColor: 'rgba(92,61,30,0.12)',
   },
   neon: {
     id: 'neon',
-    cardBg: '#0F172A',
-    cardBorder: '#06B6D4',
+    cardBg: '#0B1220',
+    cardBorder: '#22D3EE',
     titleColor: '#E0F2FE',
     bodyColor: '#94A3B8',
-    accentOverlay: 'rgba(6,182,212,0.12)',
+    accentOverlay: 'rgba(34,211,238,0.10)',
+    accentBar: '#22D3EE',
+    rarityFrame: 'rgba(34,211,238,0.45)',
+    iconBg: 'rgba(34,211,238,0.14)',
+    shadowColor: 'rgba(34,211,238,0.18)',
   },
   watercolor: {
     id: 'watercolor',
-    cardBg: '#FAF5FF',
-    cardBorder: '#8B5CF6',
-    accentOverlay: 'rgba(139,92,246,0.10)',
+    cardBg: '#F8F5FF',
+    cardBorder: '#A78BFA',
+    titleColor: '#4C1D95',
+    bodyColor: '#6D28D9',
+    accentOverlay: 'rgba(167,139,250,0.12)',
+    accentBar: '#8B5CF6',
+    rarityFrame: 'rgba(139,92,246,0.35)',
+    iconBg: 'rgba(139,92,246,0.12)',
+    shadowColor: 'rgba(76,29,149,0.10)',
   },
 };
 

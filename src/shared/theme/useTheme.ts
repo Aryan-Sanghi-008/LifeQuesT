@@ -10,6 +10,8 @@ import {
   ANIM,
   applyThemeVariant,
   applyHighContrast,
+  getThemeSkin,
+  migrateThemeSkinId,
 } from "./themes";
 import { scaleFontSizes } from "./a11y";
 import { applyColorBlindMode } from "./colorBlind";
@@ -18,7 +20,8 @@ import { useAccessibilityPreferences } from "@hooks/useAccessibilityPreferences"
 
 export function useTheme() {
   const colorScheme = useSettingsStore((s) => s.colorScheme);
-  const appThemeId = useSettingsStore((s) => s.appThemeId);
+  const appThemeIdRaw = useSettingsStore((s) => s.appThemeId);
+  const appThemeId = migrateThemeSkinId(appThemeIdRaw);
   const colorBlindMode = useSettingsStore((s) => s.colorBlindMode);
   const manualReducedMotion = useSettingsStore((s) => s.reducedMotion);
   const systemScheme = useNativeColorScheme();
@@ -37,6 +40,8 @@ export function useTheme() {
   colors = applyColorBlindMode(colors, colorBlindMode);
 
   const reducedMotion = systemReduceMotion || manualReducedMotion;
+  const skin = getThemeSkin(appThemeId);
+  const skinActive = !!skin && ((skin.mode === "dark") === isDark);
 
   return {
     isDark,
@@ -52,5 +57,13 @@ export function useTheme() {
     radii: RADII,
     shadows: SHADOWS,
     anim: ANIM,
+    appThemeId,
+    themeSkin: skinActive ? skin : null,
+    gradientHero: skinActive && skin
+      ? skin.gradientHero
+      : (isDark
+          ? (["#0D1117", "#161B22"] as [string, string])
+          : (["#F4F6F9", "#ECEEF2"] as [string, string])),
+    cardChrome: skinActive && skin ? skin.cardChrome : "transparent",
   };
 }

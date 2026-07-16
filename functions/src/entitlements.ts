@@ -12,6 +12,7 @@ export interface PurchaseGrants {
   reincarnationScroll?: boolean;
   mysterySpinsGrant?: number;
   unlockedScenarioIds?: string[];
+  unlockedCosmeticIds?: string[];
 }
 
 const COIN_GRANTS: Record<string, number> = {
@@ -63,6 +64,32 @@ const SCENARIO_UNLOCKS: Record<string, string[]> = {
   scenario_pack_all:  ['royal', 'crime', 'cyber', 'medieval', 'zombie', 'mars', 'celebrity', 'fantasy', 'political'],
 };
 
+/** Dummy Play SKUs — keep in sync with client cosmeticCatalog */
+const COSMETIC_UNLOCKS: Record<string, string> = {
+  cosmetic_theme_porcelain: 'theme_porcelain',
+  cosmetic_theme_ivory_dawn: 'theme_ivory_dawn',
+  cosmetic_theme_coastal_mist: 'theme_coastal_mist',
+  cosmetic_theme_obsidian: 'theme_obsidian',
+  cosmetic_theme_noir_harbor: 'theme_noir_harbor',
+  cosmetic_theme_ember_night: 'theme_ember_night',
+  cosmetic_theme_dark_slate: 'theme_obsidian',
+  cosmetic_theme_midnight: 'theme_noir_harbor',
+  cosmetic_theme_sunrise: 'theme_ivory_dawn',
+  cosmetic_tombstone_gothic: 'tombstone_gothic',
+  cosmetic_tombstone_modern: 'tombstone_modern',
+  cosmetic_tombstone_angelic: 'tombstone_angelic',
+  cosmetic_event_vintage: 'event_skin_vintage',
+  cosmetic_event_neon: 'event_skin_neon',
+  cosmetic_event_watercolor: 'event_skin_watercolor',
+  cosmetic_font_serif: 'font_serif',
+  cosmetic_font_script: 'font_script',
+  cosmetic_font_mono: 'font_mono',
+  cosmetic_sound_minimal: 'sound_pack_minimal',
+  cosmetic_sound_jazz: 'sound_pack_jazz',
+  cosmetic_sound_cinematic: 'sound_pack_cinematic',
+  cosmetic_sound_lofi: 'sound_pack_minimal',
+};
+
 export function grantsForProduct(productId: string): PurchaseGrants {
   const grants: PurchaseGrants = {};
 
@@ -105,6 +132,9 @@ export function grantsForProduct(productId: string): PurchaseGrants {
   if (SCENARIO_UNLOCKS[productId]) {
     grants.unlockedScenarioIds = SCENARIO_UNLOCKS[productId];
   }
+  if (COSMETIC_UNLOCKS[productId]) {
+    grants.unlockedCosmeticIds = [COSMETIC_UNLOCKS[productId]];
+  }
 
   return grants;
 }
@@ -132,4 +162,8 @@ export function avatarStylesForGrants(grants: PurchaseGrants): string[] {
 
 export function scenarioIdsForGrants(grants: PurchaseGrants): string[] {
   return grants.unlockedScenarioIds ?? [];
+}
+
+export function cosmeticIdsForGrants(grants: PurchaseGrants): string[] {
+  return grants.unlockedCosmeticIds ?? [];
 }

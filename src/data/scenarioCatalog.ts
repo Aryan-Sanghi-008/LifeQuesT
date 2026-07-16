@@ -95,7 +95,7 @@ export const SCENARIO_CATALOG: ScenarioDef[] = [
     exclusiveNPCArchetypes: ['royal_courtier', 'royal_guard'],
     disabledFeatures: ['crime_activities'],
     initialScenarioData: { courtStanding: 50 },
-    priceLabel: '$2.99',
+    priceLabel: '$1.49',
   },
   {
     id: 'crime',
@@ -113,7 +113,7 @@ export const SCENARIO_CATALOG: ScenarioDef[] = [
     currencyName: 'Coins',
     exclusiveCareerIds: ['mob_enforcer', 'crime_boss'],
     exclusiveNPCArchetypes: ['crime_lieutenant', 'crime_informant'],
-    priceLabel: '$2.99',
+    priceLabel: '$1.49',
   },
   {
     id: 'cyber',
@@ -133,7 +133,7 @@ export const SCENARIO_CATALOG: ScenarioDef[] = [
     exclusiveNPCArchetypes: ['cyber_fixer', 'cyber_corp_agent'],
     disabledFeatures: ['real_estate'],
     initialScenarioData: { neuralSync: 1 },
-    priceLabel: '$3.99',
+    priceLabel: '$1.49',
   },
   {
     id: 'medieval',
@@ -153,7 +153,7 @@ export const SCENARIO_CATALOG: ScenarioDef[] = [
     exclusiveNPCArchetypes: ['medieval_squire', 'medieval_guildmaster'],
     disabledFeatures: ['stocks', 'social_media', 'university'],
     initialScenarioData: { rank: 'peasant' },
-    priceLabel: '$2.99',
+    priceLabel: '$1.49',
   },
   {
     id: 'zombie',
@@ -173,7 +173,7 @@ export const SCENARIO_CATALOG: ScenarioDef[] = [
     exclusiveNPCArchetypes: ['zombie_survivor', 'zombie_medic'],
     disabledFeatures: ['stocks', 'real_estate', 'business', 'university'],
     initialScenarioData: { baseLevel: 1, supplies: 50 },
-    priceLabel: '$2.99',
+    priceLabel: '$1.49',
   },
   {
     id: 'mars',
@@ -193,7 +193,7 @@ export const SCENARIO_CATALOG: ScenarioDef[] = [
     exclusiveCareerIds: ['colony_engineer'],
     exclusiveNPCArchetypes: ['mars_colonist', 'mars_commander'],
     initialScenarioData: { habitatIntegrity: 100 },
-    priceLabel: '$3.99',
+    priceLabel: '$1.49',
   },
   {
     id: 'celebrity',
@@ -213,7 +213,7 @@ export const SCENARIO_CATALOG: ScenarioDef[] = [
     exclusiveNPCArchetypes: ['celebrity_agent', 'celebrity_paparazzi'],
     disabledFeatures: ['crime_activities'],
     initialScenarioData: { fameLevel: 25 },
-    priceLabel: '$1.99',
+    priceLabel: '$0.99',
   },
   {
     id: 'fantasy',
@@ -233,7 +233,7 @@ export const SCENARIO_CATALOG: ScenarioDef[] = [
     exclusiveNPCArchetypes: ['fantasy_mage', 'fantasy_guild_recruiter'],
     disabledFeatures: ['stocks', 'social_media'],
     initialScenarioData: { magicAffinity: 10 },
-    priceLabel: '$3.99',
+    priceLabel: '$1.49',
   },
   {
     id: 'political',
@@ -253,7 +253,7 @@ export const SCENARIO_CATALOG: ScenarioDef[] = [
     exclusiveNPCArchetypes: ['political_lobbyist', 'political_rival'],
     disabledFeatures: ['crime_activities'],
     initialScenarioData: { pollStanding: 40 },
-    priceLabel: '$2.99',
+    priceLabel: '$1.49',
   },
 ];
 

@@ -5,7 +5,8 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useTheme } from "@theme";
 import { useBreakpoints } from "@hooks/useBreakpoints";
-import { GlassCard, ScreenShell, Card, StreakBadge, ScenarioBanner, FeedbackPressable } from "@components/index";
+import { GlassCard, ScreenShell, Card, StreakBadge, FeedbackPressable } from "@components/index";
+import { ScenarioStorefrontCard } from "@components/scenario";
 import { StreakDetailModal } from "@components/StreakDetailModal";
 import { triggerTapFeedback } from "@services/gameFeedback";
 import { XPBar } from "@components/XPBar";
@@ -186,10 +187,18 @@ export function HomeScreen() {
 
   const scenarioBanner = (
     <View style={{ paddingHorizontal: spacing.lg }}>
-      <ScenarioBanner
-        type={scenarioData.id}
-        scenarioName={scenarioData.name}
-        description={scenarioData.tagline}
+      <ScenarioStorefrontCard
+        scenarioId={scenarioData.id}
+        name={scenarioData.name}
+        tagline={scenarioData.tagline}
+        description={scenarioData.description}
+        owned
+        isPremium={scenarioData.isPremium}
+        variant="editorial"
+        artSize="compact"
+        onPress={() =>
+          navigation.navigate("ScenarioDetail", { scenarioId: scenarioData.id })
+        }
       />
     </View>
   );

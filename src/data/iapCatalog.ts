@@ -78,6 +78,9 @@ export const IAP_CLIENT_GRANTS: Partial<Record<IAPProductId, IAPClientGrant>> = 
   ...cosmeticGrants,
 };
 
+/** Fallback / Play Console dummy prices — replace with live store prices when account is ready */
+export const STARTER_PACK_FALLBACK_PRICE = '$1.99';
+
 export { ALL_AVATAR_STYLES };
 
 export const IAP_CATALOG: IAPCatalogEntry[] = [
@@ -132,7 +135,7 @@ export const MYSTERY_SPIN_CATALOG: IAPCatalogEntry[] = [
     productId: 'mystery_spins_3',
     title: '3 Mystery Spins',
     description: 'Get 3 extra Lucky Wheel spins this week',
-    fallbackPriceLabel: '$0.99',
+    fallbackPriceLabel: '$0.49',
     color: COLORS.orchid,
     badge: 'BONUS SPINS',
   },
@@ -159,72 +162,65 @@ export const PREMIUM_CATALOG: IAPCatalogEntry[] = [
     productId: 'season_pass',
     title: 'Season Pass',
     description: 'Unlock premium tier rewards this season',
-    fallbackPriceLabel: '$1.49',
+    fallbackPriceLabel: '$0.99',
     color: COLORS.teal,
   },
 ];
 
 export const SCENARIO_PACK_CATALOG: IAPCatalogEntry[] = [
-  { productId: 'scenario_royal',     title: 'Royal Dynasty',      description: 'Born into power. Rule wisely.',            fallbackPriceLabel: '$2.99', color: '#F59E0B' },
-  { productId: 'scenario_crime',     title: 'Criminal Empire',    description: 'Power. Money. Consequences.',              fallbackPriceLabel: '$2.99', color: '#EF4444' },
-  { productId: 'scenario_cyber',     title: 'Cyber Future',       description: 'In 2087, humanity uploaded everything.',   fallbackPriceLabel: '$2.99', color: '#06B6D4' },
-  { productId: 'scenario_medieval',  title: 'Medieval Kingdom',   description: 'Peasant or lord — your choice.',           fallbackPriceLabel: '$1.99', color: '#92400E' },
-  { productId: 'scenario_zombie',    title: 'Zombie Apocalypse',  description: 'Survive. Build. Protect.',                 fallbackPriceLabel: '$1.99', color: '#4D7C0F' },
-  { productId: 'scenario_mars',      title: 'Mars Colony',        description: 'Red planet, new rules.',                   fallbackPriceLabel: '$2.99', color: '#DC2626' },
-  { productId: 'scenario_celebrity', title: 'Celebrity Child',    description: 'Born famous. Stay sane.',                  fallbackPriceLabel: '$1.99', color: '#EC4899' },
-  { productId: 'scenario_fantasy',   title: 'Fantasy Kingdom',    description: 'Magic is real. Use it wisely.',            fallbackPriceLabel: '$2.99', color: '#7C3AED' },
-  { productId: 'scenario_political', title: 'Political Dynasty',  description: 'Elections. Deals. Power.',                 fallbackPriceLabel: '$1.99', color: '#1D4ED8' },
-  { productId: 'scenario_pack_all',  title: 'All Scenarios Bundle', description: 'Unlock all 9 premium scenarios.',       fallbackPriceLabel: '$4.99', color: '#8B5CF6', badge: 'BEST VALUE' },
+  { productId: 'scenario_royal',     title: 'Royal Dynasty',      description: 'Born into power. Rule wisely.',            fallbackPriceLabel: '$1.49', color: '#F59E0B' },
+  { productId: 'scenario_crime',     title: 'Criminal Empire',    description: 'Power. Money. Consequences.',              fallbackPriceLabel: '$1.49', color: '#EF4444' },
+  { productId: 'scenario_cyber',     title: 'Cyber Future',       description: 'In 2087, humanity uploaded everything.',   fallbackPriceLabel: '$1.49', color: '#06B6D4' },
+  { productId: 'scenario_medieval',  title: 'Medieval Kingdom',   description: 'Peasant or lord — your choice.',           fallbackPriceLabel: '$0.99', color: '#92400E' },
+  { productId: 'scenario_zombie',    title: 'Zombie Apocalypse',  description: 'Survive. Build. Protect.',                 fallbackPriceLabel: '$0.99', color: '#4D7C0F' },
+  { productId: 'scenario_mars',      title: 'Mars Colony',        description: 'Red planet, new rules.',                   fallbackPriceLabel: '$1.49', color: '#DC2626' },
+  { productId: 'scenario_celebrity', title: 'Celebrity Child',    description: 'Born famous. Stay sane.',                  fallbackPriceLabel: '$0.99', color: '#EC4899' },
+  { productId: 'scenario_fantasy',   title: 'Fantasy Kingdom',    description: 'Magic is real. Use it wisely.',            fallbackPriceLabel: '$1.49', color: '#7C3AED' },
+  { productId: 'scenario_political', title: 'Political Dynasty',  description: 'Elections. Deals. Power.',                 fallbackPriceLabel: '$0.99', color: '#1D4ED8' },
+  { productId: 'scenario_pack_all',  title: 'All Scenarios Bundle', description: 'Unlock all 9 premium scenarios.',       fallbackPriceLabel: '$2.99', color: '#8B5CF6', badge: 'BEST VALUE' },
 ];
 
 export const AVATAR_PACK_CATALOG: IAPCatalogEntry[] = [
   {
     productId: 'avatar_pack_adventurer',
     title: 'Explorer Pack',
-    description: 'Adventurer + Wanderer styles',
-    fallbackPriceLabel: '$0.99',
+    description: 'Adventurer styles',
+    fallbackPriceLabel: '$0.49',
     color: COLORS.emerald,
   },
   {
     productId: 'avatar_pack_lorelei',
     title: 'Lorelei Pack',
-    description: 'Lorelei + Mystic styles',
-    fallbackPriceLabel: '$0.99',
+    description: 'Elegant Lorelei styles',
+    fallbackPriceLabel: '$0.49',
     color: COLORS.orchid,
   },
   {
     productId: 'avatar_pack_bottts',
     title: 'Robo Pack',
     description: 'Quirky bottts robot style',
-    fallbackPriceLabel: '$0.99',
+    fallbackPriceLabel: '$0.49',
     color: COLORS.sapphire,
   },
   {
     productId: 'avatar_pack_notionists',
     title: 'Professional Pack',
     description: 'Clean professional look',
-    fallbackPriceLabel: '$0.99',
+    fallbackPriceLabel: '$0.49',
     color: COLORS.teal,
   },
   {
     productId: 'avatar_pack_big_smile',
     title: 'Joyful Pack',
     description: 'Expressive cheerful style',
-    fallbackPriceLabel: '$0.99',
+    fallbackPriceLabel: '$0.49',
     color: COLORS.gold,
-  },
-  {
-    productId: 'avatar_pack_wanderer',
-    title: 'Neutral Duo Pack',
-    description: 'Gender-neutral explorer styles',
-    fallbackPriceLabel: '$0.99',
-    color: COLORS.crimson,
   },
   {
     productId: 'avatar_bundle_all',
     title: 'All Avatar Packs',
     description: 'Unlock every avatar style at once',
-    fallbackPriceLabel: '$1.99',
+    fallbackPriceLabel: '$0.99',
     color: COLORS.orchid,
     badge: 'BEST VALUE',
   },

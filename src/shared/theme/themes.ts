@@ -193,52 +193,37 @@ export const DARK_COLORS = {
   overlayScrim: "rgba(0, 0, 0, 0.62)",
 } as const;
 
-export type AppThemeId = 'default' | 'dark_slate' | 'midnight' | 'sunrise';
+export type AppThemeId = import('./themeSkins').ThemeSkinId;
 
-export const APP_THEME_VARIANTS: Record<Exclude<AppThemeId, 'default'>, Record<string, string>> = {
-  dark_slate: {
-    bg: '#0F1419',
-    bg2: '#1A2332',
-    bgCard: '#1E293B',
-    bgCard2: '#334155',
-    gold: '#38BDF8',
-    gold2: '#7DD3FC',
-    gold3: '#0284C7',
-  },
-  midnight: {
-    bg: '#020617',
-    bg2: '#0F172A',
-    bgCard: '#1E293B',
-    bgCard2: '#0F172A',
-    sapphire: '#6366F1',
-    sapphire2: '#4F46E5',
-    gold: '#818CF8',
-    gold2: '#A5B4FC',
-    gold3: '#4338CA',
-  },
-  sunrise: {
-    bg: '#FFF7ED',
-    bg2: '#FFEDD5',
-    bgCard: '#FFFFFF',
-    bgCard2: '#FED7AA',
-    gold: '#EA580C',
-    gold2: '#FB923C',
-    gold3: '#C2410C',
-    t1: '#431407',
-    t2: '#7C2D12',
-    t3: '#9A3412',
-  },
+import {
+  applyThemeSkinTokens,
+  THEME_SKINS,
+  migrateThemeSkinId,
+  getThemeSkin,
+  themeSkinIdFromCosmetic,
+  cosmeticIdForThemeSkin,
+  LEGACY_THEME_ID_MAP,
+} from './themeSkins';
+export type { ThemeSkinDefinition, ThemeSkinMode } from './themeSkins';
+export {
+  THEME_SKINS,
+  migrateThemeSkinId,
+  applyThemeSkinTokens,
+  getThemeSkin,
+  themeSkinIdFromCosmetic,
+  cosmeticIdForThemeSkin,
+  LEGACY_THEME_ID_MAP,
 };
+
+/** @deprecated Prefer THEME_SKINS — kept for any residual imports */
+export const APP_THEME_VARIANTS: Record<string, Record<string, string>> = {};
 
 export function applyThemeVariant<T extends Record<string, string>>(
   base: T,
   themeId: AppThemeId,
   isDark: boolean,
 ): T {
-  if (themeId === 'default') return base;
-  if (themeId === 'sunrise' && isDark) return base;
-  if (themeId !== 'sunrise' && !isDark) return base;
-  return { ...base, ...APP_THEME_VARIANTS[themeId] };
+  return applyThemeSkinTokens(base, themeId, isDark);
 }
 
 /** Boost contrast when system high-contrast text is enabled. */

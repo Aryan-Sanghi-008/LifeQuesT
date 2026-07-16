@@ -17,7 +17,7 @@ import { useNavigation } from "@react-navigation/native";
 import { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { LinearGradient } from "expo-linear-gradient";
-import { RootStackParamList, MainTabParamList, ScenarioId } from "@/types";
+import { RootStackParamList, MainTabParamList } from "@/types";
 import { useCharacter } from "@features/character/hooks/useCharacter";
 import { useGameStore } from "@store/gameStore";
 import { AvatarByCharacter } from "@components/Avatars";
@@ -26,12 +26,10 @@ import DecisionSheet from "@components/DecisionSheet";
 import { FocusPhaseSheet } from "@components/FocusPhaseSheet";
 import { YearReviewCard } from "@components/YearReviewCard";
 import { YearReviewBanner } from "@components/YearReviewBanner";
-import { ScreenShell, GlassCard, ConfettiOverlay, StatDeltaChip, ScenarioBanner, ModalPrimaryButton } from "@components/index";
+import { ScreenShell, GlassCard, ConfettiOverlay, StatDeltaChip, ModalPrimaryButton } from "@components/index";
 import { ContextualTutorial } from "@shared/components/ContextualTutorial";
 import { CharacterNameText } from "@shared/components/CharacterNameText";
 import { LifeStageBannerIcon } from "@components/LifeStageBannerIcon";
-import { SCENARIOS } from "@data/scenarios";
-import { getScenarioDef } from "@data/scenarioCatalog";
 import { isFocusConfirmedForAge } from "@engine/focusEngine";
 import { LifeEventRecord, CharacterStats } from "@/types";
 import { logEvent } from "@services/analytics";
@@ -549,7 +547,6 @@ type FeedListItemProps = {
   item: FeedItem;
   characterAge: number;
   isProcessing: boolean;
-  scenarioId?: ScenarioId;
   horizontalPadding: number;
 };
 
@@ -557,7 +554,6 @@ const FeedListItem = memo(function FeedListItem({
   item,
   characterAge,
   isProcessing,
-  scenarioId,
   horizontalPadding,
 }: FeedListItemProps) {
   if (item.kind === "header") {
@@ -575,7 +571,6 @@ const FeedListItem = memo(function FeedListItem({
         event={item.event}
         isNew={isNewestAge && !isProcessing}
         staggerIndex={item.staggerIndex}
-        activeScenarioId={scenarioId}
       />
     </View>
   );
@@ -773,7 +768,6 @@ export function LifeScreen() {
   );
 
   const countryCode = character?.countryCode ?? "IN";
-  const scenarioId = character?.scenarioId ?? "classic";
   const financeSummary = useMemo(
     () => (character ? getFinanceSummary(character) : null),
     [character],
@@ -808,23 +802,16 @@ export function LifeScreen() {
       character?.enrolledDegreeId,
     ],
   );
-  const scenarioCurrencyName = useMemo(
-    () =>
-      scenarioId !== "classic" ? getScenarioDef(scenarioId).currencyName : null,
-    [scenarioId],
-  );
-
   const renderFeedItem = useCallback(
     ({ item }: { item: FeedItem }) => (
       <FeedListItem
         item={item}
         characterAge={character?.age ?? 0}
         isProcessing={isProcessing}
-        scenarioId={character?.scenarioId}
         horizontalPadding={spacing.lg}
       />
     ),
-    [character?.age, character?.scenarioId, isProcessing, spacing.lg],
+    [character?.age, isProcessing, spacing.lg],
   );
 
   if (!character) return null;
@@ -972,19 +959,6 @@ export function LifeScreen() {
         </View>
       </View>
 
-      {(() => {
-        const scenarioData = SCENARIOS.find(s => s.id === (character.scenarioId ?? 'classic')) ?? SCENARIOS[0];
-        return (
-          <View style={{ paddingHorizontal: spacing.lg }}>
-            <ScenarioBanner
-              type={scenarioData.id}
-              scenarioName={scenarioData.name}
-              description={scenarioData.tagline}
-            />
-          </View>
-        );
-      })()}
-
       {/* ── Finances ── */}
       <GlassCard
         style={{
@@ -999,7 +973,7 @@ export function LifeScreen() {
       >
         <View style={styles.finCol}>
           <Text style={[styles.finLabel, { color: colors.t3, fontFamily: fonts.body }]}>
-            {scenarioCurrencyName ? `BANK (${scenarioCurrencyName})` : "BANK"}
+            BANK
           </Text>
           <Text
             style={[
@@ -1184,22 +1158,6 @@ export function LifeScreen() {
         onAnimationEnd={() => setShowConfetti(false)}
       />
 
-      {/* Floating Scenario Badge (hidden for classic) */}
-      {character.scenarioId && character.scenarioId !== 'classic' && (() => {
-        const s = SCENARIOS.find(sc => sc.id === character.scenarioId);
-        if (!s) return null;
-        return (
-          <View
-            pointerEvents="none"
-            style={[styles.scenarioBadge, { backgroundColor: `${s.accentColor}EE`, borderRadius: 20 }]}
-          >
-            <Text style={[styles.scenarioBadgeText, { color: '#FFFFFF', fontFamily: fonts.bodyBold }]}>
-              {s.name}
-            </Text>
-          </View>
-        );
-      })()}
-
       {/* Floating Stat Deltas Container */}
       {activeDeltas.length > 0 && (
         <View style={styles.deltasContainer} pointerEvents="none">
@@ -1383,15 +1341,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     zIndex: 9999,
   },
-  scenarioBadge: {
-    position: 'absolute',
-    top: 60,
-    right: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    zIndex: 500,
-  },
-  scenarioBadgeText: { fontSize: 11, letterSpacing: 0.5 },
   legendaryOverlay: {
     flex: 1,
     justifyContent: "center",

@@ -13,6 +13,7 @@ import {
 import { getLifeStage } from "@utils/lifeStage";
 import { isMmkvAvailable } from "@utils/nativeAvailability";
 import { stageToLegacyEducationLevel } from "../data/educationDegrees";
+import { migrateCosmeticIdList } from "@data/cosmeticCatalog";
 import type { EducationStage } from "../data/educationDegrees";
 
 const LEGACY_KEY = "lifequest_v3_save";
@@ -445,7 +446,7 @@ export function loadGlobalPrestige(): GlobalPrestigeState {
       plusScenarioCreditsMonth: parsed.plusScenarioCreditsMonth,
       plusMonthScenarioIds: parsed.plusMonthScenarioIds,
       plusCosmeticMonth: parsed.plusCosmeticMonth,
-      unlockedCosmeticIds: parsed.unlockedCosmeticIds ?? [],
+      unlockedCosmeticIds: migrateCosmeticIdList(parsed.unlockedCosmeticIds ?? []),
     };
   } catch {
     return { ...DEFAULT_PRESTIGE };

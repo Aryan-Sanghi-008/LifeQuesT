@@ -4,8 +4,8 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import Svg, { Path } from "react-native-svg";
 import { useTheme } from "@theme";
-import { FadeInView } from "@components/index";
-import { SCENARIOS, Scenario } from "@data/scenarios";
+import { ScenarioStorefrontCard } from "@components/scenario";
+import { SCENARIOS } from "@data/scenarios";
 import type { RootStackParamList, ScenarioId } from "@/types";
 import { useGameStore } from "@store/gameStore";
 import { FREE_SCENARIO_IDS } from "@data/scenarioCatalog";
@@ -16,88 +16,21 @@ import { getMonthKey } from "@data/plusRotation";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
-function LockIcon({ color }: { color: string }) {
+function SectionLabel({ label, right }: { label: string; right?: string }) {
+  const { colors, fonts } = useTheme();
   return (
-    <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-      <Path stroke={color} strokeWidth={2} strokeLinecap="round"
-        d="M19 11H5a2 2 0 00-2 2v7a2 2 0 002 2h14a2 2 0 002-2v-7a2 2 0 00-2-2zM7 11V7a5 5 0 0110 0v4" />
-    </Svg>
+    <View style={styles.sectionRow}>
+      <Text style={{ color: colors.t3, fontFamily: fonts.bodyBold, fontSize: 11, letterSpacing: 1 }}>
+        {label}
+      </Text>
+      {right ? (
+        <Text style={{ color: colors.gold, fontFamily: fonts.monoSemiBold, fontSize: 11 }}>
+          {right}
+        </Text>
+      ) : null}
+    </View>
   );
 }
-
-function ScenarioCard({ scenario, owned, onPress, subtitle }: { scenario: Scenario; owned: boolean; onPress: () => void; subtitle?: string }) {
-  const { colors, fonts, spacing, radii } = useTheme();
-  const accent = scenario.accentColor;
-
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.card,
-        {
-          backgroundColor: colors.bgCard,
-          borderColor: `${accent}30`,
-          borderRadius: radii.md,
-          opacity: pressed ? 0.9 : 1,
-        },
-      ]}
-      android_ripple={{ color: `${accent}15` }}
-    >
-      <View style={[styles.cardBand, { backgroundColor: `${accent}18` }]}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Text style={{ fontSize: 18 }}>{scenario.iconEmoji ?? "🌍"}</Text>
-          <View style={[styles.accentDot, { backgroundColor: accent }]} />
-        </View>
-        {owned ? (
-          <View style={[styles.lockBadge, { backgroundColor: `${colors.emerald}20`, borderWidth: 1, borderColor: `${colors.emerald}30` }]}>
-            <Text style={[styles.lockText, { color: colors.emerald, fontFamily: fonts.monoSemiBold }]}>OWNED</Text>
-          </View>
-        ) : scenario.isPremium ? (
-          <View style={[styles.lockBadge, { backgroundColor: colors.bg2 }]}>
-            <LockIcon color={colors.t3} />
-            <Text style={[styles.lockText, { color: colors.t3, fontFamily: fonts.body }]}>
-              {subtitle ?? scenario.priceLabel ?? "Premium"}
-            </Text>
-          </View>
-        ) : (
-          <View style={[styles.lockBadge, { backgroundColor: `${accent}20` }]}>
-            <Text style={[styles.lockText, { color: accent, fontFamily: fonts.bodySemiBold }]}>FREE</Text>
-          </View>
-        )}
-      </View>
-
-      <View style={[styles.cardBody, { padding: spacing.md, gap: spacing.xs }]}>
-        <Text style={[styles.cardName, { color: colors.t1, fontFamily: fonts.displayBold }]}>
-          {scenario.name}
-        </Text>
-        <Text style={[styles.cardTagline, { color: accent, fontFamily: fonts.bodySemiBold }]}>
-          {scenario.tagline}
-        </Text>
-        <Text style={[styles.cardDesc, { color: colors.t3, fontFamily: fonts.body }]} numberOfLines={2}>
-          {scenario.description}
-        </Text>
-      </View>
-    </Pressable>
-  );
-}
-
-const styles = StyleSheet.create({
-  card: { borderWidth: 1.5, overflow: "hidden" },
-  cardBand: {
-    height: 44,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    justifyContent: "space-between",
-  },
-  accentDot: { width: 8, height: 8, borderRadius: 4 },
-  lockBadge: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12 },
-  lockText: { fontSize: 11 },
-  cardBody: {},
-  cardName: { fontSize: 16 },
-  cardTagline: { fontSize: 12 },
-  cardDesc: { fontSize: 12, lineHeight: 17, marginTop: 2 },
-});
 
 export function ScenarioPickerScreen() {
   const { colors, fonts, spacing } = useTheme();
@@ -143,8 +76,13 @@ export function ScenarioPickerScreen() {
         paddingHorizontal: spacing.lg, paddingVertical: spacing.md,
         borderBottomWidth: 1, borderBottomColor: colors.border,
       }}>
-        <Pressable onPress={() => navigation.goBack()} hitSlop={8}
-          style={{ width: 32, height: 32, alignItems: "center", justifyContent: "center" }}>
+        <Pressable
+          onPress={() => navigation.goBack()}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+          style={{ width: 32, height: 32, alignItems: "center", justifyContent: "center" }}
+        >
           <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
             <Path stroke={colors.t1} strokeWidth={2.2} strokeLinecap="round" d="M15 18l-6-6 6-6" />
           </Svg>
@@ -153,76 +91,100 @@ export function ScenarioPickerScreen() {
         <View style={{ width: 32 }} />
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: 60 }}
-        showsVerticalScrollIndicator={false}>
-
+      <ScrollView
+        contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: 60 }}
+        showsVerticalScrollIndicator={false}
+      >
         {featuredScenario && (
           <>
-            <Text style={{ color: colors.gold, fontFamily: fonts.bodyBold, fontSize: 11, letterSpacing: 0.5 }}>
-              FEATURED SCENARIO
-            </Text>
-            <FadeInView delay={0}>
-            <ScenarioCard
-              scenario={featuredScenario}
+            <SectionLabel label="FEATURED" />
+            <ScenarioStorefrontCard
+              scenarioId={featuredScenario.id}
+              name={featuredScenario.name}
+              tagline={featuredScenario.tagline}
+              description={featuredScenario.description}
               owned={isScenarioOwned(featuredScenario.id)}
-              subtitle="Featured this week"
+              isPremium={featuredScenario.isPremium}
+              priceLabel={featuredScenario.priceLabel}
+              badgeSubtitle="Featured this week"
+              featured
+              variant="hero"
+              enterDelay={0}
               onPress={() => navigation.navigate("ScenarioDetail", { scenarioId: featuredScenario.id })}
             />
-            </FadeInView>
           </>
         )}
 
         {isPremium && (
           <>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={{ color: colors.t3, fontFamily: fonts.bodyBold, fontSize: 11, letterSpacing: 0.5 }}>
-                PLUS PICKS · {month}
-              </Text>
-              <Text style={{ color: colors.gold, fontFamily: fonts.monoSemiBold, fontSize: 11 }}>
-                {plusCredits} left
-              </Text>
-            </View>
+            <SectionLabel label={`PLUS PICKS · ${month}`} right={`${plusCredits} left`} />
             {plusScenarios.map((s, idx) => {
               const owned = isScenarioOwned(s.id);
               const pickedThisMonth = plusMonthIds.includes(s.id);
               return (
-                <FadeInView key={`plus-${s.id}`} delay={idx * 80}>
-                  <ScenarioCard
-                    scenario={s}
-                    owned={owned}
-                    subtitle={pickedThisMonth ? 'This month' : 'Use pick'}
-                    onPress={() => handlePlusPick(s.id)}
-                  />
-                </FadeInView>
+                <ScenarioStorefrontCard
+                  key={`plus-${s.id}`}
+                  scenarioId={s.id}
+                  name={s.name}
+                  tagline={s.tagline}
+                  description={s.description}
+                  owned={owned}
+                  isPremium={s.isPremium}
+                  priceLabel={s.priceLabel}
+                  badgeSubtitle={pickedThisMonth ? "This month" : "Use pick"}
+                  variant="editorial"
+                  enterDelay={idx * 70}
+                  onPress={() => handlePlusPick(s.id)}
+                />
               );
             })}
-            <View style={{ height: 8 }} />
+            <View style={{ height: 4 }} />
           </>
         )}
 
-        <Text style={{ color: colors.t3, fontFamily: fonts.bodyBold, fontSize: 11, letterSpacing: 0.5 }}>FREE</Text>
+        <SectionLabel label="FREE" />
         {freeScenarios.map((s, idx) => (
-          <FadeInView key={s.id} delay={idx * 80}>
-            <ScenarioCard
-              scenario={s}
-              owned={isScenarioOwned(s.id)}
-              onPress={() => navigation.navigate("ScenarioDetail", { scenarioId: s.id })}
-            />
-          </FadeInView>
+          <ScenarioStorefrontCard
+            key={s.id}
+            scenarioId={s.id}
+            name={s.name}
+            tagline={s.tagline}
+            description={s.description}
+            owned={isScenarioOwned(s.id)}
+            isPremium={false}
+            variant="editorial"
+            enterDelay={idx * 70}
+            onPress={() => navigation.navigate("ScenarioDetail", { scenarioId: s.id })}
+          />
         ))}
 
-        <View style={{ height: 8 }} />
-        <Text style={{ color: colors.t3, fontFamily: fonts.bodyBold, fontSize: 11, letterSpacing: 0.5 }}>PREMIUM</Text>
+        <View style={{ height: 4 }} />
+        <SectionLabel label="PREMIUM" />
         {premiumScenarios.map((s, idx) => (
-          <FadeInView key={s.id} delay={idx * 80}>
-            <ScenarioCard
-              scenario={s}
-              owned={isScenarioOwned(s.id)}
-              onPress={() => navigation.navigate("ScenarioDetail", { scenarioId: s.id })}
-            />
-          </FadeInView>
+          <ScenarioStorefrontCard
+            key={s.id}
+            scenarioId={s.id}
+            name={s.name}
+            tagline={s.tagline}
+            description={s.description}
+            owned={isScenarioOwned(s.id)}
+            isPremium
+            priceLabel={s.priceLabel}
+            variant="editorial"
+            enterDelay={idx * 70}
+            onPress={() => navigation.navigate("ScenarioDetail", { scenarioId: s.id })}
+          />
         ))}
       </ScrollView>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  sectionRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 4,
+  },
+});

@@ -80,6 +80,11 @@ describe('HomeScreen', () => {
     expect(getByLabelText(/Claim day 1 daily login reward/i)).toBeTruthy();
   });
 
+  it('shows active scenario storefront card', async () => {
+    const { getByLabelText } = await renderWithProviders(<HomeScreen />);
+    expect(getByLabelText(/Classic Life, owned/i)).toBeTruthy();
+  });
+
   it('calls claimLoginReward when daily reward is tapped', async () => {
     const { getByLabelText } = await renderWithProviders(<HomeScreen />);
     await fireEvent.press(getByLabelText(/Claim day 1 daily login reward/i));

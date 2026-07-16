@@ -1,5 +1,6 @@
 import { Character, AvatarStyleId, GlobalPrestigeState, ScenarioId } from '@/types';
 import { FREE_SCENARIO_IDS } from '@/data/scenarioCatalog';
+import { migrateCosmeticIdList } from '@data/cosmeticCatalog';
 
 export interface UserEntitlements {
   isPremium?: boolean;
@@ -7,6 +8,7 @@ export interface UserEntitlements {
   hasSeasonPass?: boolean;
   unlockedAvatarStyles?: AvatarStyleId[];
   unlockedScenarioIds?: ScenarioId[];
+  unlockedCosmeticIds?: string[];
   coinsGrant?: number;
   gemsGrant?: number;
   luckBoostGrant?: number;
@@ -60,6 +62,13 @@ export function applyEntitlementsToGlobalPrestige(
       ...entitlements.unlockedScenarioIds,
     ]);
     next.unlockedScenarioIds = Array.from(merged);
+  }
+  if (entitlements.unlockedCosmeticIds?.length) {
+    const merged = new Set<string>([
+      ...migrateCosmeticIdList(next.unlockedCosmeticIds),
+      ...migrateCosmeticIdList(entitlements.unlockedCosmeticIds),
+    ]);
+    next.unlockedCosmeticIds = Array.from(merged);
   }
   return next;
 }

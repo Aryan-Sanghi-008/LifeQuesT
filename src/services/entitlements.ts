@@ -38,6 +38,9 @@ export async function fetchUserEntitlements(uid: string): Promise<UserEntitlemen
   if (Array.isArray(data.unlockedScenarioIds)) {
     entitlements.unlockedScenarioIds = data.unlockedScenarioIds as UserEntitlements['unlockedScenarioIds'];
   }
+  if (Array.isArray(data.unlockedCosmeticIds)) {
+    entitlements.unlockedCosmeticIds = data.unlockedCosmeticIds as string[];
+  }
 
   return entitlements;
 }

@@ -7,6 +7,8 @@ import { useEquippedEventSkin } from "@shared/hooks/useEquippedEventSkin";
 import Svg, { Path, Circle, Rect } from "react-native-svg";
 import { RarityBadge } from "./RarityBadge";
 import { RarityEventCard } from "./RarityEventCard";
+import { ScenarioFxOverlay } from "./scenario/ScenarioArt";
+import { getScenarioVisual } from "./scenario/scenarioVisuals";
 
 // ─── Category Icon (SVG — no emojis) ─────────────────────────────────────────
 
@@ -274,10 +276,32 @@ function EventCardInner({ event, isNew = false, staggerIndex = 0, activeScenario
     if (!activeScenarioId || activeScenarioId === 'classic') return null;
     // event.color is stamped from the LifeEvent definition; scenario events use distinct colors
     if (event.color && event.color !== cfg.color) return event.color;
-    return null;
+    return getScenarioVisual(activeScenarioId).accent;
   }, [activeScenarioId, event.color, cfg.color]);
 
   const accentColor = scenarioAccent ?? cfg.color;
+
+  const scenarioEdgeOpacity = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!activeScenarioId || activeScenarioId === 'classic' || !isNew || reducedMotion) {
+      scenarioEdgeOpacity.setValue(0);
+      return;
+    }
+    scenarioEdgeOpacity.setValue(0);
+    Animated.sequence([
+      Animated.timing(scenarioEdgeOpacity, {
+        toValue: 0.7,
+        duration: 280,
+        delay: staggerIndex * 350,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scenarioEdgeOpacity, {
+        toValue: 0,
+        duration: 480,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [activeScenarioId, isNew, reducedMotion, scenarioEdgeOpacity, staggerIndex]);
 
   const chips: Array<{ label: string; positive: boolean }> = [];
   Object.entries(event.statEffect).forEach(([key, val]) => {
@@ -297,8 +321,12 @@ function EventCardInner({ event, isNew = false, staggerIndex = 0, activeScenario
         eventSkin.id !== 'default'
           ? {
               backgroundColor: eventSkin.cardBg,
-              borderColor: eventSkin.cardBorder,
+              borderColor: eventSkin.rarityFrame ?? eventSkin.cardBorder,
               borderWidth: 1.5,
+              shadowColor: eventSkin.shadowColor,
+              shadowOpacity: eventSkin.shadowColor ? 0.35 : 0,
+              shadowRadius: 8,
+              elevation: eventSkin.shadowColor ? 3 : 0,
             }
           : undefined
       }
@@ -313,10 +341,31 @@ function EventCardInner({ event, isNew = false, staggerIndex = 0, activeScenario
           style={[StyleSheet.absoluteFill, { backgroundColor: eventSkin.accentOverlay }]}
         />
       ) : null}
-      <View style={[styles.accentBar, { backgroundColor: accentColor }]} />
+      {activeScenarioId && activeScenarioId !== 'classic' ? (
+        <Animated.View
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, { opacity: scenarioEdgeOpacity }]}
+        >
+          <ScenarioFxOverlay scenarioId={activeScenarioId} opacity={1} />
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              {
+                borderWidth: 1,
+                borderColor: getScenarioVisual(activeScenarioId).accent,
+                borderRadius: 10,
+              },
+            ]}
+          />
+        </Animated.View>
+      ) : null}
+      <View style={[styles.accentBar, { backgroundColor: eventSkin.accentBar ?? accentColor }]} />
 
-      <View style={[styles.iconWrap, { backgroundColor: scenarioAccent ? `${scenarioAccent}18` : cfg.bgColor }]}>
-        <CategoryIcon category={event.category} color={accentColor} />
+      <View style={[styles.iconWrap, {
+        backgroundColor: eventSkin.iconBg
+          ?? (scenarioAccent ? `${scenarioAccent}18` : cfg.bgColor),
+      }]}>
+        <CategoryIcon category={event.category} color={eventSkin.accentBar ?? accentColor} />
       </View>
 
       <View style={styles.body}>

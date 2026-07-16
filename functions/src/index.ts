@@ -1,6 +1,6 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
-import { grantsForProduct, grantsToUserPatch, avatarStylesForGrants, scenarioIdsForGrants } from './entitlements';
+import { grantsForProduct, grantsToUserPatch, avatarStylesForGrants, scenarioIdsForGrants, cosmeticIdsForGrants } from './entitlements';
 import { verifyGooglePlayPurchase, isAllowUnverifiedIap } from './verifyGooglePlay';
 import { verifyAppStorePurchase } from './verifyAppStore';
 import {
@@ -116,6 +116,7 @@ export const verifyPurchase = functions.https.onCall(async (data, context) => {
   const userPatch = grantsToUserPatch(grants);
   const avatarStyles = avatarStylesForGrants(grants);
   const scenarioIds = scenarioIdsForGrants(grants);
+  const cosmeticIds = cosmeticIdsForGrants(grants);
 
   const batch = db.batch();
   batch.set(purchaseRef, {
@@ -125,13 +126,21 @@ export const verifyPurchase = functions.https.onCall(async (data, context) => {
     verifiedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
-  if (Object.keys(userPatch).length > 0 || avatarStyles.length > 0 || scenarioIds.length > 0) {
+  if (
+    Object.keys(userPatch).length > 0
+    || avatarStyles.length > 0
+    || scenarioIds.length > 0
+    || cosmeticIds.length > 0
+  ) {
     const patch: Record<string, unknown> = { ...userPatch };
     if (avatarStyles.length > 0) {
       patch.unlockedAvatarStyles = admin.firestore.FieldValue.arrayUnion(...avatarStyles);
     }
     if (scenarioIds.length > 0) {
       patch.unlockedScenarioIds = admin.firestore.FieldValue.arrayUnion(...scenarioIds);
+    }
+    if (cosmeticIds.length > 0) {
+      patch.unlockedCosmeticIds = admin.firestore.FieldValue.arrayUnion(...cosmeticIds);
     }
     batch.set(userRef, patch, { merge: true });
   }

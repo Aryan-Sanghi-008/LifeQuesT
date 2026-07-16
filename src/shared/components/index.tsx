@@ -17,7 +17,6 @@ export { SkeletonCard } from "./SkeletonCard";
 export { XPBar } from "./XPBar";
 export { StatDeltaChip } from "./StatDeltaChip";
 export { StatArc } from "./StatArc";
-export { ScenarioBanner } from "./ScenarioBanner";
 export { ConfettiOverlay } from "./ConfettiOverlay";
 export { ToastManager } from "./ToastManager";
 export { StatBar } from "./StatBar";

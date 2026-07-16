@@ -12,6 +12,11 @@ export type CloudSettings = Pick<
   | 'hapticsEnabled'
   | 'masterVolume'
   | 'musicVolume'
+  | 'equippedEventSkinId'
+  | 'equippedNameFontId'
+  | 'equippedSoundPackId'
+  | 'equippedProfileFrameId'
+  | 'equippedTombstoneId'
 >;
 
 const SYNC_KEYS: (keyof CloudSettings)[] = [
@@ -23,6 +28,11 @@ const SYNC_KEYS: (keyof CloudSettings)[] = [
   'hapticsEnabled',
   'masterVolume',
   'musicVolume',
+  'equippedEventSkinId',
+  'equippedNameFontId',
+  'equippedSoundPackId',
+  'equippedProfileFrameId',
+  'equippedTombstoneId',
 ];
 
 let pushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -40,6 +50,11 @@ export function cloudSettingsFromStore(): CloudSettings {
     hapticsEnabled: s.hapticsEnabled,
     masterVolume: s.masterVolume,
     musicVolume: s.musicVolume,
+    equippedEventSkinId: s.equippedEventSkinId,
+    equippedNameFontId: s.equippedNameFontId,
+    equippedSoundPackId: s.equippedSoundPackId,
+    equippedProfileFrameId: s.equippedProfileFrameId,
+    equippedTombstoneId: s.equippedTombstoneId,
   };
 }
 
@@ -94,6 +109,11 @@ export function bindSettingsCloudSync(uid: string | null): (() => void) | null {
       hapticsEnabled: state.hapticsEnabled,
       masterVolume: state.masterVolume,
       musicVolume: state.musicVolume,
+      equippedEventSkinId: state.equippedEventSkinId,
+      equippedNameFontId: state.equippedNameFontId,
+      equippedSoundPackId: state.equippedSoundPackId,
+      equippedProfileFrameId: state.equippedProfileFrameId,
+      equippedTombstoneId: state.equippedTombstoneId,
     };
 
     const changedKeys = SYNC_KEYS.filter((key) => next[key] !== prev[key]);

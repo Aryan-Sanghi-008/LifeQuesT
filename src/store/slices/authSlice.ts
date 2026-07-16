@@ -70,8 +70,11 @@ export const createAuthSlice: StateCreator<
 
       const entitlements = bootstrap.entitlements;
       if (entitlements) {
-        const { character, globalPrestige } = get();
-        if (entitlements.unlockedScenarioIds?.length) {
+        const { character, globalPrestige, activeSlotId } = get();
+        if (
+          entitlements.unlockedScenarioIds?.length
+          || entitlements.unlockedCosmeticIds?.length
+        ) {
           const updatedPrestige = applyEntitlementsToGlobalPrestige(
             globalPrestige,
             entitlements,
@@ -81,7 +84,35 @@ export const createAuthSlice: StateCreator<
           });
           saveGlobalPrestige(updatedPrestige);
         }
-        if (character) {
+        if (entitlements.isPremium || entitlements.hasNoAds || entitlements.hasSeasonPass) {
+          const { fanOutAccountEntitlementsToAllSlots } = require('@services/accountEntitlements') as typeof import('@services/accountEntitlements');
+          const updated = fanOutAccountEntitlementsToAllSlots(
+            {
+              isPremium: entitlements.isPremium,
+              hasNoAds: entitlements.hasNoAds,
+              hasSeasonPass: entitlements.hasSeasonPass,
+              unlockedAvatarStyles: entitlements.unlockedAvatarStyles,
+            },
+            activeSlotId,
+            character,
+          );
+          if (updated) {
+            set((s) => {
+              s.character = updated;
+              if (entitlements.isPremium) s.accountIsPremium = true;
+            });
+          } else if (character) {
+            const updatedChar = applyEntitlementsToCharacter(character, entitlements);
+            set((s) => {
+              if (s.character) s.character = updatedChar;
+              if (entitlements.isPremium) s.accountIsPremium = true;
+            });
+          }
+          if (hasPendingGrants(entitlements)) {
+            await clearConsumedGrants(user!.uid);
+            void get()._persist();
+          }
+        } else if (character) {
           const updated = applyEntitlementsToCharacter(
             character,
             entitlements,
