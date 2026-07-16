@@ -10,6 +10,7 @@
     "web": "expo start --web",
     "build:web": "expo export -p web",
     "simulate": "npx tsx scripts/balanceSimulator.ts",
+    "generate:sounds": "python3 scripts/generate-sound-packs.py",
     "prebuild": "expo prebuild",
     "test": "jest --watchman=false",
     "lint": "eslint . --ext .ts,.tsx",

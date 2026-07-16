@@ -210,11 +210,20 @@ export async function reloadSoundPack(): Promise<void> {
   await initAudio();
 }
 
+async function ensureActivePackLoaded(): Promise<SoundPackId> {
+  const packId = getActiveSoundPackId();
+  if (packId !== activePackId) {
+    await reloadSoundPack();
+    return getActiveSoundPackId();
+  }
+  return packId;
+}
+
 export async function playSound(effect: SoundEffect): Promise<void> {
   const { soundEnabled, masterVolume } = useSettingsStore.getState();
   if (!soundEnabled) return;
 
-  const packId = getActiveSoundPackId();
+  const packId = await ensureActivePackLoaded();
   const profile = SOUND_PACK_PROFILES[packId] ?? SOUND_PACK_PROFILES.default;
   await ensureSession();
 
